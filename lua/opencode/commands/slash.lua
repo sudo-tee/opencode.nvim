@@ -4,6 +4,7 @@ local config_file = require('opencode.config_file')
 local commands = require('opencode.commands')
 local log = require('opencode.log')
 local slash_commands = require('opencode.slash_commands')
+local slash_registry = require('opencode.services.slash_registry')
 
 local M = {}
 
@@ -76,6 +77,11 @@ local function to_runtime_slash_command(slash_cmd, def)
 end
 
 function M.execute_builtin(slash_cmd, args)
+  local custom = slash_registry.list()[slash_cmd:sub(2)]
+  if custom then
+    local parsed = commands.build_parsed_intent(slash_cmd, args or {})
+    return commands.execute_parsed_intent(parsed, custom.fn)
+  end
   local def = M.get_builtin_command_definitions()[slash_cmd]
   if not def then
     return
@@ -96,17 +102,30 @@ M.get_commands = Promise.async(function()
   end
 
   local user_commands = config_file.get_user_commands():await()
+  local custom_commands = slash_registry.list()
+  for name, def in pairs(custom_commands) do
+    table.insert(result, {
+      slash_cmd = '/' .. name,
+      desc = def.desc,
+      args = def.args == true,
+      fn = function(args)
+        return M.execute_builtin('/' .. name, args)
+      end,
+    })
+  end
   if user_commands then
     for name, def in pairs(user_commands) do
-      table.insert(result, {
-        slash_cmd = '/' .. name,
-        desc = def.description or 'User command',
-        fn = function(args)
-          local cmd_args = vim.list_extend({ name }, args or {})
-          return dispatch_parsed('command', cmd_args)
-        end,
-        args = true,
-      })
+      if not custom_commands[name] then
+        table.insert(result, {
+          slash_cmd = '/' .. name,
+          desc = def.description or 'User command',
+          fn = function(args)
+            local cmd_args = vim.list_extend({ name }, args or {})
+            return dispatch_parsed('command', cmd_args)
+          end,
+          args = true,
+        })
+      end
     end
   end
 
@@ -125,14 +144,16 @@ M.get_commands = Promise.async(function()
   end)
   if ok and skills then
     for _, skill in ipairs(skills) do
-      table.insert(result, {
-        slash_cmd = '/' .. skill.name,
-        desc = skill.description or 'Skill',
-        fn = function(args)
-          return dispatch_parsed('skill', vim.list_extend({ skill.name }, args or {}))
-        end,
-        args = true,
-      })
+      if not custom_commands[skill.name] then
+        table.insert(result, {
+          slash_cmd = '/' .. skill.name,
+          desc = skill.description or 'Skill',
+          fn = function(args)
+            return dispatch_parsed('skill', vim.list_extend({ skill.name }, args or {}))
+          end,
+          args = true,
+        })
+      end
     end
   end
 

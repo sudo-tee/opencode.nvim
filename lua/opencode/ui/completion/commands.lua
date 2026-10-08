@@ -1,6 +1,7 @@
 local Promise = require('opencode.promise')
 local config_file = require('opencode.config_file')
 local slash_commands = require('opencode.slash_commands')
+local slash_registry = require('opencode.services.slash_registry')
 local M = {}
 
 ---@param execute_slash_command? fun(slash_cmd: string, args: string[]|nil): any
@@ -22,14 +23,30 @@ local function create_source(execute_slash_command)
     end
 
     local user_commands = config_file.get_user_commands():await()
-    for name, command in pairs(user_commands or {}) do
+    local custom_commands = slash_registry.list()
+    for name, command in pairs(custom_commands) do
+      local key = '/' .. name
       table.insert(results, {
-        name = '/' .. name,
-        description = command.description or 'User command',
-        documentation = 'Opencode command: /' .. name,
-        command_key = name,
-        args = true,
+        name = key,
+        description = command.desc,
+        documentation = 'Opencode command: ' .. key,
+        command_key = key,
+        args = command.args == true,
+        fn = execute_slash_command and function(args)
+          return execute_slash_command(key, args)
+        end,
       })
+    end
+    for name, command in pairs(user_commands or {}) do
+      if not custom_commands[name] then
+        table.insert(results, {
+          name = '/' .. name,
+          description = command.description or 'User command',
+          documentation = 'Opencode command: /' .. name,
+          command_key = name,
+          args = true,
+        })
+      end
     end
 
     return results

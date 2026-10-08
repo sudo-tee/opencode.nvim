@@ -1148,6 +1148,28 @@ See the [Opencode Skills Documentation](https://opencode.ai/docs/skills/) for ho
 
 You can run predefined user commands and built-in slash commands from the input window by typing `/`. This opens a command picker where you can select a command to execute. The output of the command will be included in your prompt context.
 
+Local Lua commands can be registered without modifying internal tables:
+
+```lua
+require('opencode').register_slash_command({
+  name = 'worktree',
+  desc = 'Open a worktree session',
+  args = true,
+  fn = function(args)
+    -- args is a string array, empty when no arguments were supplied.
+    print(vim.inspect(args))
+  end,
+})
+```
+
+Registration works before or after `setup`. Commands appear in completion and
+the picker, and execute through command lifecycle hooks (filter by `/worktree`).
+Names use letters, digits, underscores, or hyphens, without a leading slash.
+Builtin and registered name collisions throw; local commands take precedence
+over same-named server commands and skills. Use
+`require('opencode').unregister_slash_command('worktree')` to remove one (returns
+whether it existed). Callback errors use the normal command error handling.
+
 **Built-in slash commands** include:
 
 - `/share` — Share the current session and get a link

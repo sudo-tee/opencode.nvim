@@ -1,12 +1,30 @@
 # Review a session diff
 
-Add inline feedback to changes from an OpenCode V2 session diff, then include that feedback as context in your next prompt.
+[Recipes](README.md) / Review a session diff
 
-1. Run `:Opencode diff open`, select a file, and move into its preview.
-2. Place cursor on a line or visually select lines, then press `c`. Type feedback and press `<C-s>` (or `:w`).
-3. Use `]r` / `[r` to revisit comments, `c` to edit, or `dc` to remove. A comment can refer to either side or to a deleted file.
-4. Press `q` to close the diff. Input receives focus with pending comments. Write a prompt and send it; comments are attached automatically.
+Comment on the agent's changes line by line, then send the comments with your
+next prompt. Requires OpenCode V2. For layouts, message ranges, and remapping,
+see [Reviewing changes](../review.md).
 
-The input context bar shows the new **Review comments** context item and count. Type `#` to toggle the whole group or select a comment to remove it individually. Disable automatic inclusion with `context.review_comments.enabled = false`.
+1. Run `:Opencode diff open` (or `<leader>od`), pick a file, and move into its
+   preview.
+2. Put the cursor on a line, or select several lines, and press `c`. Type your
+   comment and press `<C-s>` or `:w`.
+3. Use `]r` / `[r` to jump between comments, `c` to edit one, and `dc` to
+   delete it. You can comment on either side of the diff, including on a
+   deleted file.
+4. Press `q` in the file list or preview. The prompt opens with your comments
+   attached. Write a follow-up, such as "Fix these, keep the public API the
+   same", and send it.
 
-Line numbers refer to the reviewed session snapshot. Comments on the same file share one attachment and one locating instruction; each keeps its own feedback and original snippet. Neighboring lines and diff range stay local to resolve drift. Before sending, it checks current file contents, including unsaved edits. Only changed, moved, removed, or missing code adds current-file details to the payload.
+![Saved review comment beside its changed line](https://github.com/user-attachments/assets/af202f79-8980-4f46-a967-638563555967)
+
+The context bar shows a **Review comments** item with a count. Type `#` to turn
+the group off or remove a single comment. To stop attaching comments
+automatically, set `context.review_comments.enabled = false`.
+
+![Review comments in the input context completion menu](https://github.com/user-attachments/assets/9d129d2e-0aeb-4304-8919-b7d564117469)
+
+Line numbers in a comment refer to the reviewed snapshot. If the file has
+changed since then, including unsaved edits, the plugin also sends the current
+code around each comment so the agent can find the right place.

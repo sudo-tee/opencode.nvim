@@ -23,6 +23,7 @@ end
 ---@type OpencodeCommandApi
 local M = {}
 
+---@type table<string, table<string, fun(...): any>>
 local action_groups = {
   window = {
     swap_position = window.swap_position,
@@ -113,6 +114,15 @@ local action_groups = {
     review = workflow.review,
     add_visual_selection = workflow.add_visual_selection,
     add_visual_selection_inline = workflow.add_visual_selection_inline,
+  },
+
+  debug = {
+    debug_events = function(filename)
+      return require('opencode.ui.debug_helper').save_captured_events(filename)
+    end,
+    debug_log = function()
+      return require('opencode.ui.debug_helper').open_log()
+    end,
   },
 
   surface = {

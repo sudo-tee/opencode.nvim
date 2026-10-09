@@ -140,7 +140,28 @@ describe('opencode.commands.handlers', function()
     assert.same({ allow_empty = false }, defs.tab.nested_subcommand)
 
     assert.same({ 'input', 'output' }, defs.open.completions)
+    assert.same({ 'events', 'log' }, defs.debug.completions)
+    assert.same({ allow_empty = false }, defs.debug.nested_subcommand)
     assert.equal('user_commands', defs.command.completion_provider_id)
+  end)
+
+  it('routes debug events and log commands to the debug helper', function()
+    local workflow = require('opencode.commands.handlers.workflow')
+    local debug_helper = require('opencode.ui.debug_helper')
+    local save_events = stub(debug_helper, 'save_captured_events')
+    local open_log = stub(debug_helper, 'open_log')
+
+    workflow.command_defs.debug.execute({ 'events', '/tmp/events.json' })
+    workflow.command_defs.debug.execute({ 'log' })
+
+    assert.stub(save_events).was_called_with('/tmp/events.json')
+    assert.stub(open_log).was_called()
+
+    local ok, err = pcall(workflow.command_defs.debug.execute, { 'events', 'a.json', 'extra' })
+    save_events:revert()
+    open_log:revert()
+    assert.is_false(ok)
+    assert.same({ code = 'invalid_arguments', message = 'Usage: :Opencode debug events [filename]' }, err)
   end)
 
   it('keeps command semantic validation in window handler (open target)', function()

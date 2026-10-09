@@ -4,6 +4,7 @@
 ---@field debug_message fun()
 ---@field debug_session fun()
 ---@field save_captured_events fun(filename?: string): integer|nil
+---@field open_log fun()
 local M = {}
 
 local event_capture = require('opencode.event_capture')
@@ -64,6 +65,21 @@ end
 
 function M.save_captured_events(filename)
   return event_capture.save(filename)
+end
+
+function M.open_log()
+  local log = require('opencode.log')
+  local filename = log.get_path()
+  if not filename then
+    vim.notify('Plugin logging is disabled; enable logging.enabled to create a log file', vim.log.levels.WARN)
+    return
+  end
+  if vim.fn.filereadable(filename) ~= 1 then
+    vim.notify('Plugin log file does not exist yet: ' .. filename, vim.log.levels.WARN)
+    return
+  end
+
+  vim.cmd('edit ' .. vim.fn.fnameescape(filename))
 end
 
 return M

@@ -3,6 +3,17 @@ local M = {}
 local config = require('opencode.config')
 local state = require('opencode.state')
 
+---@param win integer
+function M.save_window_options(win)
+  local options = {}
+  for name, info in pairs(vim.api.nvim_get_all_options_info()) do
+    if info.scope == 'win' then
+      options[name] = vim.api.nvim_get_option_value(name, { win = win, scope = 'local' })
+    end
+  end
+  state.ui.set_saved_window_options(options)
+end
+
 ---@param opt_name string
 ---@param win integer
 local function save_original_window_option(opt_name, win)

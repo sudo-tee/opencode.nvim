@@ -7,6 +7,7 @@ local float_layout = require('opencode.ui.float_layout')
 local footer = require('opencode.ui.footer')
 local session_tab_strip = require('opencode.ui.session_tab_strip')
 local topbar = require('opencode.ui.topbar')
+local window_options = require('opencode.ui.window_options')
 
 local M = {}
 
@@ -135,7 +136,7 @@ local function close_or_restore_output_window(windows)
     end
     if state.saved_window_options then
       for opt, value in pairs(state.saved_window_options) do
-        pcall(vim.api.nvim_set_option_value, opt, value, { win = windows.output_win })
+        pcall(vim.api.nvim_set_option_value, opt, value, { win = windows.output_win, scope = 'local' })
       end
       state.ui.set_saved_window_options(nil)
     end
@@ -419,6 +420,7 @@ function M.create_split_windows(windows)
   local main_win
   if windows.position == 'current' then
     main_win = vim.api.nvim_get_current_win()
+    window_options.save_window_options(main_win)
   else
     main_win = open_split(windows.position, 'vertical')
   end

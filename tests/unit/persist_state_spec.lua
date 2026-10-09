@@ -233,6 +233,40 @@ describe('persist_state', function()
   end)
 
   describe('hidden buffer lifecycle', function()
+    it('restores code window options across repeated current-window hide and restore cycles', function()
+      setup_ui({ position = 'current' })
+      create_code_file()
+      local expected = {
+        number = true,
+        relativenumber = true,
+        wrap = false,
+        cursorline = true,
+        signcolumn = 'no',
+        colorcolumn = '80',
+      }
+      for opt, value in pairs(expected) do
+        vim.api.nvim_set_option_value(opt, value, { win = code_win, scope = 'local' })
+      end
+
+      windows = ui.create_windows()
+      state.ui.set_windows(windows)
+      local output_buf = windows.output_buf
+
+      for cycle = 1, 3 do
+        assert.is_false(vim.wo[code_win].number)
+        ui.hide_visible_windows(state.windows)
+        assert.equals(code_buf, vim.api.nvim_win_get_buf(code_win))
+        for opt, value in pairs(expected) do
+          assert.equals(value, vim.api.nvim_get_option_value(opt, { win = code_win }), opt .. ' cycle ' .. cycle)
+        end
+        assert.is_nil(state.saved_window_options)
+        if cycle < 3 then
+          assert.is_true(ui.restore_hidden_windows())
+          assert.equals(output_buf, state.windows.output_buf)
+        end
+      end
+    end)
+
     for _, preserve in ipairs({ false, true }) do
       it('unlocks a surviving input window when ' .. (preserve and 'hiding' or 'closing'), function()
         setup_ui()

@@ -11,15 +11,21 @@ without leaving the editor.
 
 ## Features
 
-- Chat panel with separate input and output buffers, prompt history, and
-  Markdown rendering.
-- Context from the current file, visual selections, `@` file mentions,
-  diagnostics, and clipboard images.
-- Multiple sessions, each in its own panel tab, plus a session picker and
-  timeline with undo and fork.
-- Session diff review with inline comments that go into your next prompt
-  (OpenCode V2).
-- Quick chat for one-off edits on the current line or selection (experimental).
+- [Chat panel](docs/usage.md#move-between-code-and-conversation) with separate
+  input and output buffers, [prompt history](docs/usage.md#prompt-history), and
+  [Markdown rendering](docs/usage.md#markdown-rendering).
+- [Context](docs/context.md) from the current file,
+  [visual selections](docs/context.md#add-a-selection),
+  [`@` file mentions](docs/context.md#mention-files-and-agents), diagnostics,
+  and [clipboard images](docs/context.md#attach-an-image).
+- [Multiple sessions](docs/usage.md#sessions-and-panel-tabs), each in its own
+  panel tab, plus a session picker and
+  [timeline](docs/usage.md#timeline-and-session-tree) with undo and fork.
+- [Session diff review](docs/review.md) with
+  [inline comments](docs/review.md#leave-inline-feedback) that go into your next
+  prompt (OpenCode V2).
+- [Quick chat](docs/usage.md#quick-chat-experimental) for one-off edits on the
+  current line or selection (experimental).
 
 Works with OpenCode V1 and V2 servers; the protocol is detected automatically.
 The `v1` branch keeps the old plugin code and is not needed for a V1 server.

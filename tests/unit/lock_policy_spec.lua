@@ -11,7 +11,7 @@ describe('session lock policy', function()
   local seen
 
   before_each(function()
-    base = '/tmp/opencode/lock-policy-' .. tostring(vim.uv.hrtime())
+    base = vim.fs.normalize(vim.fn.fnamemodify(vim.fn.tempname(), ':p'))
     project, other = base .. '/project', base .. '/other'
     vim.fn.mkdir(project, 'p')
     vim.fn.mkdir(other, 'p')

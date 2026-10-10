@@ -645,6 +645,14 @@ M.open_session = Promise.async(function(opts)
   end
   local location = { directory = directory }
   local connection = server_job.ensure_server():await()
+  local server_directory = vim.fs.normalize(util.apply_path_map(directory))
+  ---@param candidate_directory string
+  ---@return boolean
+  local function matches_directory(candidate_directory)
+    local normalized = vim.fs.normalize(candidate_directory)
+    -- Responses may remain server-side when no reverse mapping is configured.
+    return normalized == directory or normalized == server_directory
+  end
   local selected_session
   if opts.session_id then
     selected_session = connection.operations
@@ -654,7 +662,7 @@ M.open_session = Promise.async(function(opts)
       error('Session not found: ' .. opts.session_id)
     end
     local selected_directory = session_directory(selected_session)
-    if selected_directory and vim.fs.normalize(selected_directory) ~= directory then
+    if selected_directory and not matches_directory(selected_directory) then
       error('Session belongs to a different directory: ' .. selected_directory)
     end
   elseif not opts.new then
@@ -662,7 +670,8 @@ M.open_session = Promise.async(function(opts)
       .list_sessions_project(connection, location, util.apply_path_map, util.apply_reverse_path_map)
       :await()
     for _, candidate in ipairs(sort_sessions(sessions)) do
-      if not candidate.parentID and session_directory(candidate) == directory then
+      local candidate_directory = session_directory(candidate)
+      if not candidate.parentID and candidate_directory and matches_directory(candidate_directory) then
         selected_session = candidate
         break
       end

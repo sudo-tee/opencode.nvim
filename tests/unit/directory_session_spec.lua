@@ -7,11 +7,15 @@ local support = require('tests.unit.services_spec_support')
 local config = require('opencode.config')
 
 describe('directory-bound session API', function()
-  local saved, open, ensure, connection, directory, original_lock
+  local saved, open, ensure, connection, directory, original_lock, original_path_map, original_reverse_path_map
 
   before_each(function()
     saved = vim.deepcopy(state.store.state())
     original_lock = config.lock_session_to_directory
+    original_path_map = config.server.path_map
+    original_reverse_path_map = config.server.reverse_path_map
+    config.server.path_map = nil
+    config.server.reverse_path_map = nil
     config.lock_session_to_directory = false
     state.session_tabs.reset()
     state.ui.set_windows(nil)
@@ -38,6 +42,8 @@ describe('directory-bound session API', function()
     open:revert()
     ensure:revert()
     config.lock_session_to_directory = original_lock
+    config.server.path_map = original_path_map
+    config.server.reverse_path_map = original_reverse_path_map
     state.session_tabs.reset()
     for key in pairs(state.store.state()) do
       state.store.set_raw(key, nil)
@@ -88,6 +94,68 @@ describe('directory-bound session API', function()
 
   it('creates when no root session exists in the directory', function()
     assert.equal('new', runtime.open_session({ directory = directory }):wait().id)
+  end)
+
+  it('reuses mapped server sessions without a reverse path map', function()
+    local server_directory = '/server/worktree'
+    config.server.path_map = function(path)
+      return path == directory and server_directory or path
+    end
+    connection.operations.list_sessions_project = function(_, location, path_map)
+      assert.equal(server_directory, path_map(location.directory))
+      return Promise.new():resolve({
+        { id = 'other', directory = '/server/other', time = { updated = 5 } },
+        { id = 'child', directory = server_directory, parentID = 'root', time = { updated = 4 } },
+        { id = 'latest', directory = server_directory .. '/.', time = { updated = 3 } },
+        { id = 'older', location = { directory = server_directory }, time = { updated = 2 } },
+      })
+    end
+    local create = stub(connection.operations, 'create_session')
+    local ok, err = pcall(function()
+      local result = runtime.open_session({ directory = directory }):wait()
+      assert.equal('latest', result.id)
+      assert.equal(directory, result.location.directory)
+      runtime.open_session({ directory = directory }):wait()
+      assert.equal(1, #state.session_tabs.list())
+      assert.stub(create).was_not_called()
+    end)
+    create:revert()
+    assert.is_true(ok, tostring(err))
+  end)
+
+  it('accepts mapped explicit sessions but rejects another server directory', function()
+    local server_directory = '/server/worktree'
+    config.server.path_map = function(path)
+      return path == directory and server_directory or path
+    end
+    connection.operations.get_session = function(_, id)
+      return Promise.new():resolve({ id = id, directory = server_directory .. '/.', time = { updated = 1 } })
+    end
+    assert.equal('mapped', runtime.open_session({ directory = directory, session_id = 'mapped' }):wait().id)
+    server_directory = '/server/other'
+    config.server.path_map = function(path)
+      return path == directory and '/server/worktree' or path
+    end
+    assert.is_false(pcall(function()
+      runtime.open_session({ directory = directory, session_id = 'other' }):wait()
+    end))
+    assert.equal(1, #state.session_tabs.list())
+  end)
+
+  it('reuses normalized local sessions returned by a reverse path map', function()
+    config.server.path_map = function()
+      return '/server/worktree'
+    end
+    config.server.reverse_path_map = function()
+      return directory .. '/.'
+    end
+    connection.operations.list_sessions_project = function(_, _, _, reverse_path_map)
+      return Promise.new():resolve({
+        { id = 'local', location = { directory = reverse_path_map('/server/worktree') }, time = { updated = 1 } },
+      })
+    end
+    assert.equal('local', runtime.open_session({ directory = directory }):wait().id)
+    assert.equal(directory, state.current_cwd)
   end)
 
   it('rejects invalid options and creation errors before activating a tab', function()

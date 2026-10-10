@@ -65,6 +65,28 @@ Sharing publishes the conversation at a public link. Undo can change files on
 disk. Panel tabs and the session tree are covered in
 [Usage](usage.md#sessions-and-panel-tabs).
 
+### Directory-bound sessions
+
+`api.open_session(opts)` opens a session in a logical panel tab without changing
+Neovim's cwd. There is no equivalent built-in Ex or slash command.
+
+| Option | Meaning |
+| --- | --- |
+| `directory` | Required existing local directory; relative paths resolve against Neovim's cwd |
+| `new` | Create a fresh session instead of resuming; incompatible with `session_id` |
+| `session_id` | Open a specific session belonging to the supplied directory |
+| `title` | Title for a newly created session |
+
+Without `new` or `session_id`, it resumes the most recent root session in that
+exact directory, or creates one if absent. Already-open sessions reuse their
+panel tab. The Promise resolves to the session and rejects on invalid options,
+server startup, lookup, creation, or panel failure. Normal path mapping applies.
+
+Completion and new sessions use the bound directory, including after tab
+switches. Explicit editor directory changes follow
+[`lock_session_to_directory`](configuration.md#directory-changes).
+See [Worktree sessions](recipes/worktree.md) for a complete example.
+
 ## Models, agents, and permissions
 
 | Command | Lua call | Default key |

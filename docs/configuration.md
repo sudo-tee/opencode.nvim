@@ -36,11 +36,44 @@ require('opencode').setup({
 | `default_mode` | `'build'` | Initial agent, including custom agent names |
 | `default_system_prompt` | `nil` | Custom system prompt for sessions |
 | `opencode_executable` | `'opencode'` | CLI name or path |
-| `lock_session_to_directory` | `false` | Preserve the active session across `DirChanged` events |
+| `lock_session_to_directory` | `false` | `true` preserves the active session across `DirChanged`; a function decides per change |
 | `child_readonly` | `true` | Block messaging and hide input in child sessions |
 
 Server settings are covered in [Servers](servers.md). Quick chat options are
 covered in [Usage](usage.md#quick-chat-experimental).
+
+## Directory changes
+
+By default, changing Neovim's directory loads the target directory's last
+session. Set `lock_session_to_directory = true` to keep the active session
+instead, including a panel tab's bound directory.
+
+The option also accepts a function receiving `{ from, to, session }`. Return
+`true` to keep the active session or `false` to follow the new directory.
+`from` is the bound directory, or the directory the session was loaded from;
+`to` is the new directory. Callback errors are reported and fall back to
+following cwd. Manual lock toggles override the policy per panel tab.
+
+For example, this policy keeps a conversation when moving between worktrees of
+the same repository. Put it in your existing `setup()` options:
+
+```lua
+require('opencode').setup({
+  lock_session_to_directory = function(change)
+    local function common_dir(dir)
+      local result = vim.system({
+        'git', '-C', dir, 'rev-parse', '--path-format=absolute', '--git-common-dir',
+      }, { text = true }):wait()
+      return result.code == 0 and vim.trim(result.stdout) or nil
+    end
+    local repo = common_dir(change.from)
+    return repo ~= nil and repo == common_dir(change.to)
+  end,
+})
+```
+
+This keeps the conversation; it does not move the session to the new worktree.
+For separate conversations, see [Worktree sessions](recipes/worktree.md).
 
 ## Full default configuration
 

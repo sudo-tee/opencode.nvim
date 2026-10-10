@@ -105,6 +105,9 @@ The tab strip is hidden while there is only one tab; set
 asks a question or needs a permission, you get a notification. Turn that off
 with `ui.notify_on_background_prompt = false`.
 
+To open a session in another worktree without changing your editor directory,
+see [Worktree sessions](recipes/worktree.md).
+
 ## Models and agents
 
 - `<leader>op` picks a provider and model. `<C-f>` marks a favorite. The list

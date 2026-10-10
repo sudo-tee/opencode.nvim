@@ -53,6 +53,33 @@ and [`dispatch.lua`](../lua/opencode/commands/dispatch.lua) for the lifecycle
 contract. They fire for every command, whether it came from a key, an API
 call, an Ex command, or a slash command.
 
+## Local slash commands
+
+Register a Lua callback before or after `setup()`:
+
+```lua
+require('opencode').register_slash_command({
+  name = 'hello',
+  desc = 'Show supplied arguments',
+  args = true,
+  fn = function(args)
+    vim.notify(table.concat(args, ' '))
+  end,
+})
+```
+
+`fn` receives a string array, empty when no arguments were supplied. `args = true`
+lets completion leave room for arguments. Commands appear in completion and the
+picker, and execute through command lifecycle hooks; filter by `/hello`.
+
+Names contain letters, digits, underscores, or hyphens, without a leading slash.
+Builtin and registered name collisions throw. Local commands take precedence
+over same-named server commands and skills. Callback errors use normal command
+error handling. `require('opencode').unregister_slash_command('hello')` removes
+the command and returns whether it existed.
+
+See [Worktree sessions](recipes/worktree.md) for a practical command.
+
 ## Prompt guard
 
 `prompt_guard(mentioned_files)` must return a boolean. It receives a list of

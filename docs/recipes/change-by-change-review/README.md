@@ -1,118 +1,95 @@
-# Change-By-Change Review
+# Change-by-change review
 
-Review changes Opencode made using [diffview-plus](https://github.com/dlyongemallo/diffview-plus.nvim)
-and (optionally) [gitsigns](https://github.com/lewis6991/gitsigns.nvim)
+[Recipes](../README.md) / Change-by-change review
 
-![Change-By-Change-Demo](./change-by-change.gif)
+Review legacy V1 snapshot changes through
+[diffview-plus](https://github.com/dlyongemallo/diffview-plus.nvim), with optional
+[gitsigns](https://github.com/lewis6991/gitsigns.nvim) hunk navigation.
 
-## Problem
+![Change-by-change review in diffview-plus](change-by-change.gif)
 
-Opencode.nvim already provides a way to see changes after running a prompt.
-It can be opened using `:Opencode diff_open`, `:Opencode diff open`, hovering the `Created Snapshot` output 
-and pressing `D`, or the default keymap `<leader>od`.
+## When to use it
 
-Diffview+ gives the user a few more features: layout customization, a tree to navigate changed files from,
-a way to mark what you've already reviewed, accepting/rejecting changes,
-familiar keymaps if you're already using it, and a bunch more configuration options.
+Use this if you already prefer diffview-plus and are working with **OpenCode V1
+snapshots**. For V2, use the built-in [session diff review](../../review.md): it
+has a file tree, range selection, and inline comments without this integration.
 
-Gitsigns can be used to fill context when asking the AI to revise an edit.
+V1 snapshots are experimental. This recipe relies on plugin internals, not a
+stable external snapshot API, so check it again after upgrades.
 
-## Solution
+## Prerequisites
 
-This integration can be made by adding a few lines to diffview+'s and gitsigns' configs. Really just adding 
-a couple of keymaps.
+- OpenCode V1 and an active session with at least one snapshot.
+- diffview-plus installed and configured.
+- gitsigns, if you want the optional hunk mappings.
 
-## Quick Start
+## Setup
 
-### Prerequisites
+Add this mapping after configuring opencode.nvim and diffview-plus:
 
-- [diffview+](https://github.com/dlyongemallo/diffview-plus.nvim)
-- [gitsigns](https://github.com/lewis6991/gitsigns.nvim) (optional)
-
-### Setup
-
-#### Diffview/Diffview-plus
-
-**`Lazy keys spec (if you lazy load opencode.nvim):`**
 ```lua
-keys = {
-        { "<leader>odv", function ()
-            local path = require("opencode.config_file").get_workspace_snapshot_path():wait()
-            local first_snapshot = require("opencode.git_review").get_first_snapshot()
-            vim.cmd("DiffviewOpen \"-C=" .. path .. "\"" .. " " .. first_snapshot)
-        end, desc = "diff against start of session"},
+vim.keymap.set('n', '<leader>odv', function()
+  local path = require('opencode.config_file').get_workspace_snapshot_path():wait()
+  local first_snapshot = require('opencode.git_review').get_first_snapshot()
+  vim.cmd('DiffviewOpen "-C=' .. path .. '" ' .. first_snapshot)
+end, { desc = 'Review V1 session in diffview-plus' })
+```
+
+For optional hunk navigation and sending a hunk as context, merge this
+`on_attach` into your gitsigns setup. This is a lazy.nvim spec; keep any existing
+`on_attach` behavior when combining it with your own configuration.
+
+```lua
+return {
+  'lewis6991/gitsigns.nvim',
+  opts = {
+    on_attach = function(bufnr)
+      local gs = require('gitsigns')
+      local function map(lhs, callback, desc)
+        vim.keymap.set('n', lhs, callback, { buffer = bufnr, desc = desc })
+      end
+      map(']c', function()
+        if vim.wo.diff then
+          vim.cmd.normal({ ']c', bang = true })
+        else
+          gs.nav_hunk('next')
+        end
+      end, 'Next change')
+      map('[c', function()
+        if vim.wo.diff then
+          vim.cmd.normal({ '[c', bang = true })
+        else
+          gs.nav_hunk('prev')
+        end
+      end, 'Previous change')
+      map('<leader>oyh', function()
+        gs.select_hunk()
+        require('opencode.api').add_visual_selection({ open_input = false })
+      end, 'Send hunk to OpenCode')
+    end,
+  },
 }
 ```
 
-**`Or vim.keymap.set:`**
-```lua
-vim.keymap.set("n", "<leader>odv", function()
-    local path = require("opencode.config_file").get_workspace_snapshot_path():wait()
-    local first_snapshot = require("opencode.git_review").get_first_snapshot()
-    vim.cmd("DiffviewOpen \"-C=" .. path .. "\"" .. " " .. first_snapshot)
-end, { desc = "open session changes in diffview"})
-```
+## Try it
 
-#### Gitsigns
+1. Let a V1 session create a snapshot and make an edit.
+2. Press `<leader>odv` to review changes since the first session snapshot.
+3. In diffview-plus, use `<Tab>` / `<S-Tab>` for files and `]c` / `[c` for hunks.
+4. In a working file with gitsigns attached, `<leader>oyh` selects the hunk and
+   adds it to OpenCode context. Inspect it before sending a follow-up.
+5. Close the review tab with `:tabclose`.
 
-This is from the [gitsigns recommended keymaps](https://github.com/lewis6991/gitsigns.nvim#-keymaps). 
-This will give you the "hunk x of y" output, but is not necessary. `]c` and `[c` are defined in a diff 
-buffer by NeoVim, you'd just have to select them manually without the gitsigns shorthand.
+## Caveats and undo
 
-**`gitsigns configuration`** (straight from `gitsigns`'s recommended setup)
-```lua
-opts = {
-    on_attach = {
-        local gs = require("gitsigns")
-        map('n', ']c', function()
-          if vim.wo.diff then
-            vim.cmd.normal({']c', bang = true})
-          else
-            gs.nav_hunk('next')
-          end
-        end, "next change")
-        map('n', '[c', function()
-          if vim.wo.diff then
-            vim.cmd.normal({'[c', bang = true})
-          else
-            gs.nav_hunk('prev')
-          end
-        end, "prev change")
-    }
-}
-```
+diffview-plus uses `-C` to run Git against the snapshot directory. This does not
+turn V2 session revisions into a Git repository.
 
-Add this new mapping in the `on_attach` after your other mappings to send a hunk to context:
+In diff windows, `do` takes the other side's change; `dp` puts the current side's
+change into the other buffer. These edit buffers, so inspect the target side and
+save or back up work before using them. Follow diffview-plus's own documentation
+for accepting/rejecting changes.
 
-**`gitsigns.opts.on_attach`**
-```lua
-    map("n", "<leader>oyh", function()
-        vim.cmd("Gitsigns select_hunk")
-        require("opencode.context").add_visual_selection()
-    end, "send hunk to opencode context")
-```
+Remove `<leader>odv` and the optional gitsigns mappings to undo this recipe.
 
-
-### Usage
-
-Once Opencode has created a snapshot and made some edits, you can review the edits since the start of 
-the session by pressing `<leader>odv`.
-
-Inside diffview+:
-
-- `<tab>` and `<s-tab>` jump between changed files 
-- `]c` and `[c` jump between changes
-- use `do` to "use other diff" (delete a change) and `dp` if you're in the `old` buffer to "put diff" 
-into the `LOCAL` buffer
-- if you're in the `LOCAL` buffer, `<leader>oyh` will send the hunk to Opencode context.
-- `:tabc` to exit diffview+
-
-## How It Works
-
-Diffview+ can start with a different path to git. That's specified with the `-C` argument.
-Git itself can give you a diff against these snapshots. This causes Diffview+ to use the path 
-provided by `-C` as its git command execution base.
-
----
-
-Contributed by @[Kortantic](https://github.com/kortantic)
+Contributed by [Kortantic](https://github.com/Kortantic).

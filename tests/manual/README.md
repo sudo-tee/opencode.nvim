@@ -50,7 +50,7 @@ To capture new event data for testing:
 
 1. Set `capture_streamed_events = true` in your config
 2. Use OpenCode normally to generate the events you want to capture
-3. Use `:lua require('opencode.ui.debug_helper').save_captured_events('data.json')` to save the captured events
+3. Use `:Opencode debug events data.json` to save the captured events
 4. That data can then be loaded with `:ReplayLoad`
 
 V1 captures store `type` and `properties`; V2 captures preserve native event fields, including timestamps, and replay through the V2 Observation. Keep each capture file to one protocol.

@@ -1,10 +1,89 @@
--- Default and user-provided settings for opencode.nvim
----@type OpencodeConfigModule
----@diagnostic disable-next-line: missing-fields
-local M = {}
--- Default configuration
----@type OpencodeConfig
-M.defaults = {
+# Configuration
+
+[Documentation](README.md) / Configuration
+
+Start with `setup({})` and set only what you want to change. Every option and
+keymap is in the [full default configuration](#full-default-configuration);
+types are in [`lua/opencode/types.lua`](../lua/opencode/types.lua).
+
+To see the settings in effect:
+
+```vim
+:lua print(vim.inspect(require('opencode.config').values))
+```
+
+Server credentials show up in this output, so check it before sharing.
+
+## Common starting points
+
+```lua
+require('opencode').setup({
+  keymap_prefix = '<leader>a',
+  preferred_picker = 'snacks',
+  ui = {
+    position = 'left',
+    window_width = 0.35,
+    icons = { preset = 'text' },
+  },
+})
+```
+
+| Option | Default | Purpose |
+| --- | --- | --- |
+| `preferred_picker` | `nil` | Auto-detect; choices: `telescope`/`telescope.nvim`, `fzf`/`fzf-lua`, `mini.pick`, `snacks`/`snacks.nvim`, `select` |
+| `default_global_keymaps` | `true` | Install the default editor-wide mappings |
+| `keymap_prefix` | `'<leader>o'` | Rewrites mappings that start with `<leader>o` to use this prefix |
+| `default_mode` | `'build'` | Initial agent, including custom agent names |
+| `default_system_prompt` | `nil` | Custom system prompt for sessions |
+| `opencode_executable` | `'opencode'` | CLI name or path |
+| `lock_session_to_directory` | `false` | `true` preserves the active session across `DirChanged`; a function decides per change |
+| `child_readonly` | `true` | Block messaging and hide input in child sessions |
+
+Server settings are covered in [Servers](servers.md). Quick chat options are
+covered in [Usage](usage.md#quick-chat-experimental).
+
+## Directory changes
+
+By default, changing Neovim's directory loads the target directory's last
+session. Set `lock_session_to_directory = true` to keep the active session
+instead, including a panel tab's bound directory.
+
+The option also accepts a function receiving `{ from, to, session }`. Return
+`true` to keep the active session or `false` to follow the new directory.
+`from` is the bound directory, or the directory the session was loaded from;
+`to` is the new directory. Callback errors are reported and fall back to
+following cwd. Manual lock toggles override the policy per panel tab.
+
+For example, this policy keeps a conversation when moving between worktrees of
+the same repository. Put it in your existing `setup()` options:
+
+```lua
+require('opencode').setup({
+  lock_session_to_directory = function(change)
+    local function common_dir(dir)
+      local result = vim.system({
+        'git', '-C', dir, 'rev-parse', '--path-format=absolute', '--git-common-dir',
+      }, { text = true }):wait()
+      return result.code == 0 and vim.trim(result.stdout) or nil
+    end
+    local repo = common_dir(change.from)
+    return repo ~= nil and repo == common_dir(change.to)
+  end,
+})
+```
+
+This keeps the conversation; it does not move the session to the new worktree.
+For separate conversations, see [Worktree sessions](recipes/worktree.md).
+
+## Full default configuration
+
+Optional callbacks and values are shown as `nil`.
+
+<details open>
+<summary>Show all default options</summary>
+
+```lua
+require('opencode').setup({
   preferred_picker = nil,
   default_global_keymaps = true,
   default_mode = 'build',
@@ -409,84 +488,217 @@ M.defaults = {
     default_agent = nil,
     instructions = nil, -- Use instructions prompt by default
   },
-}
+})
+```
 
-M.values = vim.deepcopy(M.defaults)
+</details>
 
-local function update_keymap_prefix(prefix, default_prefix)
-  if prefix == default_prefix or not prefix then
-    return
-  end
+## Keymaps
 
-  for category, mappings in pairs(M.values.keymap) do
-    local new_mappings = {}
-    for key, opts in pairs(mappings) do
-      if vim.startswith(key, default_prefix) then
-        local new_key = prefix .. key:sub(#default_prefix + 1)
+Mappings are grouped by where they apply:
 
-        -- make sure there's not already a mapping for that key
-        if new_mappings[new_key] == nil then
-          new_mappings[new_key] = opts
-        end
-      else
-        new_mappings[key] = opts
-      end
-    end
-    M.values.keymap[category] = new_mappings
-  end
-end
+- `editor`: global mappings.
+- `input_window`, `output_window`, `tab_strip_window`: panel-local mappings.
+- `session_diff`: review-local mappings, split into `list`, `messages`,
+  `preview`, `comment`, `message_preview`, and `help`.
+- Picker tables such as `session_picker`, `timeline_picker`, `history_picker`,
+  `model_picker`, and `mcp_picker`: action names mapped to keys.
 
---- Setup function to initialize or update the configuration
---- @param opts OpencodeConfig
-function M.setup(opts)
-  opts = opts or {}
+A panel mapping entry accepts an action name or callback, an optional argument
+table, and options including `mode`, `desc`, and `defer_to_completion`.
+Unspecified mappings keep their defaults; `false` disables a key.
 
-  M.values = vim.tbl_deep_extend('force', M.values, opts --[[@as OpencodeConfig]])
+```lua
+require('opencode').setup({
+  keymap = {
+    input_window = {
+      ['<S-cr>'] = false,
+      ['<C-s>'] = {
+        'submit_input_prompt',
+        mode = { 'n', 'i' },
+        desc = 'Send prompt',
+      },
+    },
+    editor = {
+      ['<leader>oy'] = {
+        'add_visual_selection', { open_input = false }, mode = { 'v' },
+      },
+    },
+  },
+})
+```
 
-  if opts.default_global_keymaps == false then
-    M.values.keymap.editor = opts.keymap and opts.keymap.editor or {}
-  end
+`defer_to_completion = true` lets an open completion menu handle the key before
+the plugin action. It is useful for keys such as `<Tab>`, `<Up>`, and `<Down>`.
 
-  update_keymap_prefix(M.values.keymap_prefix, M.defaults.keymap_prefix)
-end
+To own all global mappings, disable defaults and define only your keys:
 
---- Get the key binding for a specific function in a scope
---- @param scope 'editor'|'input_window'|'output_window'
---- @param function_name string
---- @return string|nil
-function M.get_key_for_function(scope, function_name)
-  local keymap_config = M.values.keymap and M.values.keymap[scope]
-  if not keymap_config then
-    return nil
-  end
+```lua
+require('opencode').setup({
+  default_global_keymaps = false,
+  keymap = {
+    editor = {
+      ['<leader>ai'] = { 'open_input', desc = 'Ask OpenCode' },
+      ['<leader>ad'] = { 'diff_open', desc = 'Review OpenCode changes' },
+    },
+  },
+})
+```
 
-  -- All configs are normalized after setup, so only handle new format
-  for key, config in pairs(keymap_config) do
-    if type(config) == 'string' then
-      -- New format: key = 'function_name'
-      if config == function_name then
-        return key
-      end
-    elseif type(config) == 'table' then
-      -- New format: key = { 'function_name', mode = 'mode' }
-      local func = config[1]
-      if func == function_name then
-        return key
-      end
-    end
-  end
-  return nil
-end
+This does not disable panel-local mappings. The full current bindings are in
+[`config.lua`](../lua/opencode/config.lua); the [usage guide](usage.md) lists
+the everyday ones. Session diff remapping has its own [example](review.md#customize-review-keys).
 
----@export Config
-return setmetatable(M, {
-  __index = function(_, key)
-    return M.values[key]
-  end,
-  __newindex = function(_, key, value)
-    M.values[key] = value
-  end,
-  __tostring = function(_)
-    return vim.inspect(M.values)
-  end,
-}) --[[@as OpencodeConfig &  OpencodeConfigModule]]
+## Window layout
+
+| Option | Default | Meaning |
+| --- | --- | --- |
+| `ui.position` | `'right'` | `right`, `left`, `current`, or `float` |
+| `ui.input_position` | `'bottom'` | `bottom` or `top` |
+| `ui.window_width` | `0.40` | Split width as a fraction of editor width |
+| `ui.zoom_width` | `0.8` | Zoomed split width |
+| `ui.persist_state` | `true` | Preserve UI buffers when closing/hiding |
+| `ui.input.min_height` / `max_height` | `0.10` / `0.25` | Input height bounds as window-height fractions |
+| `ui.input.text.wrap` | `false` | Wrap prompt text |
+| `ui.input.auto_hide` | `false` | Hide input after submission or focus moves to output |
+| `ui.hide_single_tab` | `true` | Hide the strip with one panel tab |
+| `ui.notify_on_background_prompt` | `true` | Notify about background questions/permissions |
+
+Floating windows use `ui.float`, with width `0.95`, height `0.9`, rounded border,
+gap `1`, and z-index `40` by default. Optional `row` and `col` control position.
+
+Apply window-local input options with `ui.input.win_options`:
+
+```lua
+require('opencode').setup({
+  ui = {
+    input = {
+      text = { wrap = true },
+      win_options = { signcolumn = 'no', cursorline = true },
+    },
+  },
+})
+```
+
+For a more involved layout toggle, see the
+[three-state recipe](recipes/three-state-layout/README.md).
+
+## Output and rendering
+
+- `ui.display_model`, `display_context_size`, and `display_cost` are on by default.
+- `ui.output.compact_assistant_headers` accepts `false`/`'full'`,
+  `true`/`'minimal'`, or `'hidden'`. Minimal headers collapse repeated agent
+  information.
+- `ui.output.max_messages = nil` means no initial limit. With a limit, scrolling
+  up, `[[`, or `gg` loads older messages. `<leader>otm` toggles the limit.
+- `ui.output.always_scroll_to_bottom = false` allows reading older output.
+- `ui.output.time_format` accepts an `os.date` format or `nil` for the default.
+- `ui.output.actions.open_in_new_tab = false` makes inline child/fork actions
+  replace the active session. Set it to `true` to open them in a new panel tab.
+
+Tool output and reasoning are shown by default. Foldable output uses a threshold
+of 25 lines. Customize with:
+
+```lua
+require('opencode').setup({
+  ui = {
+    output = {
+      tools = {
+        show_reasoning_output = false,
+        folding_threshold = 40,
+        fold_exclude = {
+          'bash',
+          { server = 'sequential-thinking', tool = 'sequentialthinking' },
+        },
+      },
+    },
+  },
+})
+```
+
+`fold_exclude` accepts exact built-in tool names or MCP server/tool pairs.
+`<leader>ott` and `<leader>otr` toggle tool and reasoning output at runtime.
+
+Markdown Treesitter support is enabled by `ui.enable_treesitter_markdown`.
+Rendering settings live under `ui.output.rendering`: debounce is `250` ms,
+stream-event throttle is `40` ms, and event collapsing is on. Set
+`on_data_rendered` to a callback `(buf, win)` to customize post-render behavior,
+or `false` to disable the default RenderMarkdown/Markview behavior.
+For slower setups, `markdown_on_idle = true` defers Markdown rendering while
+prompts are active; `markdown_on_idle_threshold` adjusts that threshold.
+
+## Icons
+
+The default preset is `nerdfonts`. For a plain-text UI:
+
+```lua
+require('opencode').setup({
+  ui = { icons = { preset = 'text' } },
+})
+```
+
+Override individual keys without replacing the preset:
+
+```lua
+require('opencode').setup({
+  ui = {
+    icons = {
+      preset = 'text',
+      overrides = { header_user = '> ', header_assistant = 'AI ', search = 'FIND ' },
+    },
+  },
+})
+```
+
+All supported keys are listed in [`ui/icons.lua`](../lua/opencode/ui/icons.lua).
+Highlight customization is covered in [Hooks and events](extensions.md#highlights).
+
+## Context
+
+Read [Context](context.md) for what gets sent and when. A focused setup might
+disable automatic current-file attachment while keeping selections:
+
+```lua
+require('opencode').setup({
+  context = {
+    current_file = { enabled = false },
+    selection = { enabled = true },
+    diagnostics = { only_closest = false, info = false, warning = true, error = true },
+  },
+})
+```
+
+Cursor context is off by default; enable it with
+`context.cursor_data = { enabled = true, context_lines = 5 }`.
+Current and mentioned file display paths are controlled by
+`context.current_file.show_full_path` and `context.files.show_full_path`.
+
+## Pickers and completion
+
+File completion asks the server for files by default. To use a local tool,
+set `ui.completion.file_sources.preferred_cli_tool` to `fd`, `fdfind`, `rg`, or
+`git`; `nil` is the same as `'server'`. Whichever tool is chosen, the others
+are tried in turn if it fails. Results are capped at 10 files and displayed
+paths at 50 characters. `ignore_patterns` takes Lua patterns, not shell globs;
+check the defaults before overriding it.
+
+Snacks pickers inherit your Snacks layout unless you set an override:
+
+```lua
+require('opencode').setup({
+  ui = { picker = { snacks_layout = { preset = 'select' } } },
+})
+```
+
+The same field accepts a complete Snacks layout configuration or one of your
+custom presets. See [Snacks picker layouts](https://github.com/folke/snacks.nvim/blob/main/docs/picker.md)
+for that schema.
+
+Related recipe: [quiet Blink completion](recipes/quiet-blink.md).
+Use `~` in input insert mode to add files with your preferred picker.
+
+## Hooks, guards, and diagnostics
+
+[Hooks and events](extensions.md) covers `hooks` and `prompt_guard`.
+[Troubleshooting](troubleshooting.md#enable-plugin-logging) covers `logging` and
+debug buffers. Logging is off by default; its configured level defaults to `info`.

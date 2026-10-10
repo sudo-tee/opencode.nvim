@@ -1,43 +1,39 @@
-# Recipe Template
+# Recipe title
 
-One-line description of what this recipe enables.
+[Recipes](README.md) / Recipe title
 
-![Demo animation](./demo.gif)
+One sentence explaining the task this makes easier.
 
-## Problem
+## When to use it
 
-What workflow pain does this solve? 2-3 specific scenarios.
+Describe a concrete workflow problem. Mention simpler built-in alternatives
+and why this recipe needs more configuration.
 
-## Solution
+## Prerequisites
 
-Brief description of the approach.
+- Plugin/tool dependencies and relevant versions.
+- OpenCode V1/V2 assumptions.
 
-## Quick Start
+## Setup
 
-### Prerequisites
+Say exactly where the following configuration belongs. Provide a complete,
+copyable example; do not use `...` inside executable code.
 
-- Required tools/versions
+## Try it
 
-### Setup
+1. Start from a specific editor state.
+2. Perform the action, including keys/commands.
+3. Describe the expected result.
 
-```bash
-# Installation steps
-```
+Add a short recording here if it helps; otherwise leave it out.
 
-### Usage
+## Caveats and undo
 
-```lua
--- Configuration snippet
-```
+Explain limitations, any destructive behavior, and how to remove the setup.
+Link to relevant guides or API contracts rather than repeating them.
 
-## How It Works
+## Related
 
-Key technical details. Link to relevant APIs if needed.
+Link to a real existing guide or recipe, if useful.
 
-## Integration
-
-- Combine with [other-recipe](../other-recipe/README.md) for more capabilities
-
----
-
-Contributed by @[username](https://github.com/username)
+Contributed by: your GitHub handle (optional).

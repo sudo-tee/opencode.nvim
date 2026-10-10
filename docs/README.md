@@ -1,23 +1,27 @@
-# Opencode.nvim Documentation
+# Documentation
+
+New to the plugin? Start with [Getting started](getting-started.md). Inside
+Neovim, `:help opencode.nvim` has a short summary.
+
+## Guides
+
+- [Getting started](getting-started.md): install, check the setup, and send a first prompt.
+- [Usage](usage.md): the panel, prompt history, Markdown rendering, sessions and panel tabs, models, permissions, quick chat.
+- [Context](context.md): what is sent with a prompt and how to change it.
+- [Reviewing changes](review.md): V2 session diffs and inline review comments.
+- [Servers](servers.md): remote servers, authentication, containers, WSL.
+- [Troubleshooting](troubleshooting.md): connection, keymap, and rendering problems; bug reports.
+
+## Reference
+
+- [Configuration](configuration.md): common options and the full defaults.
+- [Commands and Lua API](reference.md): `:Opencode` commands, Lua calls, slash commands, skills.
+- [Hooks and events](extensions.md): callbacks, prompt guard, User autocmds, highlights.
+- [Compatibility](compatibility.md): V1 and V2 differences, V1 snapshots.
 
 ## Recipes
 
-Community-contributed configurations and workflows for opencode.nvim.
+[Recipes](recipes/README.md) are optional setups for particular workflows, such
+as sharing a session with the TUI or a three-way layout toggle.
 
-### Available Recipes
-
-- [Bidirectional TUI/nvim Sync](./recipes/bidirectional-sync/README.md) - Share sessions between TUI and nvim plugin seamlessly
-- [Three-State Layout Toggle](./recipes/three-state-layout/README.md) - Instantly switch between code/split/dialog viewing modes
-- [Change-by-Change Review](./recipes/change-by-change-review/README.md) - Review Opencode edits using diffview+ and gitsigns
-- [Review a Session Diff](./recipes/review-session-diff.md) - Comment on changed lines and send review comments as prompt context
-
-### Contributing a Recipe
-
-Want to share your setup? Use the [Recipe Template](./recipes/TEMPLATE.md) to ensure consistency:
-
-- Start with the problem you're solving
-- Include a GIF demonstration
-- Provide step-by-step setup instructions
-- Cross-reference related recipes
-
-Recipes should be self-contained and solve a specific workflow need.
+To contribute, see [CONTRIBUTING.md](../CONTRIBUTING.md).

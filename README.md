@@ -570,6 +570,50 @@ Available icon keys (see implementation at lua/opencode/ui/icons.lua lines 7-29)
 - `persist_state = true` (default): `toggle()` hides/restores the UI and keeps buffers/session view in memory for fast restore.
 - `persist_state = false`: `toggle()` fully tears down UI buffers and recreates them on next open.
 
+Directory-bound sessions can be opened in logical panel tabs without changing
+Neovim's cwd:
+
+```lua
+require('opencode.api').open_session({
+  directory = '/path/to/repo/.worktrees/feature',
+  new = true,
+  title = 'Feature work',
+})
+```
+
+Returns a Promise resolving to the session; failures reject. The directory must
+exist locally (normal path mapping still applies). Omit `new` to reopen the most
+recent root session created in that exact directory, or create one if absent.
+Pass `session_id` to open a specific session; `new` and `session_id` are mutually
+exclusive. Already-open sessions reuse their logical tab. Completion and new
+sessions use the bound directory, including after tab switches. Explicit
+directory changes still follow `lock_session_to_directory`; locked bound tabs
+keep their directory.
+
+For worktree or other per-project workflows, `lock_session_to_directory` also
+accepts a function. It is called on each directory change with
+`{ from, to, session }` and returns `true` to keep the active session or `false`
+to load the target directory's last session. `from` is the bound directory (or
+the directory the session was loaded from) and `to` is the new directory. An
+error in the function is reported and falls back to following the cwd. Manual
+lock toggles still override the policy per logical tab.
+
+```lua
+require('opencode').setup({
+  lock_session_to_directory = function(change)
+    local function common_dir(dir)
+      local r = vim.system({ 'git', '-C', dir, 'rev-parse', '--path-format=absolute', '--git-common-dir' }, { text = true }):wait()
+      return r.code == 0 and vim.trim(r.stdout) or nil
+    end
+    local repo = common_dir(change.from)
+    return repo ~= nil and repo == common_dir(change.to)
+  end,
+})
+```
+
+That example keeps a session across the main checkout and linked worktrees of
+the same repository.
+
 Related APIs:
 
 - `require('opencode.api').toggle()` follows the `persist_state` behavior above.
@@ -1147,6 +1191,28 @@ See the [Opencode Skills Documentation](https://opencode.ai/docs/skills/) for ho
 ## User Commands and Slash Commands
 
 You can run predefined user commands and built-in slash commands from the input window by typing `/`. This opens a command picker where you can select a command to execute. The output of the command will be included in your prompt context.
+
+Local Lua commands can be registered without modifying internal tables:
+
+```lua
+require('opencode').register_slash_command({
+  name = 'worktree',
+  desc = 'Open a worktree session',
+  args = true,
+  fn = function(args)
+    -- args is a string array, empty when no arguments were supplied.
+    print(vim.inspect(args))
+  end,
+})
+```
+
+Registration works before or after `setup`. Commands appear in completion and
+the picker, and execute through command lifecycle hooks (filter by `/worktree`).
+Names use letters, digits, underscores, or hyphens, without a leading slash.
+Builtin and registered name collisions throw; local commands take precedence
+over same-named server commands and skills. Use
+`require('opencode').unregister_slash_command('worktree')` to remove one (returns
+whether it existed). Callback errors use the normal command error handling.
 
 **Built-in slash commands** include:
 

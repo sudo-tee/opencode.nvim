@@ -4,6 +4,10 @@ local setup_done = false
 local state
 
 local session_runtime = require('opencode.services.session_runtime')
+local slash_registry = require('opencode.services.slash_registry')
+
+M.register_slash_command = slash_registry.register
+M.unregister_slash_command = slash_registry.unregister
 
 local function on_opencode_server()
   require('opencode.ui.permission_window').clear_all()

@@ -238,8 +238,7 @@ function M.setup_autocmds(windows)
         end
       end
 
-      state.context.set_current_cwd(event.file)
-      require('opencode.services.session_runtime').handle_directory_change()
+      require('opencode.services.session_runtime').handle_directory_change(event.file)
     end,
   })
 

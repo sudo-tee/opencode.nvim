@@ -159,13 +159,40 @@ local function sort_sessions(sessions)
   return sessions
 end
 
+---Manual lock wins over config. A function policy decides per directory change;
+---without `cwd` it is evaluated against the current Neovim cwd.
+---@param cwd? string Directory the editor is moving to
 ---@return boolean
-function M.is_session_locked()
+function M.is_session_locked(cwd)
   local explicit = state.store.get('session_locked')
   if explicit ~= nil then
     return explicit
   end
-  return config.lock_session_to_directory == true
+  local policy = config.lock_session_to_directory
+  if type(policy) ~= 'function' then
+    return policy == true
+  end
+  local session = state.active_session
+  if not session then
+    return false
+  end
+  local runtime = session_tabs.current()
+  local from = (runtime and runtime.bound_directory)
+    or (session.location and session.location.directory)
+    or state.current_cwd
+  if not from then
+    return false
+  end
+  local ok, result = pcall(policy, {
+    from = from,
+    to = cwd or vim.fn.getcwd(),
+    session = session,
+  })
+  if not ok then
+    vim.notify('lock_session_to_directory failed: ' .. tostring(result), vim.log.levels.WARN)
+    return false
+  end
+  return result == true
 end
 
 ---@param value boolean
@@ -281,13 +308,25 @@ M.is_prompting_allowed = function()
 end
 
 M.check_cwd = function()
+  local runtime = session_tabs.current()
+  if runtime and runtime.bound_directory then
+    local cwd = vim.fn.getcwd()
+    if runtime.bound_editor_cwd == cwd or M.is_session_locked(cwd) then
+      runtime.bound_editor_cwd = cwd
+      state.context.set_current_cwd(runtime.bound_directory)
+      return
+    end
+    runtime.bound_directory = nil
+    runtime.bound_editor_cwd = nil
+  end
   if state.current_cwd ~= vim.fn.getcwd() then
     log.debug(
       'CWD changed since last check, resetting session and context',
       { current_cwd = state.current_cwd, new_cwd = vim.fn.getcwd() }
     )
+    local locked = M.is_session_locked(vim.fn.getcwd())
     state.context.set_current_cwd(vim.fn.getcwd())
-    if M.is_session_locked() then
+    if locked then
       return
     end
     state.session.clear_active()
@@ -533,14 +572,23 @@ end)
 
 ---Mount an existing session in a new logical panel tab.
 ---@param selected_session OpencodeSession
+---@param directory? string Explicit tab directory; omitted preserves existing behavior.
 ---@return Promise<OpencodeSession|nil>
-M.open_session_in_tab = Promise.async(function(selected_session)
+M.open_session_in_tab = Promise.async(function(selected_session, directory)
   if not selected_session or not selected_session.id then
     return nil
   end
 
   for _, runtime in ipairs(session_tabs.list()) do
     if runtime.active_session and runtime.active_session.id == selected_session.id then
+      if directory then
+        runtime.bound_directory = directory
+        runtime.bound_editor_cwd = vim.fn.getcwd()
+        runtime.current_cwd = directory
+        if session_tabs.active_id() == runtime.id then
+          state.context.set_current_cwd(directory)
+        end
+      end
       M.switch_session_tab(runtime.id):await()
       return selected_session
     end
@@ -554,6 +602,11 @@ M.open_session_in_tab = Promise.async(function(selected_session)
   session_tabs.sync()
 
   local runtime = session_tabs.create(selected_session)
+  if directory then
+    runtime.bound_directory = directory
+    runtime.bound_editor_cwd = vim.fn.getcwd()
+    runtime.current_cwd = directory
+  end
   session_tabs.activate(runtime)
   context.restore(session_tabs.get_context())
   state.model.clear()
@@ -565,6 +618,75 @@ M.open_session_in_tab = Promise.async(function(selected_session)
     open_action = 'create_fresh',
   }):await()
 
+  return selected_session
+end)
+
+---@class OpencodeOpenSessionOpts
+---@field directory string Existing local directory (relative paths resolve against Neovim cwd)
+---@field new? boolean Always create a session; incompatible with session_id
+---@field session_id? string Open this session in the supplied directory
+---@field title? string Title for a newly created session
+
+---Open a directory-bound logical tab without changing Neovim cwd.
+---Defaults to the latest root session in that directory, creating one if absent.
+---Rejects on invalid options, startup, lookup, creation, or panel failure.
+---@param opts OpencodeOpenSessionOpts
+---@return Promise<OpencodeSession>
+M.open_session = Promise.async(function(opts)
+  if opts.new and opts.session_id then
+    error('new and session_id are mutually exclusive')
+  end
+  if opts.directory == '' then
+    error('Session directory cannot be empty')
+  end
+  local directory = vim.fs.normalize(vim.fn.fnamemodify(opts.directory, ':p'))
+  if vim.fn.isdirectory(directory) ~= 1 then
+    error('Session directory does not exist: ' .. directory)
+  end
+  local location = { directory = directory }
+  local connection = server_job.ensure_server():await()
+  local server_directory = vim.fs.normalize(util.apply_path_map(directory))
+  ---@param candidate_directory string
+  ---@return boolean
+  local function matches_directory(candidate_directory)
+    local normalized = vim.fs.normalize(candidate_directory)
+    -- Responses may remain server-side when no reverse mapping is configured.
+    return normalized == directory or normalized == server_directory
+  end
+  local selected_session
+  if opts.session_id then
+    selected_session = connection.operations
+      .get_session(connection, opts.session_id, location, util.apply_path_map, util.apply_reverse_path_map)
+      :await()
+    if not selected_session then
+      error('Session not found: ' .. opts.session_id)
+    end
+    local selected_directory = session_directory(selected_session)
+    if selected_directory and not matches_directory(selected_directory) then
+      error('Session belongs to a different directory: ' .. selected_directory)
+    end
+  elseif not opts.new then
+    local sessions = connection.operations
+      .list_sessions_project(connection, location, util.apply_path_map, util.apply_reverse_path_map)
+      :await()
+    for _, candidate in ipairs(sort_sessions(sessions)) do
+      local candidate_directory = session_directory(candidate)
+      if not candidate.parentID and candidate_directory and matches_directory(candidate_directory) then
+        selected_session = candidate
+        break
+      end
+    end
+  end
+  if not selected_session then
+    selected_session = connection.operations
+      .create_session(connection, location, { title = opts.title }, util.apply_path_map, util.apply_reverse_path_map)
+      :await()
+    if not selected_session then
+      error('Failed to create session')
+    end
+  end
+  selected_session = vim.tbl_extend('force', {}, selected_session, { location = location })
+  M.open_session_in_tab(selected_session, directory):await()
   return selected_session
 end)
 
@@ -585,11 +707,13 @@ end)
 ---@param title? string
 ---@return Promise<OpencodeSession|nil>
 M.open_session_tab = Promise.async(function(title)
+  local runtime = session_tabs.current()
+  local directory = runtime and runtime.bound_directory
   local new_session = M.create_new_session(title):await()
   if not new_session then
     return nil
   end
-  return M.open_session_in_tab(new_session):await()
+  return M.open_session_in_tab(new_session, directory):await()
 end)
 
 ---Switch to a logical tab inside the Opencode panel.
@@ -614,6 +738,9 @@ M.switch_session_tab = Promise.async(function(tab_id)
   session_tabs.activate(runtime)
   context.restore(session_tabs.get_context())
 
+  if runtime.bound_directory then
+    runtime.bound_editor_cwd = vim.fn.getcwd()
+  end
   local focus = state.last_focused_opencode_window == 'output' and 'output' or 'input'
   M.open({
     focus = focus,
@@ -898,11 +1025,19 @@ M._on_current_permission_change = Promise.async(function(_, new, old)
   end
 end)
 
-M.handle_directory_change = Promise.async(function()
-  local cwd = vim.fn.getcwd()
-  log.debug('Working directory change %s', vim.inspect({ cwd = cwd, locked = M.is_session_locked() }))
+---@param cwd? string Directory from DirChanged; defaults to Neovim cwd.
+M.handle_directory_change = Promise.async(function(cwd)
+  cwd = cwd or vim.fn.getcwd()
+  local locked = M.is_session_locked(cwd)
+  log.debug('Working directory change %s', vim.inspect({ cwd = cwd, locked = locked }))
 
-  if M.is_session_locked() and state.active_session then
+  if locked and state.active_session then
+    local runtime = session_tabs.current()
+    if runtime and runtime.bound_directory then
+      runtime.bound_editor_cwd = cwd
+    else
+      state.context.set_current_cwd(cwd)
+    end
     vim.notify(
       'Session locked, staying on [' .. state.active_session.id .. '] in new working dir [' .. cwd .. ']',
       vim.log.levels.INFO
@@ -912,6 +1047,12 @@ M.handle_directory_change = Promise.async(function()
 
   vim.notify('Loading last session for new working dir [' .. cwd .. ']', vim.log.levels.INFO)
 
+  local runtime = session_tabs.current()
+  if runtime then
+    runtime.bound_directory = nil
+    runtime.bound_editor_cwd = nil
+  end
+  state.context.set_current_cwd(cwd)
   state.session.clear_active()
   context.unload_attachments()
 

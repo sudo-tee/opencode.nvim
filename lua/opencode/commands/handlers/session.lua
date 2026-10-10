@@ -116,6 +116,8 @@ local function run_api_action_with_checktime(request_promise, error_prefix, on_s
     end)
 end
 
+M.actions.open_session = session_runtime.open_session
+
 function M.actions.open_input_new_session()
   return session_runtime.open({ new_session = true, focus = 'input', start_insert = true })
 end

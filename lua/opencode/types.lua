@@ -433,6 +433,11 @@
 ---@field preset_args? string[]
 ---@field fn? fun(args:string[]|nil):nil|Promise<any>|any
 
+---@class OpencodeDirectoryChange
+---@field from string Directory the session is bound to (or was loaded from)
+---@field to string Directory the editor is moving to
+---@field session OpencodeSession The active session
+
 ---@class OpencodeConfig
 ---@field preferred_picker 'telescope' | 'telescope.nvim' | 'fzf' | 'fzf-lua' | 'mini.pick' | 'snacks' | 'snacks.nvim' | 'select' | nil
 ---@field default_global_keymaps boolean
@@ -440,7 +445,7 @@
 ---@field default_system_prompt string | nil
 ---@field keymap_prefix string
 ---@field opencode_executable 'opencode' | string -- Command run for calling opencode
----@field lock_session_to_directory boolean -- If true, active session is preserved across DirChanged events
+---@field lock_session_to_directory boolean|fun(change: OpencodeDirectoryChange): boolean -- true locks everywhere; a function decides per directory change; errors fall back to following cwd
 ---@field server OpencodeServerConfig -- Custom/external server configuration
 ---@field keymap OpencodeKeymap
 ---@field ui OpencodeUIConfig

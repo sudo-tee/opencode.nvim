@@ -79,7 +79,7 @@ For separate conversations, see [Worktree sessions](recipes/worktree.md).
 
 Optional callbacks and values are shown as `nil`.
 
-<details>
+<details open>
 <summary>Show all default options</summary>
 
 ```lua

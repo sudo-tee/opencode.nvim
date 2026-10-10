@@ -58,6 +58,9 @@ return {
 With another plugin manager, install the plugin and call
 `require('opencode').setup({})`. Then run `:checkhealth opencode`.
 
+See the [full default configuration](docs/configuration.md#full-default-configuration)
+for all available options.
+
 ## Quick start
 
 1. Open a file and press `<leader>oi`. The prompt opens in insert mode.

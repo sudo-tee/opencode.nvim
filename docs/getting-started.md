@@ -29,6 +29,14 @@ The result should be `1`. If your binary has another name or location, set
 return {
   'sudo-tee/opencode.nvim',
   dependencies = {
+    -- Optional: choose a picker you already use, or keep vim.ui.select.
+    -- 'folke/snacks.nvim',
+    -- 'nvim-telescope/telescope.nvim',
+    -- 'ibhagwan/fzf-lua',
+    -- 'nvim-mini/mini.pick',
+    -- Optional: use your configured completion engine, or built-in completion.
+    -- 'saghen/blink.cmp',
+    -- 'hrsh7th/nvim-cmp',
     {
       'MeanderingProgrammer/render-markdown.nvim',
       opts = {
@@ -48,6 +56,15 @@ the plugin and call this once from your configuration:
 ```lua
 require('opencode').setup({})
 ```
+
+The commented dependencies are alternatives, not a list to install in full.
+Uncomment the picker and completion engine you use, and configure them through
+their own plugin specs. Listing a dependency alone does not configure it.
+Prompt completion uses the plugin's in-process LSP server: enable your engine's
+LSP source (`lsp` in blink.cmp, or `nvim_lsp` with `cmp-nvim-lsp` in nvim-cmp).
+No separate OpenCode completion source is needed. See
+[optional integrations](#optional-integrations) and the
+[full default configuration](configuration.md#full-default-configuration).
 
 ## Check your installation
 

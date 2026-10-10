@@ -42,6 +42,14 @@ With [lazy.nvim](https://github.com/folke/lazy.nvim):
 return {
   'sudo-tee/opencode.nvim',
   dependencies = {
+    -- Optional: choose a picker you already use, or keep vim.ui.select.
+    -- 'folke/snacks.nvim',
+    -- 'nvim-telescope/telescope.nvim',
+    -- 'ibhagwan/fzf-lua',
+    -- 'nvim-mini/mini.pick',
+    -- Optional: use your configured completion engine, or built-in completion.
+    -- 'saghen/blink.cmp',
+    -- 'hrsh7th/nvim-cmp',
     {
       'MeanderingProgrammer/render-markdown.nvim',
       opts = {
@@ -59,7 +67,9 @@ With another plugin manager, install the plugin and call
 `require('opencode').setup({})`. Then run `:checkhealth opencode`.
 
 See the [full default configuration](docs/configuration.md#full-default-configuration)
-for all available options.
+for all available options, and
+[optional integrations](docs/getting-started.md#optional-integrations) for
+picker and completion setup.
 
 ## Quick start
 

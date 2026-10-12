@@ -1,8 +1,18 @@
-# opencode.nvim
+# 🤖 opencode.nvim
 
 A Neovim frontend for [OpenCode](https://opencode.ai). Chat with the agent in a
 side panel, send it files, selections, and diagnostics, and review its edits
 without leaving the editor.
+
+<div align="center">
+
+![Neovim](https://img.shields.io/badge/NeoVim-%2357A143.svg?&style=for-the-badge&logo=neovim&logoColor=white)
+[![GitHub stars](https://img.shields.io/github/stars/sudo-tee/opencode.nvim?style=for-the-badge)](https://github.com/sudo-tee/opencode.nvim/stargazers)
+![Last Commit](https://img.shields.io/github/last-commit/sudo-tee/opencode.nvim?style=for-the-badge)
+
+<a href="https://www.buymeacoffee.com/sudo.tee"><img src="https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png" height="20px"></a>
+
+</div>
 
 <div align="center">
 

@@ -6,7 +6,8 @@ Neovim, `:help opencode.nvim` has a short summary.
 ## Guides
 
 - [Getting started](getting-started.md): install, check the setup, and send a first prompt.
-- [Usage](usage.md): the panel, prompt history, Markdown rendering, sessions and panel tabs, models, permissions, quick chat.
+- [Usage](usage.md): models, sessions and panel tabs, agents, the panel, permissions, prompt history.
+- [Quick chat](quick-chat.md): in-place edits, commit messages, and custom ad-hoc commands.
 - [Context](context.md): what is sent with a prompt and how to change it.
 - [Reviewing changes](review.md): V2 session diffs and inline review comments.
 - [Servers](servers.md): remote servers, authentication, containers, WSL.

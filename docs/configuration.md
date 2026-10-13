@@ -14,67 +14,6 @@ To see the settings in effect:
 
 Server credentials show up in this output, so check it before sharing.
 
-## Common starting points
-
-```lua
-require('opencode').setup({
-  keymap_prefix = '<leader>a',
-  preferred_picker = 'snacks',
-  ui = {
-    position = 'left',
-    window_width = 0.35,
-    icons = { preset = 'text' },
-  },
-})
-```
-
-| Option | Default | Purpose |
-| --- | --- | --- |
-| `preferred_picker` | `nil` | Auto-detect; choices: `telescope`/`telescope.nvim`, `fzf`/`fzf-lua`, `mini.pick`, `snacks`/`snacks.nvim`, `select` |
-| `default_global_keymaps` | `true` | Install the default editor-wide mappings |
-| `keymap_prefix` | `'<leader>o'` | Rewrites mappings that start with `<leader>o` to use this prefix |
-| `default_mode` | `'build'` | Initial agent, including custom agent names |
-| `default_system_prompt` | `nil` | Custom system prompt for sessions |
-| `opencode_executable` | `'opencode'` | CLI name or path |
-| `lock_session_to_directory` | `false` | `true` preserves the active session across `DirChanged`; a function decides per change |
-| `child_readonly` | `true` | Block messaging and hide input in child sessions |
-
-Server settings are covered in [Servers](servers.md). Quick chat options are
-covered in [Usage](usage.md#quick-chat-experimental).
-
-## Directory changes
-
-By default, changing Neovim's directory loads the target directory's last
-session. Set `lock_session_to_directory = true` to keep the active session
-instead, including a panel tab's bound directory.
-
-The option also accepts a function receiving `{ from, to, session }`. Return
-`true` to keep the active session or `false` to follow the new directory.
-`from` is the bound directory, or the directory the session was loaded from;
-`to` is the new directory. Callback errors are reported and fall back to
-following cwd. Manual lock toggles override the policy per panel tab.
-
-For example, this policy keeps a conversation when moving between worktrees of
-the same repository. Put it in your existing `setup()` options:
-
-```lua
-require('opencode').setup({
-  lock_session_to_directory = function(change)
-    local function common_dir(dir)
-      local result = vim.system({
-        'git', '-C', dir, 'rev-parse', '--path-format=absolute', '--git-common-dir',
-      }, { text = true }):wait()
-      return result.code == 0 and vim.trim(result.stdout) or nil
-    end
-    local repo = common_dir(change.from)
-    return repo ~= nil and repo == common_dir(change.to)
-  end,
-})
-```
-
-This keeps the conversation; it does not move the session to the new worktree.
-For separate conversations, see [Worktree sessions](recipes/worktree.md).
-
 ## Full default configuration
 
 Optional callbacks and values are shown as `nil`.
@@ -551,18 +490,18 @@ the everyday ones. Session diff remapping has its own [example](review.md#custom
 
 ## Window layout
 
-| Option | Default | Meaning |
-| --- | --- | --- |
-| `ui.position` | `'right'` | `right`, `left`, `current`, or `float` |
-| `ui.input_position` | `'bottom'` | `bottom` or `top` |
-| `ui.window_width` | `0.40` | Split width as a fraction of editor width |
-| `ui.zoom_width` | `0.8` | Zoomed split width |
-| `ui.persist_state` | `true` | Preserve UI buffers when closing/hiding |
-| `ui.input.min_height` / `max_height` | `0.10` / `0.25` | Input height bounds as window-height fractions |
-| `ui.input.text.wrap` | `false` | Wrap prompt text |
-| `ui.input.auto_hide` | `false` | Hide input after submission or focus moves to output |
-| `ui.hide_single_tab` | `true` | Hide the strip with one panel tab |
-| `ui.notify_on_background_prompt` | `true` | Notify about background questions/permissions |
+| Option                               | Default         | Meaning                                              |
+| ------------------------------------ | --------------- | ---------------------------------------------------- |
+| `ui.position`                        | `'right'`       | `right`, `left`, `current`, or `float`               |
+| `ui.input_position`                  | `'bottom'`      | `bottom` or `top`                                    |
+| `ui.window_width`                    | `0.40`          | Split width as a fraction of editor width            |
+| `ui.zoom_width`                      | `0.8`           | Zoomed split width                                   |
+| `ui.persist_state`                   | `true`          | Preserve UI buffers when closing/hiding              |
+| `ui.input.min_height` / `max_height` | `0.10` / `0.25` | Input height bounds as window-height fractions       |
+| `ui.input.text.wrap`                 | `false`         | Wrap prompt text                                     |
+| `ui.input.auto_hide`                 | `false`         | Hide input after submission or focus moves to output |
+| `ui.hide_single_tab`                 | `true`          | Hide the strip with one panel tab                    |
+| `ui.notify_on_background_prompt`     | `true`          | Notify about background questions/permissions        |
 
 Floating windows use `ui.float`, with width `0.95`, height `0.9`, rounded border,
 gap `1`, and z-index `40` by default. Optional `row` and `col` control position.

@@ -4,6 +4,10 @@ A Neovim frontend for [OpenCode](https://opencode.ai). Chat with the agent in a
 side panel, send it files, selections, and diagnostics, and review its edits
 without leaving the editor.
 
+<div align="center">
+  <img src="https://raw.githubusercontent.com/sudo-tee/opencode.nvim/docs-assets/opencode-nvim.png" alt="opencode.nvim logo" width="30%" />
+</div>
+
 ---
 
 <div align="center">

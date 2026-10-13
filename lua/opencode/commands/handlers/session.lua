@@ -869,8 +869,8 @@ M.command_defs = {
   },
   select_session = {
     desc = 'Select session',
-    execute = function()
-      return M.actions.select_session()
+    execute = function(args)
+      return M.actions.select_session(args and args[1], args and args[2])
     end,
   },
   navigate_session_tree = {

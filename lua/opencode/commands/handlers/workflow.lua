@@ -235,6 +235,27 @@ for _, action_name in ipairs({ 'debug_output', 'debug_message', 'debug_session' 
   end
 end
 
+---@param args string[]
+function M.actions.debug(args)
+  local debug_helper = require('opencode.ui.debug_helper')
+  local subcommand = args[1]
+  if subcommand == 'events' then
+    if #args > 2 then
+      error({ code = 'invalid_arguments', message = 'Usage: :Opencode debug events [filename]' }, 0)
+    end
+    return debug_helper.save_captured_events(args[2])
+  end
+
+  if subcommand == 'log' then
+    if #args > 1 then
+      error({ code = 'invalid_arguments', message = 'Usage: :Opencode debug log' }, 0)
+    end
+    return debug_helper.open_log()
+  end
+
+  error({ code = 'invalid_arguments', message = 'Invalid debug subcommand. Use: events, log' }, 0)
+end
+
 function M.actions.paste_image()
   local image_path = require('opencode.image_handler').save_clipboard_image()
   if not image_path then
@@ -550,7 +571,7 @@ M.actions.add_visual_selection_inline = Promise.async(
 
 M.command_defs = {
   quick_chat = {
-    desc = 'Quick chat with current buffer or visual selection',
+    desc = 'Quick chat about the cursor line (±10 lines) or visual selection',
     range = true,
     nargs = '+',
     complete = false,
@@ -688,6 +709,12 @@ M.command_defs = {
   debug_session = {
     desc = 'Open raw session debug view',
     execute = M.actions.debug_session,
+  },
+  debug = {
+    desc = 'Export captured events or open plugin log',
+    completions = { 'events', 'log' },
+    nested_subcommand = { allow_empty = false },
+    execute = M.actions.debug,
   },
   toggle_tool_output = {
     desc = 'Toggle tool output visibility in the output window',

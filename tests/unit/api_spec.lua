@@ -351,6 +351,20 @@ describe('opencode.api', function()
       assert_send_message_called_with('test prompt new', true)
     end)
 
+    it('exposes event export and log viewing helpers', function()
+      local debug_helper = require('opencode.ui.debug_helper')
+      local save_events_stub = stub(debug_helper, 'save_captured_events')
+      local open_log_stub = stub(debug_helper, 'open_log')
+
+      api.debug_events('/tmp/events.json')
+      api.debug_log()
+
+      assert.stub(save_events_stub).was_called_with('/tmp/events.json')
+      assert.stub(open_log_stub).was_called()
+      save_events_stub:revert()
+      open_log_stub:revert()
+    end)
+
     it('routes submit_input_prompt through take_input, send_message, and after_run', function()
       with_session_snapshot(function()
         with_model_runtime_snapshot(function()

@@ -1,0 +1,106 @@
+*opencode.txt*             OpenCode conversations inside Neovim
+
+==============================================================================
+CONTENTS                                                  *opencode.nvim*
+
+    Start here ........................................... |opencode-start|
+    Everyday keys ........................................ |opencode-keys|
+    Configuration ........................................ |opencode-config|
+    Documentation ........................................ |opencode-docs|
+
+==============================================================================
+START HERE                                                *opencode-start*
+
+Install the OpenCode CLI and connect a provider in OpenCode first. Install this
+plugin with your plugin manager, then call setup once: >lua
+
+    require('opencode').setup({})
+<
+With lazy.nvim, `opts = {}` calls setup for you. Run `:checkhealth opencode`
+afterwards. Markdown rendering, pickers, and completion are covered in
+docs/getting-started.md.
+
+Open a project file, press <leader>oi, and type a small request. Leave insert
+mode with <Esc>, then press <CR> to submit. <S-CR> also submits in insert
+mode when your terminal supports it. <Esc> closes the panel in normal mode.
+
+The current file is context by default. Type # in input insert mode to inspect
+context before sending. OpenCode permissions control tool access; review edits
+and keep important work committed or backed up.
+
+The current plugin supports OpenCode V1 and V2. The v1 plugin branch preserves
+the old implementation; it is not needed to connect to a V1 server.
+
+==============================================================================
+EVERYDAY KEYS                                             *opencode-keys*
+
+Global defaults: >
+    <leader>og    Hide or restore panel
+    <leader>oi    Focus input in insert mode
+    <leader>oo    Focus output
+    <leader>ot    Switch panel/editor focus
+    <leader>oy    Add visual selection as context (visual mode)
+    <leader>oY    Insert selected code inline (visual mode)
+    <leader>os    Resume a session
+    <leader>oI    Start a new session
+    <leader>oN    Start a new session in a panel tab
+    <leader>op    Choose provider/model
+    <leader>od    Review session diff (V2)
+    <leader>o/    Quick chat (experimental)
+<
+In the panel: >
+    <Tab>         Switch input/output (normal mode)
+    <C-c>         Cancel running request
+    ]] / [[       Next/previous message (output, normal mode)
+    gf            Jump to referenced file (output, normal mode)
+    @ / ~         Mention completion / file picker (input, insert mode)
+    #             Inspect context (input, insert mode)
+    /             Browse slash commands (input, insert mode)
+<
+Use :Opencode help for available actions and :Opencode with command-line
+completion to explore subcommands. Keys above assume the default prefix.
+
+==============================================================================
+CONFIGURATION                                            *opencode-config*
+
+Override only what you need: >lua
+
+    require('opencode').setup({
+      keymap_prefix = '<leader>a',
+      ui = { window_width = 0.35, icons = { preset = 'text' } },
+    })
+<
+Every option and default keymap is listed in docs/configuration.md. To print
+the options in effect: >vim
+
+    :lua =require('opencode.config').values
+<
+The output can include server credentials; check it before sharing.
+
+For a local V2 install, leave `server` unset: the plugin finds OpenCode's
+background service. Quitting Neovim does not stop that service. See
+docs/servers.md for remote servers, containers, and WSL.
+
+Lua API: require('opencode.api'). Signatures are in lua/opencode/types.lua.
+
+==============================================================================
+DOCUMENTATION                                              *opencode-docs*
+
+The full documentation is in the docs/ directory of the plugin checkout, and
+online at:
+
+    https://github.com/sudo-tee/opencode.nvim/blob/main/docs/README.md
+
+The copy in your checkout matches the version you have installed.
+
+    docs/getting-started.md    Installation and first prompt
+    docs/usage.md              Sessions, tabs, permissions, quick chat
+    docs/context.md            What gets sent with a prompt
+    docs/review.md             V2 diffs and inline comments
+    docs/configuration.md      All options and default keymaps
+    docs/reference.md          Commands and Lua API
+    docs/extensions.md         Hooks, User autocmds, highlights
+    docs/servers.md            Remote servers and authentication
+    docs/troubleshooting.md    Diagnosis and bug reports
+
+ vim:tw=78:ts=8:noet:ft=help:norl:

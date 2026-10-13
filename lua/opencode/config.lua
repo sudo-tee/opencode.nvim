@@ -6,7 +6,6 @@ local M = {}
 ---@type OpencodeConfig
 M.defaults = {
   preferred_picker = nil,
-  preferred_completion = nil,
   default_global_keymaps = true,
   default_mode = 'build',
   default_system_prompt = nil,

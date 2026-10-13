@@ -1,58 +1,50 @@
-# Three-State Layout Toggle
+# Three-state layout toggle
 
-Instantly switch how you view opencode.
+[Recipes](../README.md) / Three-state layout toggle
 
-## Problem
+Two keys to move between three layouts: code only, panel beside the code, and
+panel filling the window.
 
-Real workflows need three distinct ways to interact with AI:
+![Three-state layout toggle demo](./three-state-toggle.gif)
 
-1. **Focused coding** - opencode hidden, full attention on your code
-2. **Side-by-side** - opencode visible alongside code, quick reference and iteration
-3. **Deep conversation** - opencode fullscreen for complex AI interactions requiring full context
+## When to use it
 
-The default `toggle()` only provides binary visible/hidden control. Switching between these three modes requires multiple keypresses and interrupts flow.
+`<leader>og` only hides and restores the panel, always in the same position.
+If you sometimes want the conversation to take over the whole window, for
+example to read a long answer, this recipe adds a key for that. If a wider
+split is enough, try `<leader>oz` (zoom) first.
 
-## State Transitions
+The three layouts:
 
-```mermaid
-stateDiagram-v2
-    [*] --> focused : start
-    
-    focused --> side_by_side : zl
-    side_by_side --> focused : zl
-    side_by_side --> deep : zL
-    deep --> side_by_side : zl
-    deep --> focused : zL
-```
+| Layout | Panel |
+| --- | --- |
+| Focused | Hidden |
+| Side by side | Split on the right (`ui.position = 'right'`) |
+| Full window | Replaces the current window (`ui.position = 'current'`) |
 
-## Demo
+## Try it
 
-Run the standalone demo:
+From a checkout of the plugin, read [`demo.lua`](demo.lua), then run:
 
 ```vim
 :luafile docs/recipes/three-state-layout/demo.lua
 ```
 
-Then press `zl` or `zL` to toggle between modes.
+The script maps `zl` and `zL` in normal mode, overriding Neovim's built-in
+horizontal scroll keys:
 
-![Three-state layout toggle demo](./three-state-toggle.gif)
+| Key | From focused | From side by side | From full window |
+| --- | --- | --- | --- |
+| `zl` | Side by side | Focused | Side by side |
+| `zL` | Full window | Full window | Focused |
 
-## Keybindings
+To keep it, copy the contents of `demo.lua` into your config, and change the
+keys if you use `zl`/`zL` for scrolling.
 
-| Key | Focused coding | Side-by-side | Deep conversation |
-|-----|----------------|--------------|-------------------|
-| `zl` | Enter side-by-side | Return to focused | Exit to side-by-side |
-| `zL` | Enter deep conversation | Switch to deep | Return to focused |
+## Caveats and undo
 
-## Implementation Notes
+The script changes `ui.position` at runtime, so the panel opens in the last
+layout you chose until you restart Neovim. To undo, remove the mappings (or
+restart Neovim if you only ran the demo).
 
-The demo uses `config.ui.position` to switch between window layouts:
-- `position = 'right'` for side-by-side mode
-- `position = 'current'` for deep conversation mode
-
-## Integration Ideas
-
-- Combine with [bidirectional-sync](../bidirectional-sync/README.md) to also share sessions between TUI and nvim
-- Add autocmds to automatically enter deep conversation mode on long AI responses
-- Map to leader keys for easier access
-- Use with tmux/zellij for managing multiple opencode instances
+Related: [TUI/Neovim sync](../bidirectional-sync/README.md).

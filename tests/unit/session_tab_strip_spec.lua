@@ -132,11 +132,13 @@ describe('opencode session tab strip', function()
     local marker_column = assert(line:find('%+2'))
     vim.api.nvim_set_current_win(windows.tab_strip_win)
     vim.api.nvim_win_set_cursor(windows.tab_strip_win, { 1, marker_column - 1 })
-    assert.is_true(vim.wait(200, function()
+    assert.is_true(vim.wait(2000, function()
       return vim.fn.maparg('<CR>', 'n', false, true).buffer == 1
-    end))
+    end, 10))
     vim.api.nvim_feedkeys(vim.keycode('<CR>'), 'xt', false)
-    vim.wait(20)
+    assert.is_true(vim.wait(2000, function()
+      return #picker_stub.calls > 0
+    end, 10))
     assert.stub(picker_stub).was_called()
     picker_stub:revert()
   end)
@@ -219,15 +221,17 @@ describe('opencode session tab strip', function()
     local second = session_tabs.create({ id = 'session-two', title = 'Second' })
     session_tabs.activate(second)
     state.ui.set_windows(windows)
-    vim.wait(50)
+    assert.is_true(vim.wait(2000, function()
+      return windows.tab_strip_win ~= nil
+    end, 10))
 
     assert.is_not_nil(windows.tab_strip_win)
     assert.is_true(vim.api.nvim_win_is_valid(windows.tab_strip_win))
     assert.matches('Second', vim.api.nvim_buf_get_lines(windows.tab_strip_buf, 0, 1, false)[1])
 
     session_tabs.remove(first)
-    vim.wait(50)
-
-    assert.is_nil(windows.tab_strip_win)
+    assert.is_true(vim.wait(2000, function()
+      return windows.tab_strip_win == nil
+    end, 10))
   end)
 end)

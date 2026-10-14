@@ -73,6 +73,14 @@ function M.mock_connection()
       return require('opencode.protocols.v1.observation').prepare_message(opts, selected)
     end
     observation._connection = self
+    -- Specs flip connection.protocol after observing, so the flag follows it.
+    setmetatable(observation, {
+      __index = function(current, key)
+        if key == 'needs_message_defaults' then
+          return current._connection.protocol == 'v1'
+        end
+      end,
+    })
     function observation:read()
       return self._state
     end

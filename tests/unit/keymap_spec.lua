@@ -15,6 +15,7 @@ describe('opencode.keymap', function()
   local mock_commands
   local mock_completion
   local keymap
+  local mapper
   local built_parsed
   local executed_parsed
   local toggle_calls
@@ -117,6 +118,7 @@ describe('opencode.keymap', function()
     end
 
     keymap = require('opencode.keymap')
+    mapper = require('opencode.ui.keymap')
   end)
 
   after_each(function()
@@ -133,6 +135,7 @@ describe('opencode.keymap', function()
     vim.api.nvim_feedkeys = original_nvim_feedkeys
 
     package.loaded['opencode.keymap'] = nil
+    package.loaded['opencode.ui.keymap'] = nil
     package.loaded['opencode.api'] = nil
     package.loaded['opencode.commands'] = nil
     package.loaded['opencode.ui.completion'] = nil
@@ -141,10 +144,24 @@ describe('opencode.keymap', function()
   end)
 
   describe('local actions', function()
+    it('mounts local actions without consulting command routing', function()
+      mapper.resolve_command = function()
+        error('local mappings must not load commands')
+      end
+      local called = false
+      mapper.setup_window_keymaps({ x = { 'local_action' } }, 0, false, {
+        local_action = function()
+          called = true
+        end,
+      })
+      set_keymaps[1].callback()
+      assert.is_true(called)
+    end)
+
     it('prefers local overrides and passes fresh arguments on each invocation', function()
       local arguments = { { value = 'original' } }
       local received = {}
-      keymap.setup_window_keymaps({ x = { 'toggle', arguments, mode = 'n', nowait = true } }, 0, false, {
+      mapper.setup_window_keymaps({ x = { 'toggle', arguments, mode = 'n', nowait = true } }, 0, false, {
         toggle = function(value)
           received[#received + 1] = value.value
           value.value = 'changed'
@@ -160,14 +177,14 @@ describe('opencode.keymap', function()
     end)
 
     it('falls back to panel commands for names outside the local action table', function()
-      keymap.setup_window_keymaps({ x = { 'toggle' } }, 0, false, {})
+      mapper.setup_window_keymaps({ x = { 'toggle' } }, 0, false, {})
       set_keymaps[1].callback()
       assert.equals('toggle', executed_parsed[1].intent.name)
     end)
 
     it('passes configured arguments to custom callbacks', function()
       local received
-      keymap.setup_window_keymaps({
+      mapper.setup_window_keymaps({
         x = {
           function(value)
             received = value
@@ -419,7 +436,7 @@ describe('opencode.keymap', function()
   describe('setup_window_keymaps', function()
     it('routes input-window string actions through ParsedIntent + execute_parsed_intent', function()
       local bufnr = vim.api.nvim_create_buf(false, true)
-      keymap.setup_window_keymaps({ ['<cr>'] = { 'submit_input_prompt' } }, bufnr)
+      mapper.setup_window_keymaps({ ['<cr>'] = { 'submit_input_prompt' } }, bufnr)
 
       assert.equal(1, #set_keymaps)
       set_keymaps[1].callback()
@@ -463,7 +480,7 @@ describe('opencode.keymap', function()
         original_keymap_set('n', lhs, function() end, { buffer = bufnr })
       end
 
-      keymap.setup_window_keymaps({
+      mapper.setup_window_keymaps({
         ['<esc>'] = { function() end },
         ['<tab>'] = { function() end },
         ['<C-c>'] = { function() end },

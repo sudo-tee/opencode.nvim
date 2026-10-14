@@ -120,12 +120,10 @@
         "opencode.ui.navigation",          // cursor navigation
         "opencode.ui.diff_tab",            // diff view
         "opencode.ui.session_diff",        // session diff review UI (opened by git_review)
-        //                                    REVIEW: violates no_capabilities_to_entry
-        //                                    (session_diff, comment_input → keymap for
-        //                                    setup_window_keymaps). Move that helper down.
         "opencode.ui.session_diff.*",
         "opencode.ui.dialog",              // dialog windows
         "opencode.ui.completion",          // completion engine
+        "opencode.ui.keymap",              // mapping engine; command routing injected by entry
         "opencode.ui.completion.*",
         "opencode.ui.context_bar",         // context display bar
         "opencode.ui.reference_picker",    // reference browser

@@ -1,4 +1,5 @@
 local lifecycle = require('opencode.protocols.observation')
+local log = require('opencode.log')
 
 local M = {}
 
@@ -14,6 +15,7 @@ end
 ---@return false
 function M.diagnostic(observation, resource, message)
   observation:read().sync[resource] = lifecycle.sync_error('protocol_contract', message)
+  log.warn('V2 observation diagnostic (%s): %s', resource, message)
   return false
 end
 

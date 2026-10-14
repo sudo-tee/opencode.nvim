@@ -3,6 +3,7 @@ local M = {}
 local state = require('opencode.state')
 local config = require('opencode.config')
 local renderer = require('opencode.ui.renderer')
+local log = require('opencode.log')
 
 ---@param win integer
 local function mark_jump_position(win)
@@ -286,12 +287,14 @@ local function jump_to_symbol_target(target)
   local symbol_snapshot = require('opencode.ui.symbol_snapshot')
   -- Keypress-time lookup re-reads the current available file set; the set frozen
   -- on the rendered target may be stale (buffers/files changed since render).
-  local targets = symbol_snapshot.targets_for_token(
-    symbol_snapshot.new_cycle(),
-    target.token,
-    require('opencode.ui.reference_facts').available_files()
-  )
+  local available_files = require('opencode.ui.reference_facts').available_files()
+  local targets = symbol_snapshot.targets_for_token(symbol_snapshot.new_cycle(), target.token, available_files)
   if #targets == 0 then
+    if #available_files == 0 then
+      log.debug('symbol jump: no candidate files for token %s', target.token)
+    else
+      log.debug('symbol jump: token %s has no match in %d candidate files', target.token, #available_files)
+    end
     vim.notify('No symbol target found: ' .. target.token, vim.log.levels.INFO)
     return
   end

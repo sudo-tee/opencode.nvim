@@ -2,6 +2,7 @@ local entries = require('opencode.protocols.entries')
 local Promise = require('opencode.promise')
 local normalize = require('opencode.protocols.v2.normalize')
 local boundary = require('opencode.protocols.v2.observation.boundary')
+local log = require('opencode.log')
 
 local M = {}
 
@@ -396,12 +397,27 @@ end
 handlers['session.revert.committed'] = invalidate_messages
 handlers['session.compaction.ended'] = invalidate_messages
 
+-- Upstream adds and renames session event families independently of this plugin;
+-- record each unknown type once so a new gap is discoverable without flooding the log.
+local unknown_session_events = {}
+
 ---@param observation OpencodeV2Observation
 ---@param event OpencodeV2Event
 ---@return boolean changed
 function M.ingest_event(observation, event)
   local handler = handlers[event.type]
-  if not handler or event.data.sessionID ~= observation._session_id then
+  if not handler then
+    if
+      not unknown_session_events[event.type]
+      and event.type:sub(1, #'session.') == 'session.'
+      and event.data.sessionID == observation._session_id
+    then
+      unknown_session_events[event.type] = true
+      log.info('unhandled session event type: %s', event.type)
+    end
+    return false
+  end
+  if event.data.sessionID ~= observation._session_id then
     return false
   end
   local result = handler(observation, event, event.data)

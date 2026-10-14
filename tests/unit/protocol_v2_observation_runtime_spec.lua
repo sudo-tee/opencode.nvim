@@ -1372,6 +1372,29 @@ describe('V2 protocol Observation runtime', function()
     stop()
   end)
 
+  it('follows revert staging and clearing made in another client', function()
+    local value = connection()
+    local streams = install_operations(value)
+    local observed = value:observe({ id = 'ses-main' })
+    local notifications = 0
+    local stop = observed:watch({ 'session' }, function()
+      notifications = notifications + 1
+    end)
+    flush(function()
+      return observed:read().sync.session.state == 'current'
+    end)
+    local before = notifications
+
+    emit(streams[1], event('ses-main', 'session.revert.staged', { revert = { messageID = 'msg-1', files = {} } }))
+    assert.equals('msg-1', observed:read().session.revert.messageID)
+    assert.equals(before + 1, notifications)
+
+    emit(streams[1], event('ses-main', 'session.revert.cleared', {}))
+    assert.is_nil(observed:read().session.revert)
+    assert.equals(before + 2, notifications)
+    stop()
+  end)
+
   it('validates permission and form replies before calling their operations', function()
     local value = connection()
     local calls = {}

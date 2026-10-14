@@ -22,8 +22,8 @@ local function rebuild_content_index(observation, entry)
     if ordinals[content.kind] then
       index[content_key(content.kind, ordinals[content.kind])] = content
       ordinals[content.kind] = ordinals[content.kind] + 1
-    elseif content.kind == 'tool' and content.id then
-      index['tool:' .. content.id] = content
+    elseif content.kind == 'tool' and content.call_id then
+      index['tool:' .. content.call_id] = content
     end
   end
   observation._v2_content_by_message[entry.id] = index
@@ -139,7 +139,7 @@ local function ordinal_content(observation, data, event_type, create)
   if content or not create then
     return content
   end
-  content = { kind = kind, text = '' }
+  content = { id = vim.json.encode({ entry.id, kind, data.ordinal }), kind = kind, text = '' }
   entry.content[#entry.content + 1] = content
   index[key] = content
   return content
@@ -170,7 +170,13 @@ local function tool_content(observation, data, event_type, create)
     invalid(observation, event_type, 'is missing tool name')
     return nil
   end
-  content = { id = data.id, kind = 'tool', call_id = data.id, name = data.name, state = 'streaming' }
+  content = {
+    id = vim.json.encode({ entry.id, 'tool', data.id }),
+    kind = 'tool',
+    call_id = data.id,
+    name = data.name,
+    state = 'streaming',
+  }
   entry.content[#entry.content + 1] = content
   index['tool:' .. data.id] = content
   return content

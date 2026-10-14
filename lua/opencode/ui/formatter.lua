@@ -659,17 +659,18 @@ local function part_text_trim_offset(part, text)
 end
 
 local function current_part_text_references(part, message, text, context)
-  if not (part and part.id and message and message.id and context and context.current_refs) then
+  if not (context and context.current_refs) then
     return {}
   end
 
   local trim_offset = part_text_trim_offset(part, text)
+  local message_id = message and message.id
   local refs = {}
   for _, ref in ipairs(context.current_refs) do
     local raw_range = ref.raw_range
     if
       ref.source_kind == 'assistant_text'
-      and ref.message_id == message.id
+      and ref.message_id == message_id
       and ref.part_id == part.id
       and raw_range
     then

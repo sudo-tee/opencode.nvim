@@ -112,7 +112,7 @@ local function to_lsp_item(item, index, params, word)
     kind_icon = M.supports_kind_icons() and item.kind_icon or '',
     detail = item.detail,
     documentation = item.documentation and {
-      kind = 'plaintext',
+      kind = 'markdown',
       value = item.documentation,
     } or nil,
     insertText = item.insert_text and item.insert_text ~= '' and item.insert_text or item.label,

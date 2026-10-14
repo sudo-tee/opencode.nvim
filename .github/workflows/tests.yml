@@ -49,6 +49,52 @@ jobs:
       - name: Run type checks
         run: make typecheck ARGS="-f github"
 
+  architecture:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    name: architecture check
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Check module imports against layer rules
+        id: check
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          set +e
+          make -s topology-diff ARGS="--from origin/$BASE_REF --to HEAD --check --markdown" > architecture-report.md
+          echo "status=$?" >> "$GITHUB_OUTPUT"
+          cat architecture-report.md >> "$GITHUB_STEP_SUMMARY"
+
+      # Fork PRs get a read-only token; the job summary still carries the report.
+      - name: Post report on the pull request
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          [ -s architecture-report.md ] || exit 0
+          marker='<!-- architecture-check-report -->'
+          id=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" --paginate \
+            --jq ".[] | select(.body | startswith(\"$marker\")) | .id" | head -n1)
+          if [ -n "$id" ]; then
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$id" -F body=@architecture-report.md
+          else
+            gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" -F body=@architecture-report.md
+          fi
+
+      - name: Fail on new problems
+        if: steps.check.outputs.status != '0'
+        run: exit 1
+
   test:
     timeout-minutes: 4
     strategy:

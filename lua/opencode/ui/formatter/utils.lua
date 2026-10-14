@@ -132,7 +132,7 @@ function M.add_tool_diff_action(output, message, context, path, first_line, last
   if not context or not context.interactive or not message then
     return
   end
-  local connection = require('opencode.state').opencode_server
+  local connection = require('opencode.state.store').get('opencode_server')
   if not connection or connection.protocol ~= 'v2' then
     return
   end

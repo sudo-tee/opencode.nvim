@@ -27,6 +27,23 @@ local function content_by_id(entry, id)
 end
 
 describe('V1 protocol Observation interpretation', function()
+  it('asks the caller for message defaults and applies them without fetching', function()
+    local observed = observation('session-defaults')
+    assert.is_true(observed.needs_message_defaults)
+    local params, update = observed:prepare_message({}, {
+      default_mode = 'plan',
+      default_model = 'provider/default',
+      available_agents = { 'plan' },
+    })
+    assert.same({ model = { providerID = 'provider', modelID = 'default' }, agent = 'plan' }, params)
+    assert.same({ model = 'provider/default', mode = 'plan' }, update)
+  end)
+
+  it('does not update the tab mode for agents outside the available list', function()
+    local observed = observation('session-hidden-agent')
+    local _, update = observed:prepare_message({ agent = 'hidden' }, { available_agents = { 'plan' } })
+    assert.is_nil(update.mode)
+  end)
   it('validates a complete snapshot before replacing existing entries', function()
     local observed = observation(fixture().sessionID)
     local message = fixture().snapshot[2]

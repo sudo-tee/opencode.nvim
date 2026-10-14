@@ -219,6 +219,58 @@ describe('opencode.services.messaging', function()
     state.model.set_mode(previous_mode)
   end)
 
+  it('does not fetch message defaults for observations that do not need them', function()
+    state.session.set_active({ id = 'sess-v2' })
+    connection.protocol = 'v2'
+    local config_stub = stub(config_file, 'get_opencode_config')
+    local agents_stub = stub(config_file, 'get_opencode_agents')
+    local observation = state.session.active_observation()
+    local original_submit = observation.submit
+    observation.submit = function()
+      return successful_submission()
+    end
+
+    messaging.send_message('hello'):wait()
+
+    assert.stub(config_stub).was_not_called()
+    assert.stub(agents_stub).was_not_called()
+    observation.submit = original_submit
+    config_stub:revert()
+    agents_stub:revert()
+  end)
+
+  it('passes server defaults to observations that need them', function()
+    state.session.set_active({ id = 'sess1' })
+    local previous_model = state.current_model
+    local previous_mode = state.current_mode
+    state.model.set_model(nil)
+    state.model.set_mode('plan')
+    local config_stub = stub(config_file, 'get_opencode_config').returns(Promise.new():resolve({ model = 'p/default' }))
+    local agents_stub = stub(config_file, 'get_opencode_agents').returns(Promise.new():resolve({ 'plan' }))
+    local observation = state.session.active_observation()
+    local original_prepare = observation.prepare_message
+    local received
+    observation.prepare_message = function(self, opts, selected)
+      received = vim.deepcopy(selected)
+      return original_prepare(self, opts, selected)
+    end
+    local original_submit = observation.submit
+    observation.submit = function()
+      return successful_submission()
+    end
+
+    messaging.send_message('hello'):wait()
+
+    assert.equal('p/default', received.default_model)
+    assert.same({ 'plan' }, received.available_agents)
+    observation.prepare_message = original_prepare
+    observation.submit = original_submit
+    config_stub:revert()
+    agents_stub:revert()
+    state.model.set_model(previous_model)
+    state.model.set_mode(previous_mode)
+  end)
+
   it('rejects a V2 default system prompt before submitting', function()
     state.session.set_active({ id = 'sess-v2' })
     connection.protocol = 'v2'

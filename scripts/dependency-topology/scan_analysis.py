@@ -205,10 +205,13 @@ def build_scan_payload(repo: Path, snapshot: str, strategy: Dict[str, Any], top_
     group_rules = build_group_rules(strategy.get("groups", {}))
     group_cache: Dict[str, str] = {}
     grouped_counts: Dict[str, int] = {}
+    ungrouped_modules: List[str] = []
 
-    for m in graph.nodes.keys():
+    for m in sorted(graph.nodes.keys()):
         g = group_of(m, group_rules, group_cache)
         grouped_counts[g] = grouped_counts.get(g, 0) + 1
+        if g == "ungrouped":
+            ungrouped_modules.append(m)
 
     edge_rows = [
         {
@@ -298,6 +301,7 @@ def build_scan_payload(repo: Path, snapshot: str, strategy: Dict[str, Any], top_
                 "count": ungrouped,
                 # If > 0, some modules are not covered by topology.jsonc —
                 # their dependencies are invisible to policy checking.
+                "modules": ungrouped_modules,
             },
         },
 
@@ -410,6 +414,9 @@ def build_diff_payload(repo: Path, from_snapshot: str, to_snapshot: str, strateg
 
         "violations_fixed": fixed,
         "violations_new": new,
+
+        # Unmapped modules escape every policy rule, so the target snapshot must have none.
+        "ungrouped_modules": th["ungrouped"]["modules"],
 
         "scc_changes": scc_changes,
 

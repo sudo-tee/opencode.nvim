@@ -1,5 +1,5 @@
 local config = require('opencode.config')
-local keymaps = require('opencode.keymap')
+local keymaps = require('opencode.ui.keymap')
 
 local M = {}
 

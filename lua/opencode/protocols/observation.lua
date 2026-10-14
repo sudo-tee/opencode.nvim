@@ -58,6 +58,14 @@ local resource_names = {
 ---@field on_stream_error? fun(observation: OpencodeObservation, message: string)
 ---@field on_close? fun(observation: OpencodeObservation)
 
+---@class OpencodeMessageSelection
+---@field mode? string
+---@field model? string
+---@field variant? string
+---@field default_mode? string
+---@field default_model? string Server config model, used when no model is selected
+---@field available_agents? string[] Primary agents; only these may update the tab mode
+
 ---@class OpencodeObservation
 ---@field _connection table
 ---@field _session_id string
@@ -70,7 +78,8 @@ local resource_names = {
 ---@field _event_revisions table<OpencodeObservedResource, integer>
 ---@field reply_permission fun(self: OpencodeObservation, request_id: string, answer: {choice: 'once'|'always'|'reject', message?: string}): Promise<boolean>
 ---@field validate_message_options fun(self: OpencodeObservation, opts: SendMessageOpts, default_system?: string)
----@field prepare_message fun(self: OpencodeObservation, opts: SendMessageOpts, selected: {mode?: string, model?: string, variant?: string, default_mode?: string, default_model?: string, available_agents?: string[]}): table, OpencodeSessionTabModelUpdate
+---@field prepare_message fun(self: OpencodeObservation, opts: SendMessageOpts, selected: OpencodeMessageSelection): table, OpencodeSessionTabModelUpdate
+---@field needs_message_defaults? boolean Caller must fill default_model/available_agents in the selection
 local Observation = {}
 Observation.__index = Observation
 

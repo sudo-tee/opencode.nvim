@@ -2,7 +2,7 @@
 
 ## Commands
 
-`make help` lists all. Key: `check` (format-check + typecheck + test), `test [TEST=path]`, `typecheck`, `format-check`, `replay`, `topology`, `topology-diff`. Extra flags: `ARGS="..."`.
+`make help` lists all. Key: `check` (format-check + typecheck + test), `test [TEST=path]`, `typecheck`, `format-check`, `replay`, `topology`, `topology-diff`, `topology-check`. Extra flags: `ARGS="..."`.
 
 ## Before Finishing Lua Changes (Mandatory)
 
@@ -33,4 +33,5 @@ Use scanner, not grep, for architecture/debt. Remove debt only after code + test
 
 - `make topology`: gap vs target policy.
 - `make topology-diff ARGS="--from main --to HEAD"`: improved/regressed/neutral.
+- `make topology-check`: CI gate vs `origin/main`; fails on new layer-rule breaks, new/grown import loops, or modules missing from `topology.jsonc`.
 - Flags: `--json`, `--snapshot <git-ref>`. Docs: `scripts/dependency-topology/README.md`.

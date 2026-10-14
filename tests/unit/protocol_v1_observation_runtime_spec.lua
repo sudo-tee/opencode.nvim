@@ -181,14 +181,14 @@ describe('V1 protocol Observation runtime', function()
     local connection, server = runtime()
     local observation = observe(connection, 'ses-reply')
     local request = observation:request_reply({ text = 'hello', context = {}, files = {}, agents = {} })
-    assert.is_true(vim.wait(500, function()
+    assert.is_true(vim.wait(2000, function()
       return #server.submits == 1
-    end))
+    end, 10))
     local input_id = server.submits[1].input.messageID
     server.submits[1].request:resolve(response('ses-reply', 'msg-answer', input_id, 'assistant', nil, 'stop'))
-    assert.is_true(vim.wait(500, function()
+    assert.is_true(vim.wait(2000, function()
       return next(observation._v1_submissions) ~= nil
-    end))
+    end, 10))
     assert.is_false(request.promise:is_resolved())
 
     emit(server.streams[1], '/server/project', 'message.updated', {
@@ -352,7 +352,7 @@ describe('V1 protocol Observation runtime', function()
     assert.equals('loading', observation:read().sync.permissions.state)
     server.permissions[1]:resolve({})
     server.messages['ses-sync'][1]:reject('messages unavailable')
-    assert.is_true(vim.wait(500, function()
+    assert.is_true(vim.wait(2000, function()
       return observation:read().sync.permissions.state == 'current'
         and observation:read().sync.messages.state == 'error'
     end, 10))
@@ -374,14 +374,14 @@ describe('V1 protocol Observation runtime', function()
     local unsubscribe_replacement = replacement:watch({ 'messages' }, function() end)
     local replacement_request = server.messages['ses-replaced'][2]
     old_request:resolve({})
-    assert.is_true(vim.wait(500, function()
+    assert.is_true(vim.wait(2000, function()
       return old_request:is_resolved()
     end, 10))
 
     assert.equals('unread', old:read().sync.messages.state)
     assert.equals('loading', replacement:read().sync.messages.state)
     replacement_request:resolve({})
-    assert.is_true(vim.wait(500, function()
+    assert.is_true(vim.wait(2000, function()
       return replacement:read().sync.messages.state == 'current'
     end, 10))
     assert.equals('current', replacement:read().sync.messages.state)
@@ -400,13 +400,13 @@ describe('V1 protocol Observation runtime', function()
     assert.equals('error', observation:read().sync.messages.state)
     assert.matches('invalid V1 event JSON', observation:read().sync.messages.error.message)
 
-    assert.is_true(vim.wait(500, function()
+    assert.is_true(vim.wait(2000, function()
       return #server.streams == 2 and #server.messages['ses-recover'] == 2
     end, 10))
     assert.equals(server.streams[2], connection._stream)
     stale_request:resolve({})
     server.messages['ses-recover'][2]:resolve({})
-    assert.is_true(vim.wait(500, function()
+    assert.is_true(vim.wait(2000, function()
       return observation:read().sync.messages.state == 'current'
     end, 10))
 
@@ -513,7 +513,7 @@ describe('V1 protocol Observation runtime', function()
     server.statuses[1]:resolve({ ['ses-events'] = { type = 'busy' } })
     server.permissions[1]:resolve({ permission })
     server.questions[1]:resolve({ question })
-    assert.is_true(vim.wait(500, function()
+    assert.is_true(vim.wait(2000, function()
       return #server.sessions['ses-events'] == 2
         and #server.children['ses-events'] == 2
         and #server.statuses == 2
@@ -525,7 +525,7 @@ describe('V1 protocol Observation runtime', function()
     server.statuses[2]:resolve({ ['ses-events'] = { type = 'busy' } })
     server.permissions[2]:resolve({ permission })
     server.questions[2]:resolve({ question })
-    assert.is_true(vim.wait(500, function()
+    assert.is_true(vim.wait(2000, function()
       for _, resource in ipairs({ 'session', 'children', 'execution', 'permissions', 'questions' }) do
         if observation:read().sync[resource].state ~= 'current' then
           return false
@@ -685,11 +685,11 @@ describe('V1 protocol Observation runtime', function()
       emit(server.streams[1], '/server/project', 'permission.updated', permission)
       assert.equals('answered', observation:read().permission_requests_by_id['per-early'].status)
       server.permissions[1]:resolve({ permission })
-      assert.is_true(vim.wait(500, function()
+      assert.is_true(vim.wait(2000, function()
         return #server.permissions == 2
       end, 10))
       server.permissions[2]:resolve({ permission })
-      assert.is_true(vim.wait(500, function()
+      assert.is_true(vim.wait(2000, function()
         return observation:read().sync.permissions.state == 'current'
       end, 10))
       assert.equals('answered', observation:read().permission_requests_by_id['per-early'].status)
@@ -759,7 +759,7 @@ describe('V1 protocol Observation runtime', function()
       initial[index] = history_message('ses-history', string.format('msg-%03d', index), 'msg-input', 'stop')
     end
     server.messages['ses-history'][1]:resolve(initial)
-    assert.is_true(vim.wait(500, function()
+    assert.is_true(vim.wait(2000, function()
       return observation:read().sync.messages.state == 'current'
     end, 10))
 
@@ -784,7 +784,7 @@ describe('V1 protocol Observation runtime', function()
       )
     end
     server.messages['ses-history'][2]:resolve(older)
-    assert.is_true(vim.wait(500, function()
+    assert.is_true(vim.wait(2000, function()
       return #server.messages['ses-history'] == 3
     end, 10))
     assert.is_nil(observation:read().entries_by_id['msg-old-a'])

@@ -13,6 +13,40 @@ scripts/dependency-topology/
 └── topology.jsonc     # Group definitions + review comments (strategy file)
 ```
 
+## What it checks
+
+Every Lua module belongs to a layer (`topology.jsonc`). Imports (`require()`)
+may only point down the layers: Entry → Dispatch → Capabilities → Infrastructure,
+with Foundation helpers usable from anywhere. The scanner reports:
+
+- **layer-rule breaks** — an import pointing the wrong way;
+- **import loops** — modules that depend on each other in a circle;
+- **modules without a layer** — not matched by any pattern, so their imports are not checked.
+
+Most new files are covered by wildcards (`opencode.services.*`, `opencode.ui.renderer.*`).
+Only files outside them need a new entry in `topology.jsonc`.
+
+## CI and `make topology-check`
+
+The `architecture check` job runs on every pull request:
+
+```bash
+make topology-check                          # vs origin/main, worktree included
+make topology-check TOPOLOGY_BASE=upstream/main
+```
+
+It fails on **new** layer-rule breaks, **new or grown** import loops, and **any**
+module without a layer. Existing debt is reported but does not fail the build.
+The job posts (and updates) a Markdown report comment on the PR and in the job
+summary (`diff --check --markdown`).
+
+Python dependencies are in `requirements.txt`. With [uv](https://docs.astral.sh/uv/)
+installed, the `make` targets fetch them automatically; otherwise run
+`pip install -r scripts/dependency-topology/requirements.txt`.
+
+The current `topology.jsonc` is applied to both sides of a diff, so a mapping
+change shows up on both snapshots rather than as a regression.
+
 ## Quick Start
 
 ```bash

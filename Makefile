@@ -9,12 +9,16 @@ PYTHON ?= python3
 
 LUA_GLOBS := -g '*.lua' -g '!deps/'
 TOPOLOGY := scripts/dependency-topology/scan_topology.py
+TOPOLOGY_REQUIREMENTS := scripts/dependency-topology/requirements.txt
+# uv fetches the scanner's Python deps on demand; without uv, install them into $(PYTHON) first.
+TOPOLOGY_PYTHON ?= $(if $(shell command -v uv),uv run --quiet --no-project --with-requirements $(TOPOLOGY_REQUIREMENTS) python3,$(PYTHON))
+TOPOLOGY_BASE ?= origin/main
 
-.PHONY: help check test test-minimal test-unit test-replay typecheck format-check format replay replay-regenerate topology topology-diff
+.PHONY: help check test test-minimal test-unit test-replay typecheck format-check format replay replay-regenerate topology topology-diff topology-check
 
 help: ## List development commands
 	@awk 'BEGIN { FS = ":.*## " } /^[a-z-]+:.*## / { printf "  %-20s %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
-	@printf '\nExamples:\n  make test TEST=tests/unit/formatter_spec.lua\n  make test TEST=unit FILTER="Timer"\n  make typecheck ARGS="-f github"\n  make replay ARGS="-c ReplayAll"\n  make replay-regenerate FILE=v2/formatters.json\n  make topology ARGS="--json"\n  make topology-diff ARGS="--from main --to HEAD --json"\n'
+	@printf '\nExamples:\n  make test TEST=tests/unit/formatter_spec.lua\n  make test TEST=unit FILTER="Timer"\n  make typecheck ARGS="-f github"\n  make replay ARGS="-c ReplayAll"\n  make replay-regenerate FILE=v2/formatters.json\n  make topology ARGS="--json"\n  make topology-diff ARGS="--from main --to HEAD --json"\n  make topology-check TOPOLOGY_BASE=upstream/main\n'
 
 check: format-check typecheck test ## Run formatting, type checks, and all tests
 
@@ -46,7 +50,10 @@ replay-regenerate: ## Regenerate snapshots with confirmation (optional FILE rela
 	env -u VIM -u VIMRUNTIME ./tests/manual/regenerate_expected.sh $(if $(FILE),"$(FILE)")
 
 topology: ## Scan dependency topology (optional scanner ARGS)
-	$(PYTHON) $(TOPOLOGY) scan $(ARGS)
+	$(TOPOLOGY_PYTHON) $(TOPOLOGY) scan $(ARGS)
 
 topology-diff: ## Compare dependency topology snapshots (optional scanner ARGS)
-	$(PYTHON) $(TOPOLOGY) diff $(ARGS)
+	$(TOPOLOGY_PYTHON) $(TOPOLOGY) diff $(ARGS)
+
+topology-check: ## Fail on new layer-rule breaks, import loops, or modules without a layer (vs TOPOLOGY_BASE)
+	$(TOPOLOGY_PYTHON) $(TOPOLOGY) diff --from $(TOPOLOGY_BASE) --to worktree --check $(ARGS)

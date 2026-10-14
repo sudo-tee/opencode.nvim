@@ -95,6 +95,73 @@ def _diff_default_snapshots(repo: Path) -> tuple[str, str]:
     return "HEAD~1", "HEAD"
 
 
+def diff_regressions(payload: dict) -> list[str]:
+    """Changes that fail `diff --check`: new violations, unmapped modules, new or grown cycles."""
+    problems = []
+    for v in payload["violations_new"]:
+        problems.append(f"`{v['src']}` imports `{v['dst']}`, which breaks rule `{v['rule']}`")
+    for m in payload["ungrouped_modules"]:
+        problems.append(f"`{m}` has no layer in topology.jsonc, so its imports are not checked")
+    for ch in payload.get("scc_changes", []):
+        if "new_cycle" in ch:
+            problems.append("new import loop between: " + ", ".join(f"`{m}`" for m in ch["new_cycle"]))
+        elif ch.get("gained_members"):
+            problems.append("import loop now also includes: " + ", ".join(f"`{m}`" for m in ch["gained_members"]))
+    return problems
+
+
+REPORT_MARKER = "<!-- architecture-check-report -->"
+
+
+def render_markdown(payload: dict, problems: list[str]) -> str:
+    hc = payload["health_comparison"]
+
+    def row(label: str, before: int, after: int) -> str:
+        delta = after - before
+        return f"| {label} | {before} | {after} | {delta:+d} |"
+
+    lines = [
+        REPORT_MARKER,
+        "## 🏗️ Architecture check",
+        "",
+        "Checks that `require()` calls between modules follow the layer rules in "
+        "`scripts/dependency-topology/topology.jsonc` "
+        "(entry → dispatch → services/UI → server/protocols; shared helpers usable everywhere).",
+        "",
+        f"Compared `{payload['from_snapshot']}` → `{payload['to_snapshot']}`.",
+        "",
+        "| | Before | After | Δ |",
+        "|---|---|---|---|",
+        row("Imports breaking layer rules", hc["violations"]["from"], hc["violations"]["to"]),
+        row("Import loops", hc["cycles"]["count"]["from"], hc["cycles"]["count"]["to"]),
+        row("Modules in largest loop", hc["cycles"]["largest"]["from"], hc["cycles"]["largest"]["to"]),
+        row("Modules without a layer", hc["ungrouped"]["from"], hc["ungrouped"]["to"]),
+        "",
+        f"Imports between modules: +{payload['edge_changes']['added']} / -{payload['edge_changes']['removed']}",
+        "",
+    ]
+    if problems:
+        lines.append(f"### ❌ {len(problems)} problem(s) to fix")
+        lines.append("")
+        lines.extend(f"- {p}" for p in problems)
+        lines.append("")
+        lines.append(
+            "To fix: give new modules a layer in `topology.jsonc`, move the import so it points "
+            "down the layers, or list it as an `allowed` exception with a reason."
+        )
+    else:
+        lines.append("### ✅ No new problems")
+    fixed = payload["violations_fixed"]
+    if fixed:
+        lines.append("")
+        lines.append(f"### Fixed layer-rule breaks ({len(fixed)})")
+        lines.append("")
+        lines.extend(f"- [{v['rule']}] `{v['src']}` → `{v['dst']}`" for v in fixed)
+    lines.append("")
+    lines.append("<sub>Run locally: `make topology-check`</sub>")
+    return "\n".join(lines) + "\n"
+
+
 def cmd_diff(args: argparse.Namespace) -> int:
     repo = Path(args.repo).resolve()
     if args.from_snapshot or args.to_snapshot:
@@ -106,10 +173,15 @@ def cmd_diff(args: argparse.Namespace) -> int:
     init_policy(strategy.get("policy", {}).get("rules", []))
 
     payload = build_diff_payload(repo, from_snap, to_snap, strategy)
+    problems = diff_regressions(payload)
+    status = 1 if args.check and problems else 0
 
     if args.json:
         print(json.dumps(payload, indent=2, ensure_ascii=False))
-        return 0
+        return status
+    if args.markdown:
+        print(render_markdown(payload, problems), end="")
+        return status
 
     # Human-readable — show meaningful detail, not just counts
     hc = payload["health_comparison"]
@@ -169,7 +241,17 @@ def cmd_diff(args: argparse.Namespace) -> int:
         print("  No violation changes.")
         print()
 
-    return 0
+    ungrouped = payload["ungrouped_modules"]
+    if ungrouped:
+        print(f"  Unmapped modules ({len(ungrouped)}) — add them to topology.jsonc:")
+        for m in ungrouped:
+            print(f"    ? {m}")
+        print()
+
+    if args.check:
+        print(f"  check: {'FAILED, ' + str(len(problems)) + ' regression(s)' if problems else 'passed'}")
+
+    return status
 
 def main() -> int:
     parser = argparse.ArgumentParser(
@@ -183,6 +265,7 @@ def main() -> int:
               %(prog)s diff                           Compare HEAD vs uncommitted changes
               %(prog)s diff --from HEAD~5             Compare 5 commits ago vs uncommitted
               %(prog)s diff --from v1.0 --to HEAD     Compare two commits
+              %(prog)s diff --from origin/main --check --markdown   CI gate + PR report
 
             Policy rules are defined in topology.jsonc. Edit that file to customize
             layer definitions and forbidden dependency directions.
@@ -211,6 +294,12 @@ def main() -> int:
     p_diff.add_argument("--from", dest="from_snapshot", help="Base ref (default: HEAD)")
     p_diff.add_argument("--to", dest="to_snapshot", help="Target ref (default: worktree = uncommitted changes)")
     p_diff.add_argument("--json", action="store_true", help="Output JSON instead of summary")
+    p_diff.add_argument("--markdown", action="store_true", help="Output a Markdown report (for PR comments)")
+    p_diff.add_argument(
+        "--check",
+        action="store_true",
+        help="Exit 1 on new violations, unmapped modules, or new/grown cycles",
+    )
     p_diff.add_argument("--strategy", help="Path to strategy JSONC (default: topology.jsonc)")
 
     args = parser.parse_args()

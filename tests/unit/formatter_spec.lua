@@ -1058,6 +1058,61 @@ describe('formatter', function()
       })
     end
 
+    describe('fallback tool input', function()
+      it('pretty-prints nested input so large inputs become foldable', function()
+        config.setup({
+          ui = {
+            output = {
+              tools = {
+                show_output = true,
+                use_folds = true,
+                folding_threshold = 5,
+              },
+            },
+          },
+        })
+
+        local content = {}
+        for i = 1, 10 do
+          content[#content + 1] = { startId = string.format('m%05d', i), endId = string.format('m%05d', i + 5) }
+        end
+        local part = tool('compress', {
+          id = 'prt_compress',
+          input = { content = content, topic = 'summary' },
+        })
+
+        local message = assistant()
+        local output = formatter.format_part(part, message, true)
+
+        local input_start
+        for i, line in ipairs(output.lines) do
+          if line == '**Input**' then
+            input_start = i
+            break
+          end
+        end
+        assert.is_not_nil(input_start)
+        assert.is_true(#output.lines - input_start > 5, 'input should span multiple lines')
+        assert.is_true(#output.fold_ranges >= 1, 'input beyond threshold should fold')
+        local joined = table.concat(output.lines, '\n')
+        assert.truthy(joined:find('"startId": "m00001"'))
+        assert.truthy(joined:find('"topic": "summary"'))
+      end)
+
+      it('produces valid JSON for nested structures', function()
+        local input = {
+          content = { { startId = 'm1', meta = { tags = { 'a', 'b' } } }, { startId = 'm2' } },
+          empty_list = {},
+          topic = 'summary',
+        }
+        local lines = require('opencode.ui.formatter.utils').format_tool_input_lines(input)
+        local decoded = vim.json.decode(table.concat(lines, '\n'))
+        assert.same({ tags = { 'a', 'b' } }, decoded.content[1].meta)
+        assert.equals('m2', decoded.content[2].startId)
+        assert.equals('summary', decoded.topic)
+      end)
+    end)
+
     local function make_mcp_part()
       return tool('sequential-thinking_sequentialthinking', {
         id = 'prt_mcp',

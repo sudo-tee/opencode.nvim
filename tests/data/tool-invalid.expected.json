@@ -397,6 +397,66 @@
         "virt_text_repeat_linebreak": true,
         "virt_text_win_col": -1
       }
+    ],
+    [
+      20,
+      20,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -1
+      }
+    ],
+    [
+      21,
+      21,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -1
+      }
+    ],
+    [
+      22,
+      22,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -1
+      }
     ]
   ],
   "lines": [
@@ -408,7 +468,10 @@
     "**Input**",
     "",
     "`````json",
-    "{\"error\":\"Invalid input for tool edit: JSON parsing failed: Text: {\\\"filePath\\\": \\\"/Users/cam/Dev/neovim-dev/opencode.nvim/lua/opencode/ui/streaming_renderer.lua\\\", \\\"newString\\\": \\\"---Event handler for permission.replied events\\\\n---Re-renders part after permission is resolved\\\\n---@param event table Event object\\\\nfunctio.\\nError message: JSON Parse error: Unterminated string\",\"tool\":\"edit\"}",
+    "{",
+    "  \"error\": \"Invalid input for tool edit: JSON parsing failed: Text: {\\\"filePath\\\": \\\"/Users/cam/Dev/neovim-dev/opencode.nvim/lua/opencode/ui/streaming_renderer.lua\\\", \\\"newString\\\": \\\"---Event handler for permission.replied events\\\\n---Re-renders part after permission is resolved\\\\n---@param event table Event object\\\\nfunctio.\\nError message: JSON Parse error: Unterminated string\",",
+    "  \"tool\": \"edit\"",
+    "}",
     "`````",
     "",
     "**Result**",
@@ -426,11 +489,11 @@
   "timestamp": 1770935243,
   "window": {
     "cursor": [
-      21,
+      24,
       0
     ],
-    "effective_bottom": 21,
-    "line_count": 22,
-    "visible_bottom": 21
+    "effective_bottom": 24,
+    "line_count": 25,
+    "visible_bottom": 24
   }
 }

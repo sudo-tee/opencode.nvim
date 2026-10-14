@@ -257,6 +257,7 @@ require('opencode').setup({
     notify_on_background_prompt = true,
     window_highlight = 'Normal:OpencodeBackground,FloatBorder:OpencodeBorder',
     persist_state = true,
+    persist_session_tabs = true, -- Save and restore logical panel tabs across Neovim restarts
     icons = {
       preset = 'nerdfonts',
       overrides = {},
@@ -497,6 +498,7 @@ the everyday ones. Session diff remapping has its own [example](review.md#custom
 | `ui.window_width`                    | `0.40`          | Split width as a fraction of editor width            |
 | `ui.zoom_width`                      | `0.8`           | Zoomed split width                                   |
 | `ui.persist_state`                   | `true`          | Preserve UI buffers when closing/hiding              |
+| `ui.persist_session_tabs`            | `true`          | Restore logical panel tabs across Neovim restarts    |
 | `ui.input.min_height` / `max_height` | `0.10` / `0.25` | Input height bounds as window-height fractions       |
 | `ui.input.text.wrap`                 | `false`         | Wrap prompt text                                     |
 | `ui.input.auto_hide`                 | `false`         | Hide input after submission or focus moves to output |

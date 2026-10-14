@@ -30,6 +30,7 @@ function M.setup(opts)
 
   state = require('opencode.state')
   state.session_tabs.setup()
+  require('opencode.services.session_tab_persistence').setup()
   session_runtime.setup_subscriptions()
   state.store.subscribe('opencode_server', on_opencode_server)
   state.store.subscribe('user_message_count', session_runtime._on_user_message_count_change)

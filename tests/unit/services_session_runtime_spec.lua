@@ -21,6 +21,7 @@ local support = require('tests.unit.services_spec_support')
 
 describe('opencode.services.session_runtime', function()
   local original
+  local original_persist_session_tabs
 
   local function set_session_fact(session_id, parent_id)
     local connection = state.opencode_server
@@ -30,6 +31,9 @@ describe('opencode.services.session_runtime', function()
 
   before_each(function()
     original = support.snapshot_state()
+    -- Keep open() away from snapshots in the real stdpath('state').
+    original_persist_session_tabs = config.ui.persist_session_tabs
+    config.ui.persist_session_tabs = false
 
     vim.fn.executable = function(_)
       return 1
@@ -62,6 +66,7 @@ describe('opencode.services.session_runtime', function()
 
   after_each(function()
     support.restore_state(original)
+    config.ui.persist_session_tabs = original_persist_session_tabs
 
     for _, fn in ipairs({
       'create_windows',
@@ -121,6 +126,45 @@ describe('opencode.services.session_runtime', function()
   end)
 
   describe('open', function()
+    it('restores persisted tabs before mounting windows', function()
+      local persistence = require('opencode.services.session_tab_persistence')
+      local order = {}
+      local restore = stub(persistence, 'restore').invokes(function(background)
+        assert.is_false(background)
+        table.insert(order, 'restore')
+        return Promise.new():resolve(nil)
+      end)
+      local prepare = stub(ui, 'prepare_windows').invokes(function()
+        table.insert(order, 'windows')
+        return false
+      end)
+      local ok, err = pcall(function()
+        session_runtime.open({ new_session = false }):wait()
+        assert.same({ 'restore', 'windows' }, order)
+      end)
+      restore:revert()
+      prepare:revert()
+      assert.is_true(ok, tostring(err))
+    end)
+
+    it('mounts windows before server startup when there is nothing to restore', function()
+      local server_job = require('opencode.server_job')
+      local connection = state.opencode_server
+      local starting = Promise.new()
+      local ensure = stub(server_job, 'ensure_server').returns(starting)
+      local prepare = stub(ui, 'prepare_windows').returns(false)
+      local opening = session_runtime.open({ new_session = false })
+      local mounted = #prepare.calls
+      starting:resolve(connection)
+      local ok, err = pcall(function()
+        opening:wait()
+      end)
+      ensure:revert()
+      prepare:revert()
+      assert.equals(1, mounted)
+      assert.is_true(ok, tostring(err))
+    end)
+
     it("creates windows if they don't exist", function()
       state.ui.set_windows(nil)
       session_runtime.open({ new_session = false, focus = 'input' }):wait()

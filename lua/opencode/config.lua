@@ -239,6 +239,7 @@ M.defaults = {
     notify_on_background_prompt = true,
     window_highlight = 'Normal:OpencodeBackground,FloatBorder:OpencodeBorder',
     persist_state = true,
+    persist_session_tabs = true,
     icons = {
       preset = 'nerdfonts',
       overrides = {},

@@ -9,6 +9,7 @@ local Promise = require('opencode.promise')
 local log = require('opencode.log')
 local agent_model = require('opencode.services.agent_model')
 local session_tabs = require('opencode.state.session_tabs')
+local tab_persistence = require('opencode.services.session_tab_persistence')
 
 local M = {}
 
@@ -384,6 +385,10 @@ M.open = Promise.async(function(opts)
     end
     if open_action ~= 'reuse_visible' then
       M.is_prompting_allowed()
+    end
+    local restoring = tab_persistence.restore(opts.new_session == true)
+    if restoring then
+      restoring:await()
     end
     created_windows = ui.prepare_windows(open_action, opts)
     return server_job.ensure_server():await()

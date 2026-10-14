@@ -122,6 +122,7 @@ function M.setup_done_thinking_events(subscribe)
   })
 end
 
+---@param enable boolean|nil
 local function setup_model_sync_events(enable)
   vim.api.nvim_create_augroup('opencode_model_sync', { clear = true })
   if not enable then
@@ -129,14 +130,22 @@ local function setup_model_sync_events(enable)
   end
   vim.api.nvim_create_autocmd('User', {
     group = 'opencode_model_sync',
-    pattern = 'OpencodeEvent:session.model.selected',
+    pattern = {
+      'OpencodeEvent:session.model.selected',
+      'OpencodeEvent:session.agent.selected',
+    },
     callback = function(args)
-      local props = args.data and args.data.event and args.data.event.properties
+      local event = args.data and args.data.event
+      local props = event and event.properties
       local session = state.active_session
       if not (props and props.sessionID and session and props.sessionID == session.id) then
         return
       end
-      agent_model.apply_server_selection(props.model)
+      if event.type == 'session.agent.selected' then
+        agent_model.apply_server_agent(props.agent)
+      else
+        agent_model.apply_server_selection(props.model)
+      end
     end,
   })
 end

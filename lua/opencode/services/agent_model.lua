@@ -266,6 +266,14 @@ function M.apply_server_selection(model)
   end
 end
 
+---@param agent? string
+function M.apply_server_agent(agent)
+  if type(agent) ~= 'string' or agent == '' or state.current_mode == agent then
+    return
+  end
+  state.model.set_mode(agent)
+end
+
 ---Pull the authoritative session model from the server so state converges on
 ---panel open; live changes arrive via session.model.selected events.
 ---@return Promise|nil nil when there is no ready connection or active session

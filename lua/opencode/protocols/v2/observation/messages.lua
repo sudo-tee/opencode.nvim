@@ -383,6 +383,13 @@ end
 handlers['session.tool.success'] = finish_tool
 handlers['session.tool.failed'] = finish_tool
 
+---@return string 'refetch'
+local function invalidate_messages()
+  return 'refetch'
+end
+handlers['session.revert.committed'] = invalidate_messages
+handlers['session.compaction.ended'] = invalidate_messages
+
 ---@param observation OpencodeV2Observation
 ---@param event OpencodeV2Event
 ---@return boolean changed
@@ -391,7 +398,13 @@ function M.ingest_event(observation, event)
   if not handler or event.data.sessionID ~= observation._session_id then
     return false
   end
-  if not handler(observation, event, event.data) then
+  local result = handler(observation, event, event.data)
+  if result == 'refetch' then
+    observation:read().sync.messages = { state = 'stale' }
+    observation:_start_resource('messages')
+    return true
+  end
+  if not result then
     return false
   end
   observation:read().sync.messages = { state = 'current' }

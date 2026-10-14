@@ -1439,4 +1439,34 @@ describe('V2 protocol Observation runtime', function()
     assert.equals(operations, value.operations)
     stop()
   end)
+
+  it('re-pulls the messages snapshot when the server rewrites the message set', function()
+    local pulls = 0
+    local value = connection()
+    local streams = install_operations(value, {
+      list_messages = function()
+        pulls = pulls + 1
+        return resolved({ data = {}, cursor = {} })
+      end,
+    })
+    local observed = value:observe({ id = 'ses-a' })
+    local stop = observed:watch({ 'messages' }, function() end)
+    flush(function()
+      return observed:read().sync.messages.state == 'current'
+    end)
+    pulls = 0
+
+    emit(streams[1], event('ses-a', 'session.revert.committed', {}))
+    flush(function()
+      return observed:read().sync.messages.state == 'current'
+    end)
+    assert.is_true(pulls >= 1)
+
+    emit(streams[1], event('ses-a', 'session.compaction.ended', {}))
+    flush(function()
+      return observed:read().sync.messages.state == 'current'
+    end)
+    assert.is_true(pulls >= 2)
+    stop()
+  end)
 end)

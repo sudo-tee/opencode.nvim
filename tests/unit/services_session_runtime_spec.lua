@@ -21,7 +21,7 @@ local support = require('tests.unit.services_spec_support')
 
 describe('opencode.services.session_runtime', function()
   local original
-  local original_persist_session_tabs
+  local original_restore_tabs_on_startup
 
   local function set_session_fact(session_id, parent_id)
     local connection = state.opencode_server
@@ -32,8 +32,8 @@ describe('opencode.services.session_runtime', function()
   before_each(function()
     original = support.snapshot_state()
     -- Keep open() away from snapshots in the real stdpath('state').
-    original_persist_session_tabs = config.ui.persist_session_tabs
-    config.ui.persist_session_tabs = false
+    original_restore_tabs_on_startup = config.ui.restore_tabs_on_startup
+    config.ui.restore_tabs_on_startup = false
 
     vim.fn.executable = function(_)
       return 1
@@ -66,7 +66,7 @@ describe('opencode.services.session_runtime', function()
 
   after_each(function()
     support.restore_state(original)
-    config.ui.persist_session_tabs = original_persist_session_tabs
+    config.ui.restore_tabs_on_startup = original_restore_tabs_on_startup
 
     for _, fn in ipairs({
       'create_windows',

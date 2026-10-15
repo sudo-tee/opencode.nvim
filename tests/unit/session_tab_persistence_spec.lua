@@ -28,9 +28,9 @@ describe('session tab persistence', function()
   before_each(function()
     vim.wait(20)
     original_state = vim.deepcopy(state.store.state())
-    original_enabled = config.ui.persist_session_tabs
+    original_enabled = config.ui.restore_tabs_on_startup
     original_server = vim.deepcopy(config.server)
-    config.ui.persist_session_tabs = true
+    config.ui.restore_tabs_on_startup = true
     temporary = vim.fn.tempname()
     vim.fn.mkdir(temporary, 'p')
     path_stub = stub(vim.fn, 'stdpath', function()
@@ -60,7 +60,7 @@ describe('session tab persistence', function()
     path_stub:revert()
     server_stub:revert()
     vim.fn.delete(temporary, 'rf')
-    config.ui.persist_session_tabs = original_enabled
+    config.ui.restore_tabs_on_startup = original_enabled
     config.server = original_server
     for key in pairs(state.store.state()) do
       state.store.set_raw(key, nil)
@@ -124,7 +124,7 @@ describe('session tab persistence', function()
     save_tabs()
     local saved = vim.fn.readfile(snapshot_path())
     restart()
-    config.ui.persist_session_tabs = false
+    config.ui.restore_tabs_on_startup = false
     restore()
     assert.is_nil(tabs.current().active_session)
     assert.is_true(service.save())

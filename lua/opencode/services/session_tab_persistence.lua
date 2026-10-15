@@ -199,7 +199,7 @@ function M.restore(background)
     attempted = false
     restore_failed = false
   end
-  if attempted or not config.ui.persist_session_tabs then
+  if attempted or not config.ui.restore_tabs_on_startup then
     return nil
   end
   attempted = true
@@ -224,7 +224,7 @@ end
 ---@return boolean
 function M.save()
   if
-    not config.ui.persist_session_tabs
+    not config.ui.restore_tabs_on_startup
     or not attempted
     or restore_failed
     or (pending_restore and not pending_restore:is_resolved())

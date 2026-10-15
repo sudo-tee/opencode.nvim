@@ -55,7 +55,7 @@ drafts and window state are not. Deleted sessions and missing directories are
 skipped. If the first open starts an explicit new session, saved tabs are
 restored behind it and the new session stays active.
 
-Set `ui.persist_session_tabs = false` to disable saving and restoring tabs.
+Set `ui.restore_tabs_on_startup = false` to disable saving and restoring tabs.
 This is separate from `ui.persist_state`, which keeps buffers when hiding the
 panel within a running Neovim instance. Snapshots live under
 `stdpath('state')/opencode/session-tabs/`; concurrent instances in the same

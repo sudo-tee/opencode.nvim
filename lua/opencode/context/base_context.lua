@@ -263,12 +263,14 @@ M.get_git_diff = Promise.async(function(context_config)
     return nil
   end
 
-  return Promise.system({ 'git', 'diff', '--cached', '--minimal' }):and_then(function(output)
-    if output == '' then
-      return nil
-    end
-    return output.stdout
+  -- Optional context must not prevent sending from non-repositories or after Git failures.
+  local ok, output = pcall(function()
+    return Promise.system({ 'git', 'diff', '--cached', '--minimal' }):await()
   end)
+  if not ok or output.stdout == '' then
+    return nil
+  end
+  return output.stdout
 end)
 
 ---@param file table

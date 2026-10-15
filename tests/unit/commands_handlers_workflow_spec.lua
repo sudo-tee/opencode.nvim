@@ -32,7 +32,7 @@ describe('opencode.commands.handlers.workflow', function()
       state.store.set_raw('windows', { input_buf = buf, input_win = vim.api.nvim_get_current_win() })
       state.store.set_raw('display_route', nil)
       config.ui.input.auto_hide = true
-      send_message = stub(require('opencode.services.messaging'), 'send_message').returns(false)
+      send_message = stub(require('opencode.services.messaging'), 'send_message').returns(Promise.new():resolve(false))
       hide = stub(input_window, '_hide')
       hidden = stub(input_window, 'is_hidden').returns(false)
       get_key = stub(config, 'get_key_for_function').returns('/')
@@ -74,6 +74,22 @@ describe('opencode.commands.handlers.workflow', function()
       submit({ 'hello', 'world' })
       assert.stub(send_message).was_called_with('hello\nworld')
       assert.stub(hide).was_called(1)
+    end)
+
+    it('reports asynchronous send failures without waiting to auto-hide', function()
+      local pending = Promise.new()
+      send_message.returns(pending)
+      submit({ 'hello' })
+      assert.stub(hide).was_called(1)
+      assert.stub(notify).was_not_called()
+
+      pending:reject('context preparation failed')
+      assert.is_true(vim.wait(1000, function()
+        return #notify.calls > 0
+      end))
+      assert
+        .stub(notify)
+        .was_called_with('[opencode.nvim] Error sending message: ' .. vim.inspect('context preparation failed'), vim.log.levels.ERROR)
     end)
 
     it('clears empty input without sending or hiding', function()

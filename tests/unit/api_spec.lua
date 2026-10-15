@@ -382,7 +382,7 @@ describe('opencode.api', function()
           local after_run_stub = stub(messaging, 'after_run')
           local send_message_stub = stub(messaging, 'send_message').invokes(function(prompt)
             require('opencode.services.messaging').after_run(prompt)
-            return true
+            return resolved(true)
           end)
           local take_input_stub = stub(input_window, 'take_input').returns('hello')
           local is_hidden_stub = stub(input_window, 'is_hidden').returns(true)

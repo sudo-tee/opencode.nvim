@@ -362,7 +362,9 @@ M.actions.submit_input_prompt = Promise.async(function()
     return
   end
 
-  require('opencode.services.messaging').send_message(input_content)
+  require('opencode.services.messaging').send_message(input_content):catch(function(err)
+    require('opencode.log').notify('Error sending message: ' .. vim.inspect(err), vim.log.levels.ERROR)
+  end)
   if config.ui.input.auto_hide and not input_window.is_hidden() then
     input_window._hide()
   end

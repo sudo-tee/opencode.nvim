@@ -257,6 +257,36 @@ describe('formatter', function()
     assert.is_true(rendered:find('return await mcp.server.list()', 1, true) ~= nil, rendered)
   end)
 
+  it('shows the execute code summary on the folded input title', function()
+    local output = formatter.format_part(
+      tool('execute', {
+        input = { code = 'return await mcp.server.list()\nlocal second = true' },
+        time = { started = 1, completed = 2 },
+      }),
+      assistant(),
+      true
+    )
+
+    local title = output.lines[2]
+    assert.is_truthy(title:find('Input', 1, true), title)
+    assert.is_truthy(title:find('return await mcp.server.list()', 1, true), title)
+  end)
+
+  it('truncates long execute code summaries', function()
+    local output = formatter.format_part(
+      tool('execute', {
+        input = { code = string.rep('x', 120) },
+        time = { started = 1, completed = 2 },
+      }),
+      assistant(),
+      true
+    )
+
+    local title = output.lines[2]
+    assert.is_truthy(title:find('...', 1, true), title)
+    assert.is_true(#title < 120, title)
+  end)
+
   it('renders V2 edit changes supplied by the server', function()
     local part = tool('edit', {
       input = {

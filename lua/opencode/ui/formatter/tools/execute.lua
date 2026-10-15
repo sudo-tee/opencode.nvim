@@ -16,6 +16,13 @@ function M.format(output, part)
 
   local start_line = output:get_line_count() + 1
   if input.code and (config.ui.output.tools.show_output or config.ui.output.tools.use_folds) then
+    local first_line = vim.split(input.code, '\n', { plain = true })[1] or ''
+    if #first_line > 80 then
+      first_line = first_line:sub(1, 77) .. '...'
+    end
+    if first_line ~= '' then
+      start_line = output:add_line('**Input** — `' .. first_line .. '`')
+    end
     utils.format_code(output, vim.split(input.code, '\n'), 'javascript')
     output:add_fold_with_threshold(start_line, false, config.ui.output.tools.use_folds)
   end

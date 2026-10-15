@@ -502,7 +502,7 @@ function M.upsert_part_now(part_id, message_id, formatted_data, previous_formatt
     apply_extmarks(previous_formatted, formatted_data, cached.line_start, old_line_end, new_line_end, prefix_len, true)
 
     if formatted_data.fold_ranges then
-      M.update_part_folds(part_id, ctx)
+      M.update_part_folds(part_id, true, ctx)
     end
 
     return true
@@ -546,8 +546,8 @@ function M.set_all_folds(ctx)
         local part_abs_folds = {}
         for _, f in ipairs(data.fold_ranges) do
           local abs = {
-            from = cached_part.line_start + f.from - 1,
-            to = cached_part.line_start + f.to - 1,
+            from = cached_part.line_start + f.from,
+            to = cached_part.line_start + f.to,
           }
           table.insert(part_abs_folds, abs)
           table.insert(all_folds, abs)
@@ -576,9 +576,12 @@ local function folds_equal(a, b)
 end
 
 ---Update folds for a single part during streaming, avoiding a full rebuild.
+---`force` skips the recorded-folds equality checks: in-place rewrites can drop
+---buffer folds as a side effect of set_lines, which the records cannot see.
 ---@param part_id string
+---@param force? boolean
 ---@param ctx? RendererCtx
-function M.update_part_folds(part_id, ctx)
+function M.update_part_folds(part_id, force, ctx)
   ctx = ctx or contexts.current()
   local formatted_data = ctx.formatted_parts[part_id]
   if not formatted_data or not formatted_data.fold_ranges then
@@ -594,12 +597,12 @@ function M.update_part_folds(part_id, ctx)
   local new_folds = {}
   for _, f in ipairs(formatted_data.fold_ranges) do
     table.insert(new_folds, {
-      from = cached_part.line_start + f.from - 1,
-      to = cached_part.line_start + f.to - 1,
+      from = cached_part.line_start + f.from,
+      to = cached_part.line_start + f.to,
     })
   end
 
-  if folds_equal(ctx.part_folds[part_id], new_folds) then
+  if not force and folds_equal(ctx.part_folds[part_id], new_folds) then
     return
   end
 
@@ -611,8 +614,8 @@ function M.update_part_folds(part_id, ctx)
       if p and p.line_start then
         for _, f in ipairs(data.fold_ranges) do
           table.insert(new_global, {
-            from = p.line_start + f.from - 1,
-            to = p.line_start + f.to - 1,
+            from = p.line_start + f.from,
+            to = p.line_start + f.to,
           })
         end
       end
@@ -622,7 +625,7 @@ function M.update_part_folds(part_id, ctx)
     return a.from < b.from
   end)
   ctx.global_folds = new_global
-  output_window.set_folds(new_global)
+  output_window.set_folds(new_global, force)
 end
 
 ---@param part_id string

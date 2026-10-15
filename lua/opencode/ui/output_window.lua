@@ -503,7 +503,9 @@ function M.get_open_fold_starts(win, buf)
   local was_open = {}
   vim.api.nvim_win_call(win, function()
     for _, range in ipairs(prev_folds) do
-      if vim.fn.foldclosed(range.from) == -1 then
+      -- foldclosed == -1 also covers "fold does not exist"; only keep the open
+      -- state of folds that actually exist, or rebuilt folds get opened by mistake.
+      if vim.fn.foldlevel(range.from) > 0 and vim.fn.foldclosed(range.from) == -1 then
         was_open[range.from] = true
       end
     end
@@ -514,7 +516,7 @@ end
 
 ---Set the folds for the output buffer
 ---@param fold_ranges {from: number, to: number}[]
-function M.set_folds(fold_ranges)
+function M.set_folds(fold_ranges, force)
   local windows = state.windows
   if not M.mounted(windows) then
     return
@@ -525,7 +527,7 @@ function M.set_folds(fold_ranges)
   local folds = build_fold_state(fold_ranges or {})
   local prev_folds = state.ui.get_output_folds()
 
-  if vim.deep_equal(prev_folds.ranges, folds.ranges) then
+  if not force and vim.deep_equal(prev_folds.ranges, folds.ranges) then
     return
   end
 

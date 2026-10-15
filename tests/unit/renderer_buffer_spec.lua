@@ -221,9 +221,9 @@ describe('update_part_folds', function()
 
     buffer.update_part_folds('part_a')
 
-    assert.stub(set_folds_stub).was_called_with({
-      { from = 10, to = 13 },
-    })
+    -- line_start is a 0-based start index; absolute fold = line_start + relative range.
+    -- (args captured directly: set_folds now takes a trailing force argument)
+    assert.same({ { from = 11, to = 14 } }, set_folds_stub.calls[#set_folds_stub.calls].vals[1])
   end)
 
   it('skips set_folds when fold ranges have not changed', function()
@@ -241,6 +241,26 @@ describe('update_part_folds', function()
     assert.stub(set_folds_stub).was_not_called()
   end)
 
+  it('forces set_folds when in-place rewrites may have dropped buffer folds', function()
+    contexts.current().formatted_parts['part_a'] = {
+      lines = { 'title', '', 'content', 'more' },
+      fold_ranges = { { from = 1, to = 4 } },
+    }
+    contexts.current().render_state:set_part({ id = 'part_a', kind = 'text' }, 'msg_1', 'part_a', 10, 14)
+
+    buffer.update_part_folds('part_a')
+    set_folds_stub:clear()
+
+    -- recorded folds are unchanged, but the buffer side may have lost them to a
+    -- set_lines rewrite; the forced path must re-apply anyway.
+    buffer.update_part_folds('part_a', true)
+
+    assert.stub(set_folds_stub).was_called()
+    local last = set_folds_stub.calls[#set_folds_stub.calls]
+    assert.same({ { from = 11, to = 14 } }, last.vals[1])
+    assert.is_true(last.vals[2])
+  end)
+
   it('merges existing folds from other parts', function()
     contexts.current().formatted_parts['part_b'] = {
       lines = { 'other' },
@@ -256,9 +276,9 @@ describe('update_part_folds', function()
 
     buffer.update_part_folds('part_a')
 
-    assert.stub(set_folds_stub).was_called_with({
-      { from = 5, to = 8 },
-      { from = 10, to = 13 },
-    })
+    assert.same({
+      { from = 6, to = 9 },
+      { from = 11, to = 14 },
+    }, set_folds_stub.calls[#set_folds_stub.calls].vals[1])
   end)
 end)

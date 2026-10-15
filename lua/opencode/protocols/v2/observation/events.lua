@@ -286,6 +286,19 @@ session_handlers['session.usage.updated'] = function(observation, _, data)
   observation:read().session.tokens = tokens
 end
 
+session_handlers['session.revert.staged'] = function(observation, _, data)
+  if type(data.revert) ~= 'table' then
+    return boundary.diagnostic(observation, 'session', 'session.revert.staged is missing revert')
+  end
+  observation:read().session.revert = vim.deepcopy(data.revert)
+  return true
+end
+
+session_handlers['session.revert.cleared'] = function(observation)
+  observation:read().session.revert = nil
+  return true
+end
+
 ---@param observation OpencodeV2Observation
 session_handlers['session.deleted'] = function(observation)
   observation:read().sync.session = lifecycle.sync_error('session_deleted', 'session was deleted')

@@ -14,6 +14,7 @@ describe('session tab persistence', function()
   local path_stub
   local server_stub
   local connection
+  local project_id
 
   local function restart()
     tabs.reset()
@@ -37,6 +38,10 @@ describe('session tab persistence', function()
       return temporary
     end)
     connection = { operations = {} }
+    project_id = 'test-project'
+    connection.operations.get_current_project = function()
+      return Promise.new():resolve({ id = project_id })
+    end
     connection.operations.get_session = function(_, id, location)
       return Promise.new():resolve({ id = id, title = id, location = location })
     end
@@ -173,9 +178,10 @@ describe('session tab persistence', function()
     assert.equals('explicit', tabs.current().active_session.id)
   end)
 
-  it('returns nothing to wait for without a snapshot', function()
-    assert.is_nil(service.restore(false))
-    assert.stub(server_stub).was_not_called()
+  it('resolves the editor project even without a snapshot', function()
+    restore()
+    assert.is_nil(tabs.current().active_session)
+    assert.stub(server_stub).was_called()
   end)
 
   it('restores saved tabs behind the current tab for explicit new-session opens', function()
@@ -265,11 +271,12 @@ describe('session tab persistence', function()
     for _, content in ipairs({
       'not json',
       '42',
-      '{"version":2,"cwd":"/workspace","server":"server","tabs":[],"active_index":0}',
-      '{"version":1,"cwd":"/other","server":"server","tabs":[],"active_index":0}',
-      '{"version":1,"cwd":"/workspace","server":"server","active_index":0}',
-      '{"version":1,"cwd":"/workspace","server":"server","tabs":[{}],"active_index":1}',
-      '{"version":1,"cwd":"/workspace","server":"server","tabs":[],"active_index":0.5}',
+      '{"version":3,"project":"/workspace","cwd":"/workspace","server":"server","tabs":[],"active_index":0}',
+      '{"version":2,"project":"/other","cwd":"/workspace","server":"server","tabs":[],"active_index":0}',
+      '{"version":2,"project":"/workspace","cwd":"/workspace","server":"other","tabs":[],"active_index":0}',
+      '{"version":2,"project":"/workspace","cwd":"/workspace","server":"server","active_index":0}',
+      '{"version":2,"project":"/workspace","cwd":"/workspace","server":"server","tabs":[{}],"active_index":1}',
+      '{"version":2,"project":"/workspace","cwd":"/workspace","server":"server","tabs":[],"active_index":0.5}',
     }) do
       vim.fn.writefile({ content }, path)
       assert.is_nil(service.load('/workspace', 'server'))
@@ -308,5 +315,217 @@ describe('session tab persistence', function()
     restore()
     assert.equals(1, #tabs.list())
     assert.is_nil(tabs.current().active_session)
+  end)
+
+  local function enter(project, cwd)
+    project_id = project
+    local restoring = service.restore(false, nil, cwd)
+    if restoring then
+      restoring:wait()
+    end
+  end
+
+  it('switches whole project groups, preserving runtime state and active selection', function()
+    save_tabs()
+    local first, second = unpack(tabs.list())
+    state.ui.set_input_content({ 'unfinished draft' })
+    enter('other-project', temporary)
+    assert.equals(1, #tabs.list())
+    assert.is_nil(tabs.current().active_session)
+    assert.equals(second, tabs.get(second.id))
+    state.session.set_active({ id = 'other' })
+    enter('test-project', vim.fn.getcwd())
+    assert.same({ first, second }, tabs.list())
+    assert.equals(second, tabs.current())
+    assert.same({ 'unfinished draft' }, state.input_content)
+    enter('other-project', temporary)
+    assert.equals('other', tabs.current().active_session.id)
+  end)
+
+  it('does not retarget tabs when subdirectories or worktrees resolve to the same project', function()
+    save_tabs()
+    local current = tabs.current()
+    enter('test-project', temporary)
+    assert.equals(current, tabs.current())
+    assert.equals(2, #tabs.list())
+    assert.equals('second', state.active_session.id)
+    assert.equals(1, #vim.fn.glob(temporary .. '/opencode/session-tabs/*.json', false, true))
+  end)
+
+  it('writes outgoing groups under their owner and restores both projects after restart', function()
+    save_tabs()
+    local path_a = snapshot_path()
+    local a = vim.json.decode(table.concat(vim.fn.readfile(path_a), '\n'))
+    enter('other-project', temporary)
+    local path_b = service.path('other-project', a.server)
+    assert.equals('test-project', vim.json.decode(table.concat(vim.fn.readfile(path_a), '\n')).project)
+    state.session.set_active({ id = 'other', location = { directory = temporary } })
+    service.save()
+    assert.equals('other-project', vim.json.decode(table.concat(vim.fn.readfile(path_b), '\n')).project)
+    restart()
+    enter('test-project', vim.fn.getcwd())
+    assert.equals(2, #tabs.list())
+    enter('other-project', temporary)
+    assert.equals('other', state.active_session.id)
+    assert.equals(1, #tabs.list())
+  end)
+
+  it('isolates configured servers even at the same editor cwd', function()
+    save_tabs()
+    config.server.url = 'http://another-server'
+    restore()
+    assert.is_nil(tabs.current().active_session)
+    config.server = vim.deepcopy(original_server)
+    restore()
+    assert.equals('second', state.active_session.id)
+  end)
+
+  it('isolates unrelated directories in the global project', function()
+    enter('global', '/one')
+    state.session.set_active({ id = 'one' })
+    enter('global', '/two')
+    assert.is_nil(state.active_session)
+    enter('global', '/one')
+    assert.equals('one', state.active_session.id)
+  end)
+
+  it('adopts the editor directory when the first group opens after a cwd change', function()
+    enter('test-project', temporary)
+    assert.equals(temporary, state.current_cwd)
+    assert.equals(temporary, tabs.current().current_cwd)
+  end)
+
+  it('ignores out-of-order project resolutions', function()
+    restore()
+    state.session.set_active({ id = 'initial' })
+    local slow = Promise.new()
+    connection.operations.get_current_project = function(_, location)
+      if location.directory == '/slow' then
+        return slow
+      end
+      return Promise.new():resolve({ id = 'fast-project' })
+    end
+    local stale = service.restore(false, nil, '/slow')
+    service.restore(false, nil, '/fast'):wait()
+    state.session.set_active({ id = 'fast' })
+    slow:resolve({ id = 'slow-project' })
+    stale:wait()
+    assert.equals('fast', state.active_session.id)
+    assert.equals(1, #tabs.list())
+  end)
+
+  it('does not apply stale session lookups after leaving and returning to a group', function()
+    save_tabs()
+    restart()
+    local slow = Promise.new()
+    local original_lookup = connection.operations.get_session
+    connection.operations.get_session = function()
+      return slow
+    end
+    local stale = service.restore(false)
+    assert.is_true(vim.wait(1000, function()
+      return #server_stub.calls >= 3
+    end))
+    enter('other-project', temporary)
+    connection.operations.get_session = original_lookup
+    enter('test-project', vim.fn.getcwd())
+    assert.equals(2, #tabs.list())
+    slow:resolve({ id = 'stale' })
+    stale:wait()
+    assert.equals(2, #tabs.list())
+    assert.equals('second', state.active_session.id)
+  end)
+
+  it('ignores an outdated snapshot and overwrites it on the next save', function()
+    save_tabs()
+    local path = snapshot_path()
+    local saved = vim.json.decode(table.concat(vim.fn.readfile(path), '\n'))
+    saved.version, saved.project = 1, nil
+    vim.fn.writefile({ vim.json.encode(saved) }, path)
+    restart()
+    restore()
+    assert.is_nil(state.active_session)
+    service.save()
+    local current = vim.json.decode(table.concat(vim.fn.readfile(path), '\n'))
+    assert.equals(2, current.version)
+    assert.equals('test-project', current.project)
+    assert.same({}, current.tabs)
+  end)
+
+  it('clears pending requests on parked runtimes without exposing their tabs', function()
+    save_tabs()
+    local parked = tabs.current()
+    tabs.add_pending_permission(parked.id, { id = 'permission', sessionID = 'second' })
+    enter('other-project', temporary)
+    assert.equals(1, #tabs.list())
+    assert.equals(3, #tabs.all())
+    require('opencode.ui.session_tab_notifications').clear_permission('permission')
+    assert.same({}, parked.pending_prompt_permissions)
+  end)
+
+  describe('runtime project orchestration', function()
+    local runtime = require('opencode.services.session_runtime')
+    local ui = require('opencode.ui.ui')
+    local agent_model = require('opencode.services.agent_model')
+    local runtime_stubs
+    local cwd
+
+    before_each(function()
+      cwd = vim.fn.getcwd()
+      runtime_stubs = {
+        stub(vim.fn, 'getcwd', function()
+          return cwd
+        end),
+        stub(ui, 'prepare_session_tab_switch'),
+        stub(ui, 'hide_visible_windows'),
+        stub(ui, 'prepare_windows').returns(false),
+        stub(ui, 'render_output'),
+        stub(ui, 'is_opencode_focused').returns(true),
+        stub(agent_model, 'ensure_current_mode').returns(Promise.new():resolve(nil)),
+        stub(agent_model, 'sync_from_server'),
+      }
+      connection.operations.get_current_project = function(_, location)
+        return Promise.new():resolve({ id = location.directory == temporary and 'other-project' or 'test-project' })
+      end
+    end)
+
+    after_each(function()
+      for _, item in ipairs(runtime_stubs) do
+        item:revert()
+      end
+    end)
+
+    it('swaps the visible panel instead of retargeting its active tab', function()
+      save_tabs()
+      local visible = stub(state.ui, 'is_visible').returns(true)
+      table.insert(runtime_stubs, visible)
+      local previous = tabs.current()
+      cwd = temporary
+      runtime.handle_directory_change(cwd):wait()
+      assert.is_nil(state.active_session)
+      assert.equals(1, #tabs.list())
+      assert.equals('second', previous.active_session.id)
+      assert.stub(ui.hide_visible_windows).was_called(1)
+      assert.stub(ui.prepare_windows).was_called(1)
+      cwd = vim.uv.cwd()
+      runtime.handle_directory_change(cwd):wait()
+      assert.equals(previous, tabs.current())
+      assert.equals('second', state.active_session.id)
+    end)
+
+    it('pins a locked group across directory changes and subsequent panel opens', function()
+      save_tabs()
+      table.insert(runtime_stubs, stub(state.ui, 'is_visible').returns(false))
+      runtime.set_session_lock(true)
+      cwd = temporary
+      runtime.handle_directory_change(cwd):wait()
+      runtime.open({ new_session = false, open_action = 'restore_hidden' }):wait()
+      assert.equals('second', state.active_session.id)
+      assert.equals(2, #tabs.list())
+      runtime.set_session_lock(false)
+      runtime.open({ new_session = false, open_action = 'restore_hidden' }):wait()
+      assert.is_nil(state.active_session)
+      assert.equals(1, #tabs.list())
+    end)
   end)
 end)

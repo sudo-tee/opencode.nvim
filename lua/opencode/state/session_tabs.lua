@@ -3,6 +3,7 @@ local renderer_context = require('opencode.ui.renderer.ctx')
 
 ---@class OpencodeSessionTabRuntime
 ---@field id string Logical panel-tab identifier
+---@field group string Owning project/server group
 ---@field active_session OpencodeSession|nil
 ---@field windows OpencodeWindowState|nil Buffers and the currently mounted panel windows
 ---@field is_opening boolean
@@ -106,6 +107,9 @@ local UI_KEYS = {
 local runtimes = {}
 local next_id = 1
 local setup_done = false
+local active_group = ''
+---@type table<string, string>
+local group_selection = {}
 
 local function notify_change()
   store.update('session_tabs_changed', function(current)
@@ -122,6 +126,7 @@ end
 local function default_runtime(id)
   return {
     id = id,
+    group = active_group,
     active_session = nil,
     windows = nil,
     is_opening = false,
@@ -216,12 +221,15 @@ local function capture_runtime(id)
   return runtime
 end
 
+---@param group? string Omitted includes every group
 ---@return OpencodeSessionTabRuntime[]
-function M.list()
+local function list(group)
   M.sync()
   local tabs = {}
   for _, runtime in pairs(runtimes) do
-    table.insert(tabs, runtime)
+    if not group or runtime.group == group then
+      table.insert(tabs, runtime)
+    end
   end
   table.sort(tabs, function(a, b)
     local a_order = tonumber(a.id:match('(%d+)$')) or 0
@@ -229,6 +237,52 @@ function M.list()
     return a_order < b_order
   end)
   return tabs
+end
+
+---@param group? string Defaults to the active project group
+---@return OpencodeSessionTabRuntime[]
+function M.list(group)
+  return list(group or active_group)
+end
+
+---@return OpencodeSessionTabRuntime[]
+function M.all()
+  return list()
+end
+
+---Adopt the initial registry, or park it and resume another project's runtimes.
+---Inactive runtimes remain addressable by id for in-flight sends and notifications.
+---@param group string
+---@param cwd string
+function M.switch_group(group, cwd)
+  M.sync()
+  if active_group == '' then
+    for _, runtime in pairs(runtimes) do
+      runtime.group = group
+      if not runtime.active_session and not runtime.bound_directory then
+        runtime.current_cwd = cwd
+      end
+    end
+    active_group = group
+    local current = runtimes[store.get('active_session_tab')]
+    if current and not current.active_session and not current.bound_directory then
+      store.set('current_cwd', cwd)
+    end
+    return
+  end
+  group_selection[active_group] = M.active_id()
+  active_group = group
+  local selected = group_selection[group] and runtimes[group_selection[group]]
+  if not selected then
+    selected = M.list(group)[1]
+  end
+  if not selected then
+    selected = default_runtime(new_id())
+    selected.current_cwd = cwd
+    runtimes[selected.id] = selected
+  end
+  M.activate(selected)
+  notify_change()
 end
 
 ---@param id string
@@ -376,6 +430,12 @@ end
 ---@return string|nil
 function M.active_id()
   return store.get('active_session_tab')
+end
+
+---@param group string
+---@return string|nil
+function M.selection(group)
+  return group == active_group and M.active_id() or group_selection[group]
 end
 
 ---@return boolean
@@ -566,6 +626,8 @@ function M.reset()
   end
   renderer_context.select()
   runtimes = {}
+  active_group = ''
+  group_selection = {}
   next_id = 1
   setup_done = false
   store.set_raw('active_session_tab', nil)

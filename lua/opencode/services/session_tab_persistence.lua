@@ -7,11 +7,26 @@ local log = require('opencode.log')
 local v = require('opencode.shape')
 
 local M = {}
-local attempted = false
+---@class OpencodeTabGroup
+---@field project string
+---@field server string
+---@field cwd string
+---@field attempted boolean
+---@field failed boolean
+---@field restoring boolean
+---@field restore_generation? integer
+
+---@type table<string, OpencodeTabGroup>
+local groups = {}
+---@type OpencodeTabGroup|nil
+local owner
+local generation = 0
+---@type string|nil
+local requested_cwd
+---@type string|nil
+local requested_server
 ---@type Promise<nil>|nil
 local pending_restore
--- A failed restore must neither overwrite the snapshot on exit nor block a later retry.
-local restore_failed = false
 
 ---@class OpencodeSavedSessionTab
 ---@field session_id string
@@ -22,60 +37,62 @@ local restore_failed = false
 ---@class OpencodeSessionTabSnapshot
 ---@field version integer
 ---@field cwd string
+---@field project string
 ---@field server string
 ---@field tabs OpencodeSavedSessionTab[]
 ---@field active_index integer
 
 -- The snapshot file is external input: it may be corrupt or hand-edited.
+local saved_tabs_shape = v.array(v.object({
+  session_id = 'string',
+  directory = 'string',
+  bound_directory = v.optional('string'),
+  session_locked = v.optional('boolean'),
+}))
 local snapshot_shape = v.object({
-  version = v.literal(1),
+  version = v.literal(2),
   cwd = 'string',
+  project = 'string',
   server = 'string',
   active_index = v.integer(),
-  tabs = v.array(v.object({
-    session_id = 'string',
-    directory = 'string',
-    bound_directory = v.optional('string'),
-    session_locked = v.optional('boolean'),
-  })),
+  tabs = saved_tabs_shape,
 })
+local project_shape = v.object({ id = 'string' })
 
 ---@alias OpencodePersistedSessionLookup fun(connection: OpencodeV1Connection|OpencodeV2Connection, session_id: string, location: OpencodeLocation, path_map: OpencodePathMap, reverse_path_map: OpencodePathMap): Promise<OpencodeSession>
 
----@return string, string
-local function workspace()
-  local cwd = vim.fs.normalize(vim.fn.getcwd())
+---@return string
+local function server_identity()
   -- Use configured identity, not a discovered/random port that changes on restart.
   local server = vim.json.encode({
     config.opencode_executable,
     config.server.url or '',
     tostring(config.server.port or ''),
   })
-  return cwd, server
+  return server
 end
 
----@param cwd string
+---@param project string
 ---@param server string
 ---@return string
-function M.path(cwd, server)
-  local key = vim.fn.sha256(cwd .. '\n' .. server)
+function M.path(project, server)
+  local key = vim.fn.sha256(project .. '\n' .. server)
   return vim.fs.joinpath(vim.fn.stdpath('state'), 'opencode', 'session-tabs', key .. '.json')
 end
 
 ---Invalid snapshots read as missing, so a bad file never breaks opening the panel.
----@param cwd string
+---@param project string
 ---@param server string
 ---@return OpencodeSessionTabSnapshot|nil
-function M.load(cwd, server)
-  local file = io.open(M.path(cwd, server), 'r')
+function M.load(project, server)
+  local file = io.open(M.path(project, server), 'r')
   if not file then
     return nil
   end
   local content = file:read('*a')
   file:close()
   local ok, snapshot = pcall(vim.json.decode, content)
-  -- cwd/server are re-checked to reject sha256 path collisions.
-  if not ok or not snapshot_shape:check(snapshot) or snapshot.cwd ~= cwd or snapshot.server ~= server then
+  if not ok or not snapshot_shape:check(snapshot) or snapshot.project ~= project or snapshot.server ~= server then
     return nil
   end
   return snapshot --[[@as OpencodeSessionTabSnapshot]]
@@ -85,7 +102,7 @@ end
 ---@param snapshot OpencodeSessionTabSnapshot
 ---@return boolean, string|nil
 local function write(snapshot)
-  local path = M.path(snapshot.cwd, snapshot.server)
+  local path = M.path(snapshot.project, snapshot.server)
   local temporary = path .. '.' .. vim.fn.getpid() .. '.tmp'
   local ok, err = pcall(function()
     vim.fn.mkdir(vim.fs.dirname(path), 'p')
@@ -97,6 +114,35 @@ local function write(snapshot)
     return false, tostring(err)
   end
   return true
+end
+
+---@param key string
+---@param group OpencodeTabGroup
+---@return boolean
+local function save_group(key, group)
+  local cwd, server = group.cwd, group.server
+  ---@type OpencodeSessionTabSnapshot
+  local snapshot = { version = 2, project = group.project, cwd = cwd, server = server, tabs = {}, active_index = 0 }
+  for _, runtime in ipairs(tabs.list(key)) do
+    local session = runtime.active_session
+    if session then
+      local directory = runtime.bound_directory or runtime.current_cwd or cwd
+      table.insert(snapshot.tabs, {
+        session_id = session.id,
+        directory = directory,
+        bound_directory = runtime.bound_directory,
+        session_locked = runtime.session_locked,
+      })
+      if runtime.id == tabs.selection(key) then
+        snapshot.active_index = #snapshot.tabs
+      end
+    end
+  end
+  local ok, err = write(snapshot)
+  if not ok then
+    log.warn('Failed to persist session tabs: ' .. tostring(err))
+  end
+  return ok
 end
 
 ---@param current OpencodeSessionTabRuntime[]
@@ -117,7 +163,8 @@ end
 ---@param current OpencodeSessionTabRuntime
 ---@param cwd string
 ---@param background boolean
-local restore_snapshot = Promise.async(function(snapshot, current, cwd, background)
+---@param is_current fun(): boolean
+local restore_snapshot = Promise.async(function(snapshot, current, cwd, background, is_current)
   local connection = server_job.ensure_server():await()
   if not connection then
     error('Server failed to start')
@@ -152,7 +199,7 @@ local restore_snapshot = Promise.async(function(snapshot, current, cwd, backgrou
 
   -- Lookups yield; explicit session actions or cwd changes meanwhile take priority.
   local latest = tabs.list()
-  if latest[1] ~= current or not untouched(latest, background) or workspace() ~= cwd then
+  if not is_current() or latest[1] ~= current or not untouched(latest, background) then
     return
   end
   local occupied = current.active_session and current.active_session.id
@@ -181,39 +228,110 @@ local restore_snapshot = Promise.async(function(snapshot, current, cwd, backgrou
   end
 end)
 
----Restore once into an untouched tab registry, without mounting windows.
----Returns nil when there is nothing to wait for, so callers keep their normal open order.
----Concurrent opens share the same restore rather than mounting half-loaded state.
----Never rejects: failures are logged, fall back to ordinary session selection and retry on the next open.
+---@return boolean
+function M.is_initialized()
+  return owner ~= nil
+end
+
+---Resolve the editor project, switch its runtime group, then restore its durable layout once.
+---Concurrent opens for the same cwd/server share a request. Newer requests win.
+---Never rejects: failures are logged, snapshots stay intact, and the next open retries.
 ---@param background boolean Explicit new-session opens keep the current tab and append saved tabs behind it.
+---@param before_switch? fun() Called before parking outgoing runtime state
+---@param directory? string Editor cwd, never a tab's bound directory
 ---@return Promise<nil>|nil
-function M.restore(background)
-  if pending_restore then
-    if not pending_restore:is_resolved() then
-      return pending_restore
+function M.restore(background, before_switch, directory)
+  if not config.ui.restore_tabs_on_startup then
+    return nil
+  end
+  local cwd = vim.fs.normalize(directory or vim.fn.getcwd())
+  local server = server_identity()
+  if requested_cwd == cwd and requested_server == server and pending_restore and not pending_restore:is_resolved() then
+    return pending_restore
+  end
+  if requested_cwd == cwd and requested_server == server and owner and owner.attempted and not owner.failed then
+    return nil
+  end
+  requested_cwd = cwd
+  requested_server = server
+  generation = generation + 1
+  local request = generation
+  ---@type OpencodeTabGroup|nil
+  local group
+  pending_restore = Promise.async(function()
+    local connection = server_job.ensure_server():await()
+    if not connection then
+      error('Server failed to start')
     end
-    if not restore_failed then
-      return nil
+    local project = connection.operations
+      .get_current_project(connection, { directory = cwd }, util.apply_path_map, util.apply_reverse_path_map)
+      :await()
+    assert(project_shape:check(project), 'Project lookup requires a string id')
+    -- OpenCode's global project is shared by unrelated non-VCS directories.
+    local identity = project.id
+    if identity == '' or identity == 'global' then
+      identity = 'directory:' .. cwd
     end
-    pending_restore = nil
-    attempted = false
-    restore_failed = false
-  end
-  if attempted or not config.ui.restore_tabs_on_startup then
-    return nil
-  end
-  attempted = true
-  local current = tabs.list()
-  if not untouched(current, background) then
-    return nil
-  end
-  local cwd, server = workspace()
-  local snapshot = M.load(cwd, server)
-  if not snapshot or #snapshot.tabs == 0 then
-    return nil
-  end
-  pending_restore = restore_snapshot(snapshot, current[1], cwd, background):catch(function(err)
-    restore_failed = true
+    if request ~= generation then
+      return
+    end
+    local key = M.path(identity, server)
+    if not groups[key] then
+      groups[key] =
+        { project = identity, server = server, cwd = cwd, attempted = false, failed = false, restoring = false }
+    end
+    group = groups[key]
+    ---@type OpencodeTabGroup|nil
+    local previous = owner
+    if owner ~= group then
+      if previous then
+        M.save()
+        if previous.restoring then
+          previous.attempted = false
+        end
+        if before_switch then
+          before_switch()
+        end
+      end
+      tabs.switch_group(key, cwd)
+      owner = group
+    end
+    group.cwd = cwd
+    if group.restoring and group.restore_generation ~= request then
+      group.attempted = false
+    end
+    if group.attempted and not group.failed then
+      return
+    end
+    group.attempted = true
+    group.failed = false
+    local current = tabs.list()
+    if not untouched(current, background) then
+      return
+    end
+    local snapshot = M.load(identity, server)
+    if not snapshot or #snapshot.tabs == 0 then
+      return
+    end
+    group.restoring = true
+    group.restore_generation = request
+    restore_snapshot(snapshot, current[1], cwd, background, function()
+      return owner == group and request == generation
+    end):await()
+    if group.restore_generation == request then
+      group.restoring = false
+      if request ~= generation then
+        group.attempted = false
+      end
+    end
+  end)():catch(function(err)
+    if group and (not group.restore_generation or group.restore_generation == request) then
+      group.failed = true
+      group.restoring = false
+    end
+    if request == generation then
+      requested_cwd = nil
+    end
     log.warn('Failed to restore session tabs: ' .. tostring(err))
   end)
   return pending_restore
@@ -223,43 +341,25 @@ end
 ---Returns false on disk failure (logged), leaving the previous snapshot intact.
 ---@return boolean
 function M.save()
-  if
-    not config.ui.restore_tabs_on_startup
-    or not attempted
-    or restore_failed
-    or (pending_restore and not pending_restore:is_resolved())
-  then
+  if not config.ui.restore_tabs_on_startup then
     return true
   end
-  local cwd, server = workspace()
-  ---@type OpencodeSessionTabSnapshot
-  local snapshot = { version = 1, cwd = cwd, server = server, tabs = {}, active_index = 0 }
-  for _, runtime in ipairs(tabs.list()) do
-    local session = runtime.active_session
-    if session then
-      local directory = runtime.bound_directory or runtime.current_cwd or cwd
-      table.insert(snapshot.tabs, {
-        session_id = session.id,
-        directory = directory,
-        bound_directory = runtime.bound_directory,
-        session_locked = runtime.session_locked,
-      })
-      if runtime.id == tabs.active_id() then
-        snapshot.active_index = #snapshot.tabs
-      end
+  local success = true
+  for key, group in pairs(groups) do
+    if group.attempted and not group.failed and not group.restoring then
+      success = save_group(key, group) and success
     end
   end
-  local ok, err = write(snapshot)
-  if not ok then
-    log.warn('Failed to persist session tabs: ' .. tostring(err))
-  end
-  return ok
+  return success
 end
 
 function M.setup()
-  attempted = false
+  groups = {}
+  owner = nil
+  generation = generation + 1
+  requested_cwd = nil
+  requested_server = nil
   pending_restore = nil
-  restore_failed = false
   vim.api.nvim_create_autocmd('VimLeavePre', {
     group = vim.api.nvim_create_augroup('OpencodeSessionTabPersistence', { clear = true }),
     callback = function()

@@ -48,14 +48,22 @@ The tab strip is hidden while there is only one tab; set
 asks a question or needs a permission, you get a notification. Turn that off
 with `ui.notify_on_background_prompt = false`.
 
-Panel tabs are saved when Neovim exits and restored the first time you open
-the panel in the same editor directory with the same configured server.
+Panel tabs belong to an OpenCode project and configured server. Subdirectories
+and worktrees with the same project ID share a tab group. Changing projects
+with `:cd` saves the outgoing group and switches the entire panel to the new
+project's group; a project without saved tabs starts empty. A locked session
+pins the current group until unlocked. Non-project directories use separate
+directory-scoped groups.
+
+Groups are saved on project switches and when Neovim exits, and restored on
+first use. Switching back within Neovim resumes the group's buffers and drafts.
 Their order, active tab, directory bindings, and session locks are restored;
 drafts and window state are not. Deleted sessions and missing directories are
 skipped. If the first open starts an explicit new session, saved tabs are
 restored behind it and the new session stays active.
 
-Set `ui.restore_tabs_on_startup = false` to disable saving and restoring tabs.
+Set `ui.restore_tabs_on_startup = false` to disable project groups and persistence,
+and retain the previous cwd-based current-session selection behavior.
 This is separate from `ui.persist_state`, which keeps buffers when hiding the
 panel within a running Neovim instance. Snapshots live under
 `stdpath('state')/opencode/session-tabs/`; concurrent instances in the same

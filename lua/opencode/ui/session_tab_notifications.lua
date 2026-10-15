@@ -59,7 +59,7 @@ local function clear(kind, request_id)
     return
   end
 
-  local tabs = session_tabs.list()
+  local tabs = session_tabs.all()
   for _, runtime in ipairs(tabs) do
     if kind == 'permission' then
       session_tabs.remove_pending_permission(runtime.id, request_id)
@@ -136,7 +136,7 @@ function M.setup()
 end
 
 function M.reset()
-  for _, runtime in ipairs(session_tabs.list()) do
+  for _, runtime in ipairs(session_tabs.all()) do
     runtime.background_notifications = {}
   end
 end

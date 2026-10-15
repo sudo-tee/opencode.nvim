@@ -14,7 +14,7 @@
 ---@field list_sessions_project OpencodeV1LocationTableOperation
 ---@field list_session_status OpencodeV1LocationTableOperation
 ---@field list_sessions_global fun(connection: OpencodeV1Connection, reverse_path_map?: OpencodeV1PathMap): Promise<table[]>
----@field create_session fun(connection: OpencodeV1Connection, location: OpencodeLocation, input?: table, path_map?: OpencodeV1PathMap, reverse_path_map?: OpencodeV1PathMap): Promise<table>
+---@field create_session fun(connection: OpencodeV1Connection, location: OpencodeLocation, input?: table, path_map?: OpencodeV1PathMap, reverse_path_map?: OpencodeV1PathMap, selected?: OpencodeSessionSelection): Promise<table>
 ---@field delete_session fun(connection: OpencodeV1Connection, session_id: string, location: OpencodeLocation, path_map?: OpencodeV1PathMap): Promise<boolean>
 ---@field rename_session fun(connection: OpencodeV1Connection, session_id: string, location: OpencodeLocation, title: string, path_map?: OpencodeV1PathMap, reverse_path_map?: OpencodeV1PathMap): Promise<boolean>
 ---@field get_session fun(connection: OpencodeV1Connection, session_id: string, location: OpencodeLocation, path_map?: OpencodeV1PathMap, reverse_path_map?: OpencodeV1PathMap): Promise<table>

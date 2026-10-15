@@ -185,6 +185,19 @@ describe('opencode.services.agent_model', function()
     config_file.get_opencode_providers:revert()
   end)
 
+  it('initializes the current agent model before the global default', function()
+    state.model.clear()
+    state.model.set_mode('orchestrator')
+    stub(config_file, 'get_opencode_config').returns(Promise.new():resolve({
+      model = 'opencode/gemini-4-argon',
+      agent = { orchestrator = { model = 'opencode-go/glm-5.3-flash' } },
+    }))
+
+    assert.equal('opencode-go/glm-5.3-flash', agent_model.initialize_current_model():wait())
+
+    config_file.get_opencode_config:revert()
+  end)
+
   it('restores the latest session model and mode when explicitly requested', function()
     state.model.set_model('openai/gpt-4.1')
     state.model.set_mode('plan')
@@ -205,6 +218,30 @@ describe('opencode.services.agent_model', function()
     assert.equal('build', state.current_mode)
 
     config_file.get_opencode_agents:revert()
+  end)
+
+  it('resolves a neutral session selection while preserving explicit choices', function()
+    state.model.set_mode('plan')
+    state.model.set_model('custom/chosen')
+    state.model.set_variant('high')
+    stub(config_file, 'get_opencode_agents').returns(Promise.new():resolve({ 'plan' }))
+
+    local selected = agent_model.resolve_session_selection():wait()
+
+    assert.same({ mode = 'plan', model = 'custom/chosen', variant = 'high' }, selected)
+    config_file.get_opencode_agents:revert()
+  end)
+
+  it('rejects session selection when no primary agent is available', function()
+    stub(config_file, 'get_opencode_agents').returns(Promise.new():resolve({}))
+
+    local ok, err = pcall(function()
+      agent_model.resolve_session_selection():wait()
+    end)
+
+    config_file.get_opencode_agents:revert()
+    assert.is_false(ok)
+    assert.matches('Cannot resolve session agent', tostring(err))
   end)
 
   it('restores hidden mode from messages for child sessions', function()

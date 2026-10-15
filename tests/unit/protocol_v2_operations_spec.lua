@@ -219,7 +219,6 @@ describe('V2 protocol operations', function()
 
   it('uses direct, location/data, and page response contracts from the V2 fixtures', function()
     local bodies = {
-      ['/api/config'] = fixture('config.json'),
       ['/api/location'] = fixture('location.json'),
       ['/api/provider'] = fixture('provider.json'),
       ['/api/session'] = fixture('session.json'),
@@ -238,14 +237,12 @@ describe('V2 protocol operations', function()
       return path:gsub('^/Users/oujinsai', '/host')
     end
 
-    local config = operations.get_config(connection, location, to_server, to_host):wait()
     local project = operations.get_current_project(connection, location, to_server, to_host):wait()
     local providers = operations.list_providers(connection, location, to_server, to_host):wait()
     local sessions = operations.list_sessions(connection, location, nil, 25, to_server, to_host):wait()
     local provider_fixture = vim.json.decode(bodies['/api/provider'])
     local session_fixture = vim.json.decode(bodies['/api/session'])
 
-    assert.equals('/host/.claude', config[1].path)
     assert.equals('/host/Projects/nvim-plugins/opencode.nvim', project.directory)
     assert.same(provider_fixture.location, providers.location)
     assert.same(provider_fixture.data, providers.data)
@@ -253,8 +250,7 @@ describe('V2 protocol operations', function()
     assert.truthy(sessions.cursor.next)
     assert.equals('location%5Bdirectory%5D=%2Fserver%2Fworkspace', calls[1].request.query)
     assert.equals('location%5Bdirectory%5D=%2Fserver%2Fworkspace', calls[2].request.query)
-    assert.equals('location%5Bdirectory%5D=%2Fserver%2Fworkspace', calls[3].request.query)
-    assert.equals('directory=%2Fserver%2Fworkspace&limit=25', calls[4].request.query)
+    assert.equals('directory=%2Fserver%2Fworkspace&limit=25', calls[3].request.query)
   end)
 
   it('extracts the project object from the location envelope without unwrapping its data field', function()
@@ -275,21 +271,64 @@ describe('V2 protocol operations', function()
     assert.equals('/host/project', result.directory)
   end)
 
-  it('does not unwrap a data field from a direct array response', function()
-    transport.request = function()
-      return Promise.new():resolve({
-        status = 200,
-        body = '[{"data":{"belongs":"to-source"},"path":"/server/config.json"}]',
-      })
+  it('resolves effective model defaults rather than treating config sources as config', function()
+    local calls = {}
+    transport.request = function(_, request)
+      calls[#calls + 1] = request
+      local bodies = {
+        ['/api/model/default'] = '{"data":{"providerID":"opencode-go","id":"glm-5.3-flash"}}',
+        ['/api/agent'] = '{"data":[{"id":"orchestrator","model":{"providerID":"custom","id":"agent-model"}},{"id":"build"}]}',
+      }
+      return Promise.new():resolve({ status = 200, body = assert(bodies[request.path]) })
     end
     local result = operations
-      .get_config(ready_connection(), { directory = '/server/project' }, nil, function(path)
-        return path:gsub('^/server', '/host')
+      .get_config(ready_connection(), { directory = '/host/project' }, function(path)
+        return path:gsub('^/host', '/server')
       end)
       :wait()
 
-    assert.same({ belongs = 'to-source' }, result[1].data)
-    assert.equals('/host/config.json', result[1].path)
+    assert.equals('opencode-go/glm-5.3-flash', result.model)
+    assert.equals('custom/agent-model', result.agent.orchestrator.model)
+    assert.same({}, result.agent.build)
+    for _, call in ipairs(calls) do
+      assert.equals('location%5Bdirectory%5D=%2Fserver%2Fproject', call.query)
+    end
+  end)
+
+  it('encodes neutral session selections without overriding explicit creation options', function()
+    local bodies = {}
+    transport.request = function(_, request)
+      bodies[#bodies + 1] = vim.json.decode(request.body)
+      return Promise.new():resolve({ status = 200, body = '{"data":{"id":"new-session"}}' })
+    end
+    local connection = ready_connection()
+    local location = { directory = '/project' }
+    local selected = { mode = 'orchestrator', model = 'opencode-go/glm-5.3-flash', variant = 'high' }
+    operations.create_session(connection, location, { title = 'Default' }, nil, nil, selected):wait()
+    assert.same({
+      title = 'Default',
+      location = location,
+      agent = 'orchestrator',
+      model = { providerID = 'opencode-go', id = 'glm-5.3-flash', variant = 'high' },
+    }, bodies[1])
+
+    local explicit = { agent = 'other', model = { providerID = 'custom', id = 'chosen' } }
+    operations.create_session(connection, location, explicit, nil, nil, selected):wait()
+    assert.same({ agent = 'other', model = explicit.model, location = location }, bodies[2])
+    assert.is_nil(explicit.location)
+
+    operations.create_session(connection, location, { agent = 'other' }, nil, nil, selected):wait()
+    assert.same({ agent = 'other', location = location }, bodies[3])
+  end)
+
+  it('allows effective configuration without a default model', function()
+    transport.request = function(_, request)
+      return Promise.new():resolve({
+        status = 200,
+        body = request.path == '/api/model/default' and '{"data":null}' or '{"data":[]}',
+      })
+    end
+    assert.same({ agent = {} }, operations.get_config(ready_connection(), { directory = '/project' }):wait())
   end)
 
   it('maps business data without changing a provider envelope location', function()

@@ -383,6 +383,47 @@ describe('opencode LSP completion', function()
         assert.are.equal('TestItem', callback_result.items[1].filterText)
       end)
 
+      it('marks item documentation as markdown so engines render it', function()
+        completion.register_source({
+          name = 'doc_source',
+          priority = 1,
+          complete = function(context)
+            return Promise.new():resolve({
+              {
+                label = 'Sel 1',
+                kind = 'selection_item',
+                kind_icon = '',
+                insert_text = '',
+                documentation = '```python\nclass A: ...\n```',
+                source_name = 'doc_source',
+                data = {},
+              },
+            })
+          end,
+          get_trigger_character = function()
+            return '@'
+          end,
+        })
+
+        local config_obj = ls.create_config()
+        local server = config_obj.cmd({}, {})
+
+        local callback_result = nil
+        server.request('textDocument/completion', {
+          position = { line = 0, character = 5 },
+        }, function(err, result)
+          callback_result = result
+        end)
+
+        vim.wait(200, function()
+          return callback_result ~= nil
+        end)
+
+        local documentation = callback_result.items[1].documentation
+        assert.are.equal('markdown', documentation.kind)
+        assert.are.equal('```python\nclass A: ...\n```', documentation.value)
+      end)
+
       it('sets isIncomplete based on source is_incomplete flag', function()
         completion.register_source({
           name = 'incomplete_source',

@@ -81,7 +81,7 @@ describe('shared tool-result rendering', function()
     local output = render('custom', { input = { enabled = true, nested = { value = 42 } }, state = 'running' })
     assert.is_truthy(text(output):find('**Input**', 1, true))
     assert.is_truthy(text(output):find('`````json', 1, true))
-    assert.is_truthy(text(output):find('"value":42', 1, true))
+    assert.is_truthy(text(output):find('"value": 42', 1, true))
     assert.is_falsy(text(output):find('**Result**', 1, true))
   end)
 

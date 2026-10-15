@@ -340,7 +340,7 @@
     ],
     [
       17,
-      18,
+      17,
       0,
       {
         "ns_id": 3,
@@ -360,7 +360,7 @@
     ],
     [
       18,
-      19,
+      18,
       0,
       {
         "ns_id": 3,
@@ -440,13 +440,22 @@
     ],
     [
       22,
-      24,
+      23,
       0,
       {
-        "line_hl_group": "OpencodeHint",
         "ns_id": 3,
-        "priority": 5000,
-        "right_gravity": true
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -1
       }
     ],
     [
@@ -471,7 +480,7 @@
     ],
     [
       24,
-      25,
+      26,
       0,
       {
         "line_hl_group": "OpencodeHint",
@@ -482,7 +491,7 @@
     ],
     [
       25,
-      25,
+      26,
       0,
       {
         "ns_id": 3,
@@ -502,7 +511,7 @@
     ],
     [
       26,
-      26,
+      27,
       0,
       {
         "line_hl_group": "OpencodeHint",
@@ -513,7 +522,7 @@
     ],
     [
       27,
-      26,
+      27,
       0,
       {
         "ns_id": 3,
@@ -533,7 +542,7 @@
     ],
     [
       28,
-      27,
+      28,
       0,
       {
         "line_hl_group": "OpencodeHint",
@@ -544,7 +553,7 @@
     ],
     [
       29,
-      27,
+      28,
       0,
       {
         "ns_id": 3,
@@ -564,22 +573,13 @@
     ],
     [
       30,
-      28,
+      29,
       0,
       {
+        "line_hl_group": "OpencodeHint",
         "ns_id": 3,
-        "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodeToolBorder"
-          ]
-        ],
-        "virt_text_hide": false,
-        "virt_text_pos": "win_col",
-        "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -1
+        "priority": 5000,
+        "right_gravity": true
       }
     ],
     [
@@ -681,6 +681,46 @@
         "virt_text_repeat_linebreak": true,
         "virt_text_win_col": -1
       }
+    ],
+    [
+      36,
+      34,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -1
+      }
+    ],
+    [
+      37,
+      35,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -1
+      }
     ]
   ],
   "lines": [
@@ -692,7 +732,9 @@
     "**Input**",
     "",
     "`````json",
-    "{\"path\":\"results/report.txt\"}",
+    "{",
+    "  \"path\": \"results/report.txt\"",
+    "}",
     "`````",
     "",
     "**Result**",
@@ -724,11 +766,11 @@
   "timestamp": 1790771673,
   "window": {
     "cursor": [
-      35,
+      37,
       0
     ],
-    "effective_bottom": 35,
-    "line_count": 36,
-    "visible_bottom": 35
+    "effective_bottom": 37,
+    "line_count": 38,
+    "visible_bottom": 37
   }
 }

@@ -84,9 +84,7 @@ function M.format(output, part)
 
     output:add_empty_line()
 
-    local show = config.ui.output.tools.show_output
-    local use_folds = config.ui.output.tools.use_folds
-    output:add_fold_with_threshold(content_start, show, use_folds)
+    output:add_fold_with_threshold(content_start, false, config.ui.output.tools.use_folds)
   end
 
   -- Apply dimmed highlight to title and all content lines
@@ -94,7 +92,7 @@ function M.format(output, part)
   for line = title_line, end_line do
     output:add_extmark(line - 1, { line_hl_group = 'OpencodeHint', priority = 5000 } --[[@as OutputExtmark]])
   end
-  utils.format_tool_result(output, part)
+  utils.format_tool_result(output, part, { collapsed = true })
 end
 
 ---@param part table

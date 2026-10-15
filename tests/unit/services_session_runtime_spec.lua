@@ -120,6 +120,65 @@ describe('opencode.services.session_runtime', function()
     end)
   end)
 
+  describe('create_new_session defaults', function()
+    for _, explicit in ipairs({ false, true }) do
+      it('passes neutral selections at creation, explicit options: ' .. tostring(explicit), function()
+        local connection = state.opencode_server
+        connection.protocol = 'v2'
+        state.model.clear()
+        state.model.set_mode_model_map({})
+        local previous_mode = config.default_mode
+        config.default_mode = 'orchestrator'
+        local agents = stub(config_file, 'get_opencode_agents').returns(Promise.new():resolve({ 'orchestrator' }))
+        local defaults = stub(config_file, 'get_opencode_config').returns(Promise.new():resolve({
+          model = 'opencode/gemini-4-argon',
+          agent = { orchestrator = { model = 'opencode-go/glm-5.3-flash' } },
+        }))
+        local request, selection
+        connection.operations.create_session = function(_, _, input, _, _, selected)
+          request = input
+          selection = selected
+          return Promise.new():resolve({
+            id = 'new-session',
+            model = input.model or { providerID = 'opencode-go', id = 'glm-5.3-flash' },
+          })
+        end
+        local input = explicit
+            and {
+              title = 'Explicit',
+              agent = 'other',
+              model = { providerID = 'custom', id = 'chosen', variant = 'high' },
+            }
+          or 'Default'
+        local ok, err = pcall(function()
+          local session = session_runtime.create_new_session(input):wait()
+          assert.same(explicit and input or { title = 'Default' }, request)
+          assert.same({ mode = 'orchestrator', model = 'opencode-go/glm-5.3-flash' }, selection)
+          state.session.set_active(session)
+          connection.operations.get_session = function()
+            return Promise.new():resolve(session)
+          end
+          agent_model.sync_from_server():wait()
+          assert.equals(explicit and 'custom/chosen' or 'opencode-go/glm-5.3-flash', state.current_model)
+        end)
+        config.default_mode = previous_mode
+        agents:revert()
+        defaults:revert()
+        assert.is_true(ok, tostring(err))
+      end)
+    end
+
+    it('keeps V1 creation requests unchanged', function()
+      local request
+      state.opencode_server.operations.create_session = function(_, _, input)
+        request = input
+        return Promise.new():resolve({ id = 'v1-session' })
+      end
+      assert.equals('v1-session', session_runtime.create_new_session('Legacy'):wait().id)
+      assert.same({ title = 'Legacy' }, request)
+    end)
+  end)
+
   describe('open', function()
     it("creates windows if they don't exist", function()
       state.ui.set_windows(nil)

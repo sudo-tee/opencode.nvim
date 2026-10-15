@@ -85,7 +85,13 @@ describe('V1 protocol operations', function()
         return operations.list_sessions_global(connection, to_host):wait()
       end,
       create_session = function()
-        return operations.create_session(connection, location, { title = 'New' }, to_server, to_host):wait()
+        return operations
+          .create_session(connection, location, { title = 'New' }, to_server, to_host, {
+            mode = 'build',
+            model = 'provider/model',
+            variant = 'high',
+          })
+          :wait()
       end,
       get_session = function()
         return operations.get_session(connection, 'ses-1', location, to_server, to_host):wait()

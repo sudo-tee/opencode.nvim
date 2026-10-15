@@ -48,14 +48,14 @@
 
 ---@class OpencodeV2Operations
 ---@field get_current_project fun(connection: OpencodeV2Connection, location: OpencodeLocation, path_map?: OpencodeV2PathMap, reverse_path_map?: OpencodeV2PathMap): Promise<table>
----@field get_config fun(connection: OpencodeV2Connection, location: OpencodeLocation, path_map?: OpencodeV2PathMap, reverse_path_map?: OpencodeV2PathMap): Promise<table>
+---@field get_config fun(connection: OpencodeV2Connection, location: OpencodeLocation, path_map?: OpencodeV2PathMap, reverse_path_map?: OpencodeV2PathMap): Promise<{model?: string, agent: table<string, {model?: string}>}>
 ---@field list_providers fun(connection: OpencodeV2Connection, location: OpencodeLocation, path_map?: OpencodeV2PathMap, reverse_path_map?: OpencodeV2PathMap): Promise<{location: OpencodeLocation, data: table[]}>
 ---@field list_sessions fun(connection: OpencodeV2Connection, location?: OpencodeLocation, cursor?: string, limit?: integer, path_map?: OpencodeV2PathMap, reverse_path_map?: OpencodeV2PathMap): Promise<OpencodeV2Page<table>>
 ---@field list_sessions_project fun(connection: OpencodeV2Connection, location: OpencodeLocation, path_map?: OpencodeV2PathMap, reverse_path_map?: OpencodeV2PathMap): Promise<table[]>
 ---@field list_sessions_global fun(connection: OpencodeV2Connection, reverse_path_map?: OpencodeV2PathMap): Promise<table[]>
 ---@field list_active_sessions fun(connection: OpencodeV2Connection): Promise<table<string, {type: 'running'}>>
 ---@field list_inbox fun(connection: OpencodeV2Connection, session_id: string, reverse_path_map?: OpencodeV2PathMap): Promise<table[]>
----@field create_session fun(connection: OpencodeV2Connection, location: OpencodeLocation, input?: table, path_map?: OpencodeV2PathMap, reverse_path_map?: OpencodeV2PathMap): Promise<table>
+---@field create_session fun(connection: OpencodeV2Connection, location: OpencodeLocation, input?: table, path_map?: OpencodeV2PathMap, reverse_path_map?: OpencodeV2PathMap, selected?: OpencodeSessionSelection): Promise<table>
 ---@field get_session fun(connection: OpencodeV2Connection, session_id: string, location?: OpencodeLocation, path_map?: OpencodeV2PathMap, reverse_path_map?: OpencodeV2PathMap): Promise<table>
 ---@field delete_session fun(connection: OpencodeV2Connection, session_id: string): Promise<boolean>
 ---@field rename_session fun(connection: OpencodeV2Connection, session_id: string, location: OpencodeLocation?, title: string): Promise<boolean>
@@ -81,7 +81,7 @@
 ---@field cancel_question fun(connection: OpencodeV2Connection, session_id: string, request_id: string): Promise<boolean>
 ---@field list_agents OpencodeV2LocationListOperation
 ---@field list_models OpencodeV2LocationListOperation
----@field get_default_model fun(connection: OpencodeV2Connection, location: OpencodeLocation, path_map?: OpencodeV2PathMap, reverse_path_map?: OpencodeV2PathMap): Promise<table>
+---@field get_default_model fun(connection: OpencodeV2Connection, location: OpencodeLocation, path_map?: OpencodeV2PathMap, reverse_path_map?: OpencodeV2PathMap): Promise<OpencodeV2ModelReference|nil>
 ---@field get_model_catalog fun(connection: OpencodeV2Connection, location: OpencodeLocation, path_map?: OpencodeV2PathMap, reverse_path_map?: OpencodeV2PathMap): Promise<table>
 ---@field list_primary_agents fun(connection: OpencodeV2Connection, location: OpencodeLocation, path_map?: OpencodeV2PathMap, reverse_path_map?: OpencodeV2PathMap): Promise<string[]>
 ---@field list_subagents fun(connection: OpencodeV2Connection, location: OpencodeLocation, path_map?: OpencodeV2PathMap, reverse_path_map?: OpencodeV2PathMap): Promise<string[]>

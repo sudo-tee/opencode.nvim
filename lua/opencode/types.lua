@@ -10,6 +10,11 @@
 ---@field code? string|number
 ---@field user_data? any
 
+---@class OpencodeSessionSelection
+---@field mode? string
+---@field model? string
+---@field variant? string
+
 ---@class OpencodeConfigFile
 ---@field theme string
 ---@field autoshare boolean

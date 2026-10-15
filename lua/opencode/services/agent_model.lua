@@ -231,7 +231,10 @@ M.initialize_current_model = Promise.async(function(opts)
   if not is_current() then
     return
   end
-  if cfg and cfg.model and cfg.model ~= '' then
+  local mode_config = cfg and cfg.agent and cfg.agent[state.current_mode]
+  if mode_config and mode_config.model and mode_config.model ~= '' then
+    state.model.set_model(mode_config.model)
+  elseif cfg and cfg.model and cfg.model ~= '' then
     state.model.set_model(cfg.model)
   else
     local catalog = config_file.get_opencode_providers():await()
@@ -247,6 +250,17 @@ M.initialize_current_model = Promise.async(function(opts)
   end
 
   return state.current_model
+end)
+
+---Resolve current choices and missing defaults for a new interactive session.
+---Rejects when no primary agent is available or a lookup propagates an error.
+---@type fun(): Promise<OpencodeSessionSelection>
+M.resolve_session_selection = Promise.async(function()
+  if not M.ensure_current_mode():await() then
+    error('Cannot resolve session agent')
+  end
+  M.initialize_current_model():await()
+  return { mode = state.current_mode, model = state.current_model, variant = state.current_variant }
 end)
 
 ---Apply a server-side model selection ({id or modelID, providerID, variant?})

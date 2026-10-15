@@ -435,7 +435,8 @@ M.open = Promise.async(function(opts)
   return Promise.new():resolve('ok')
 end)
 
-local create_session = Promise.async(function(connection, location, title_or_opts)
+---@param selected? OpencodeSessionSelection
+local create_session = Promise.async(function(connection, location, title_or_opts, selected)
   local session_request = {}
 
   if type(title_or_opts) == 'string' then
@@ -445,7 +446,7 @@ local create_session = Promise.async(function(connection, location, title_or_opt
   end
 
   local session_response = connection.operations
-    .create_session(connection, location, session_request, util.apply_path_map, util.apply_reverse_path_map)
+    .create_session(connection, location, session_request, util.apply_path_map, util.apply_reverse_path_map, selected)
     :catch(function(err)
       vim.notify('Error creating new session: ' .. vim.inspect(err), vim.log.levels.ERROR)
     end)
@@ -460,7 +461,8 @@ end)
 ---@return Promise<OpencodeSession|nil>
 M.create_new_session = Promise.async(function(title_or_opts)
   local connection = server_job.ensure_server():await()
-  return create_session(connection, current_location(), title_or_opts):await()
+  local selected = agent_model.resolve_session_selection():await()
+  return create_session(connection, current_location(), title_or_opts, selected):await()
 end)
 
 ---@class OpencodeDetachedSession

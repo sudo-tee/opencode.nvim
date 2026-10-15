@@ -109,14 +109,21 @@ function M.get_current_project(connection, location, path_map, reverse_path_map)
   end)
 end
 
----@param connection OpencodeV2Connection
-function M.get_config(connection, location, path_map, reverse_path_map)
-  return json_request(connection, 'V2 get_config', 'GET', '/api/config', {
-    location = { directory = location_directory(location, path_map) },
-  }):and_then(function(value)
-    return map_paths(require_table('V2 get_config', value), reverse_path_map)
-  end)
-end
+---@type fun(connection: OpencodeV2Connection, location: OpencodeLocation, path_map?: OpencodeV2PathMap, reverse_path_map?: OpencodeV2PathMap): Promise<{model?: string, agent: table<string, {model?: string}>}>
+M.get_config = Promise.async(function(connection, location, path_map, reverse_path_map)
+  local model = M.get_default_model(connection, location, path_map, reverse_path_map):await()
+  local agents = M.list_agents(connection, location, path_map, reverse_path_map):await()
+  local config = { agent = {} }
+  if model then
+    config.model = model.providerID .. '/' .. model.id
+  end
+  for _, agent in ipairs(agents) do
+    config.agent[agent.id] = {
+      model = agent.model and (agent.model.providerID .. '/' .. agent.model.id),
+    }
+  end
+  return config
+end)
 
 ---@param connection OpencodeV2Connection
 function M.list_providers(connection, location, path_map, reverse_path_map)
@@ -224,8 +231,21 @@ function M.list_inbox(connection, session_id, reverse_path_map)
 end
 
 ---@param connection OpencodeV2Connection
-function M.create_session(connection, location, input, path_map, reverse_path_map)
+---@param selected? OpencodeSessionSelection
+function M.create_session(connection, location, input, path_map, reverse_path_map, selected)
   local body = map_paths(type(input) == 'table' and vim.deepcopy(input) or {}, path_map)
+  if selected then
+    if body.agent == nil then
+      body.agent = selected.mode
+    end
+    if body.model == nil and body.agent == selected.mode and selected.model then
+      local provider, model = selected.model:match('^(.-)/(.+)$')
+      if not provider or not model then
+        error('V2 create_session model must use provider/model format')
+      end
+      body.model = { providerID = provider, id = model, variant = selected.variant }
+    end
+  end
   body.location = { directory = location_directory(location, path_map) }
   return json_request(connection, 'V2 create_session', 'POST', '/api/session', nil, body):and_then(function(value)
     local session = unwrap_data('V2 create_session', value, reverse_path_map)
@@ -650,6 +670,9 @@ function M.get_default_model(connection, location, path_map, reverse_path_map)
   return json_request(connection, 'V2 get_default_model', 'GET', '/api/model/default', {
     location = { directory = location_directory(location, path_map) },
   }):and_then(function(value)
+    if value.data == vim.NIL then
+      return nil
+    end
     return unwrap_data('V2 get_default_model', value, reverse_path_map)
   end)
 end
@@ -843,7 +866,6 @@ end
 M.contract = {
   { 'GET', '/api/agent' },
   { 'GET', '/api/command' },
-  { 'GET', '/api/config' },
   { 'GET', '/api/form' },
   { 'GET', '/api/fs/find' },
   { 'GET', '/api/location' },

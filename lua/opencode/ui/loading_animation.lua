@@ -1,5 +1,6 @@
 local state = require('opencode.state')
 local config = require('opencode.config')
+local optimistic = require('opencode.state.optimistic')
 
 local Timer = require('opencode.ui.timer')
 local M = {}
@@ -78,7 +79,7 @@ M._on_active_session_change = function()
   M._animation.session_id = nil
   local observation = state.session.active_observation()
   if observation then
-    M._animation.unsubscribe = observation:watch({ 'execution' }, read_execution)
+    M._animation.unsubscribe = observation:watch({ 'execution', 'messages' }, read_execution)
     read_execution(observation)
   else
     M.refresh()
@@ -87,6 +88,10 @@ M._on_active_session_change = function()
 end
 
 function M._get_display_text()
+  local observation = state.session.active_observation()
+  if observation and optimistic.is_sending(observation) then
+    return 'Sending... '
+  end
   return M._format_execution_text(M._animation.execution) or M._animation.text
 end
 
@@ -182,6 +187,10 @@ function M.stop()
 end
 
 function M._should_animate()
+  local observation = state.session.active_observation()
+  if observation and optimistic.is_sending(observation) then
+    return true
+  end
   local execution = M._animation.execution
   if not execution or (execution.activity ~= 'running' and execution.activity ~= 'retrying') then
     return false
@@ -214,12 +223,19 @@ end
 function M.setup(on_animation_change)
   on_change = on_animation_change
   state.store.subscribe('active_session', M._on_active_session_change)
+  state.store.subscribe('optimistic_revision', M._on_pending_change)
   M._on_active_session_change()
+end
+
+function M._on_pending_change()
+  M.refresh()
+  M.render(state.windows)
 end
 
 function M.teardown()
   on_change = nil
   state.store.unsubscribe('active_session', M._on_active_session_change)
+  state.store.unsubscribe('optimistic_revision', M._on_pending_change)
   release_observation()
   M._animation.execution = nil
   M._animation.session_id = nil

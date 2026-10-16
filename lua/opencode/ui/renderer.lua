@@ -9,6 +9,7 @@ local rendered_entries = require('opencode.ui.renderer.entries')
 local symbol_refresh = require('opencode.ui.renderer.symbol_refresh')
 local scroll = require('opencode.ui.renderer.scroll')
 local session_tabs = require('opencode.state.session_tabs')
+local optimistic = require('opencode.state.optimistic')
 
 local M = {}
 local REVERT_MESSAGE_ID = '__opencode_revert_message__'
@@ -136,7 +137,11 @@ local function get_visible_session_messages(messages, session, ctx)
   local real_messages = get_real_session_messages(messages)
   local revert_index = get_revert_index(messages, session)
   if revert_index then
+    local pending = vim.tbl_filter(function(message)
+      return message.local_status ~= nil
+    end, real_messages)
     real_messages = vim.list_slice(real_messages, 1, revert_index - 1)
+    vim.list_extend(real_messages, pending)
   end
 
   local limit = not ctx.history_expanded and get_max_rendered_messages()
@@ -322,7 +327,7 @@ local function ordered_entries(observation)
       entries[#entries + 1] = entry
     end
   end
-  return entries
+  return optimistic.project(observation, entries)
 end
 
 local function total_tokens(tokens)
@@ -512,7 +517,7 @@ local function has_pending_local_submission(ctx, entries)
     if
       entry.kind == 'user'
       and not ctx.render_state:get_message(entry.id)
-      and (state.user_message_count[entry.session_id] or 0) > 0
+      and (entry.local_status == 'sending' or (state.user_message_count[entry.session_id] or 0) > 0)
     then
       return true
     end
@@ -909,14 +914,23 @@ function M.setup_subscriptions(subscribe, ctx)
     state.store.subscribe('last_focused_opencode_window', M.on_focus_changed)
     state.store.subscribe('active_session', M.on_session_changed)
     state.store.subscribe('active_session_tab', M.on_session_tab_changed)
+    state.store.subscribe('optimistic_revision', M.on_optimistic_changed)
   else
     state.store.unsubscribe('is_opencode_focused', M.on_focus_changed)
     state.store.unsubscribe('last_focused_opencode_window', M.on_focus_changed)
     state.store.unsubscribe('active_session', M.on_session_changed)
     state.store.unsubscribe('active_session_tab', M.on_session_tab_changed)
+    state.store.unsubscribe('optimistic_revision', M.on_optimistic_changed)
   end
   if subscribe and state.active_session then
     M.on_session_changed(nil, state.active_session, nil, ctx)
+  end
+end
+
+function M.on_optimistic_changed()
+  local ctx = contexts.current()
+  if ctx.observation then
+    reconcile_observation(ctx, ctx.observation, { messages = true })
   end
 end
 

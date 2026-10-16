@@ -414,7 +414,7 @@ function RenderState:_refresh_message_actions(message_id)
     return
   end
 
-  if not is_actionable_user_message(message_data.message) then
+  if message_data.message.local_status or not is_actionable_user_message(message_data.message) then
     message_data.actions = {}
     return
   end

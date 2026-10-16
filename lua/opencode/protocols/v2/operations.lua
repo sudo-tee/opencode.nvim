@@ -441,7 +441,7 @@ local function prompt_body(input, path_map)
   -- payloads render as raw JSON to humans. The "editor-context:" name prefix
   -- lets the reading side map attachments back onto the same contract entry
   -- V1 produces.
-  local body = { files = {} }
+  local body = { id = input.id, files = {} }
   for _, item in ipairs(input.context) do
     local source = item.source
     local name = 'editor-context:' .. source.kind

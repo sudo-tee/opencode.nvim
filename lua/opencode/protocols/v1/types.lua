@@ -59,7 +59,7 @@
 ---@field _v1_history_complete boolean
 ---@field _v1_history_limit integer
 ---@field _v1_older_loading boolean
----@field submit fun(self: OpencodeV1Observation, input: table, opts?: {async?: boolean}): Promise<OpencodeSubmission>
+---@field submit fun(self: OpencodeV1Observation, input: table, opts?: {async?: boolean}, on_input_id?: fun(id: string)): Promise<OpencodeSubmission>
 ---@field load_older fun(self: OpencodeV1Observation): Promise<nil>
 ---@field load_complete_history fun(self: OpencodeV1Observation): Promise<nil>
 ---@field interrupt fun(self: OpencodeV1Observation): Promise<boolean>

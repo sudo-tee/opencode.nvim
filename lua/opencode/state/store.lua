@@ -40,6 +40,7 @@ local M = {}
 ---@field _hidden_buffers OpencodeHiddenBuffers|nil
 ---@field active_session_tab string|nil
 ---@field session_tabs_changed number
+---@field optimistic_revision number
 
 ---@type OpencodeStateData
 local _state = {
@@ -80,6 +81,7 @@ local _state = {
   _hidden_buffers = nil,
   active_session_tab = nil,
   session_tabs_changed = 0,
+  optimistic_revision = 0,
 }
 
 local _listeners = {}

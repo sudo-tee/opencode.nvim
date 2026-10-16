@@ -15,6 +15,7 @@ local Promise = require('opencode.promise')
 local stub = require('luassert.stub')
 local assert = require('luassert')
 local support = require('tests.unit.services_spec_support')
+local optimistic = require('opencode.state.optimistic')
 
 local function successful_submission(message)
   local result = { kind = 'reply', input_id = 'msg-user', message = message or { id = 'msg-reply' } }
@@ -120,6 +121,38 @@ describe('opencode.services.messaging', function()
     end)
     assert.True(create_called)
     state.session.active_observation().submit = orig
+  end)
+
+  it('shows pending text before preparation and reconciles a delayed admission', function()
+    state.session.set_active({ id = 'optimistic-send' })
+    local observation = state.session.active_observation()
+    local preparation = Promise.new()
+    local admission = Promise.new()
+    local completion = Promise.new()
+    local format = stub(context, 'format_message').returns(preparation)
+    local bind
+    observation.submit = function(_, _, _, on_input_id)
+      bind = on_input_id
+      return admission
+    end
+    local send = messaging.send_message('instant feedback')
+    assert.is_true(vim.wait(1000, function()
+      return optimistic.is_sending(observation)
+    end))
+    assert.equals('instant feedback', optimistic.project(observation, {})[1].content[1].text)
+    preparation:resolve({ text = 'instant feedback', files = {}, agents = {}, context = {} })
+    assert.is_true(vim.wait(1000, function()
+      return bind ~= nil
+    end))
+    bind('echo')
+    local echo = { id = 'echo', kind = 'user', content = {} }
+    observation._state.entries_by_id.echo = echo
+    admission:resolve({ kind = 'accepted', input = { id = 'echo' }, completion = completion })
+    assert.same({ echo }, optimistic.project(observation, { echo }))
+    completion:resolve({ kind = 'session_idle', outcome = 'succeeded', idle_at = 1 })
+    send:wait()
+    assert.is_false(optimistic.is_sending(observation))
+    format:revert()
   end)
 
   it('returns false when active session is missing', function()
@@ -573,6 +606,9 @@ describe('opencode.services.messaging', function()
 
     assert.is_false(ok)
     assert.same({ '/tmp/attached.lua' }, context.get_context().mentioned_files)
+    local observation = state.session.active_observation()
+    assert.is_false(optimistic.is_sending(observation))
+    assert.equals('failed', optimistic.project(observation, {})[1].local_status)
     config_stub:revert()
     context.restore(original_context)
   end)
@@ -608,6 +644,8 @@ describe('opencode.services.messaging', function()
     assert.equal(0, count_before)
     assert.equal(1, count_during)
     assert.equal(0, count_after)
+    assert.is_false(optimistic.is_sending(state.session.active_observation()))
+    assert.equals('failed', optimistic.project(state.session.active_observation(), {})[1].local_status)
     assert.same({}, context.get_context().mentioned_files)
     assert.same({}, context.get_context().selections)
 
@@ -633,6 +671,8 @@ describe('opencode.services.messaging', function()
     local result = messaging.send_message('hello'):wait()
 
     assert.is_nil(result)
+    assert.is_false(optimistic.is_sending(observation))
+    assert.equals('unknown', optimistic.project(observation, {})[1].local_status)
     assert.stub(after_run).was_called(1)
     after_run:revert()
   end)

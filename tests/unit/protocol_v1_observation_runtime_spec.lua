@@ -208,8 +208,12 @@ describe('V1 protocol Observation runtime', function()
   it('uses the same tool-loop terminal rules for HTTP responses and streamed updates', function()
     local connection, server = runtime()
     local observation = observe(connection, 'ses-tools')
-    local pending = observation:submit({ text = 'hello', context = {}, files = {}, agents = {} })
+    local reported_id
+    local pending = observation:submit({ text = 'hello', context = {}, files = {}, agents = {} }, nil, function(id)
+      reported_id = id
+    end)
     local input_id = server.submits[1].input.messageID
+    assert.equals(input_id, reported_id)
     local tool = {
       id = 'part-tool',
       sessionID = 'ses-tools',

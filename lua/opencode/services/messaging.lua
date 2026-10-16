@@ -8,6 +8,7 @@ local log = require('opencode.log')
 local session_runtime = require('opencode.services.session_runtime')
 local agent_model = require('opencode.services.agent_model')
 local session_tabs = require('opencode.state.session_tabs')
+local optimistic = require('opencode.state.optimistic')
 
 local M = {}
 
@@ -93,8 +94,12 @@ end
 
 ---@param prepared PreparedMessage
 ---@return OpencodeSubmission
-local function await_admission(observation, prepared)
-  local response = observation:submit(prepared.params, prepared.selected_model):await()
+local function await_admission(observation, prepared, pending)
+  local response = observation
+    :submit(prepared.params, prepared.selected_model, function(id)
+      optimistic.bind(pending, id)
+    end)
+    :await()
   if type(response) ~= 'table' or (response.kind ~= 'reply' and response.kind ~= 'accepted') then
     error('Invalid prompt result from opencode: ' .. vim.inspect(response))
   end
@@ -115,11 +120,11 @@ end
 ---@param tab_id? string
 ---@param session_id string
 ---@param prepared PreparedMessage
-local function submit_message(observation, prompt, tab_id, session_id, prepared)
+local function submit_message(observation, prompt, tab_id, session_id, prepared, pending)
   consume_sent_attachments(tab_id, prepared.submission_context)
   session_runtime.update_sent_message_count(tab_id, session_id, 1):await()
 
-  local admitted, response = pcall(await_admission, observation, prepared)
+  local admitted, response = pcall(await_admission, observation, prepared, pending)
   local ok, result = admitted, response
   if admitted then
     ---@cast response OpencodeSubmission
@@ -127,6 +132,7 @@ local function submit_message(observation, prompt, tab_id, session_id, prepared)
   end
 
   session_runtime.update_sent_message_count(tab_id, session_id, -1):await()
+  optimistic.finish(observation, pending, not ok and (admitted and 'unknown' or 'failed') or nil)
   if not ok then
     local prefix = admitted and 'Prompt result is unknown: ' or 'Error sending message to session: '
     log.notify(prefix .. tostring(result), admitted and vim.log.levels.WARN or vim.log.levels.ERROR)
@@ -170,8 +176,13 @@ M.send_message = Promise.async(function(prompt, opts)
     return false
   end
 
-  local prepared = prepare_message(observation, prompt, vim.deepcopy(opts or {}))
-  return submit_message(observation, prompt, tab_id, session_fact.id, prepared)
+  local pending = optimistic.begin(observation, prompt)
+  local prepared_ok, prepared = pcall(prepare_message, observation, prompt, vim.deepcopy(opts or {}))
+  if not prepared_ok then
+    optimistic.finish(observation, pending, 'failed')
+    error(prepared, 0)
+  end
+  return submit_message(observation, prompt, tab_id, session_fact.id, prepared, pending)
 end)
 
 ---@param name string Skill name from the server catalog

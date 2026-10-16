@@ -1042,8 +1042,9 @@ function M.new(connection, ref)
   end
   ---@param input table
   ---@param opts? {async?: boolean}
+  ---@param on_input_id? fun(id: string)
   ---@return Promise<OpencodeSubmission>
-  function observation:submit(input, opts)
+  function observation:submit(input, opts, on_input_id)
     opts = opts or {}
     if input and input.model ~= nil then
       if
@@ -1060,6 +1061,9 @@ function M.new(connection, ref)
       end
     end
     local message_id = id.ascending('message')
+    if on_input_id then
+      on_input_id(message_id)
+    end
     local body = {
       messageID = message_id,
       model = vim.deepcopy(input and input.model),

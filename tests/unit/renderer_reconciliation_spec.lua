@@ -7,6 +7,7 @@ local state = require('opencode.state')
 local config = require('opencode.config')
 local stub = require('luassert.stub')
 local spy = require('luassert.spy')
+local optimistic = require('opencode.state.optimistic')
 
 describe('renderer incremental reconciliation', function()
   local observed, observation, changed, controllers, writes, markdown, dirty_part, dirty_message, max_messages, throttle_ms, collapsing, defer_stub, files_stub
@@ -116,6 +117,45 @@ describe('renderer incremental reconciliation', function()
     if state.windows then
       require('opencode.ui.ui').close_windows(state.windows)
     end
+  end)
+
+  it('renders a local prompt before server events and replaces it with the authoritative entry', function()
+    writes:revert()
+    writes = spy.on(output_window, 'set_lines')
+    local pending = optimistic.begin(observation, 'instant optimistic text')
+    renderer.on_optimistic_changed()
+    local function output()
+      return table.concat(vim.api.nvim_buf_get_lines(state.windows.output_buf, 0, -1, false), '\n')
+    end
+    assert.is_true(vim.wait(1000, function()
+      return output():find('instant optimistic text', 1, true) ~= nil
+    end))
+    local local_message = contexts.current().render_state:get_message(pending.id)
+    assert.same({}, local_message.actions)
+    optimistic.bind(pending, 'msg_echo')
+    observed.entries_by_id.msg_echo = {
+      id = 'msg_echo',
+      session_id = observed.session.id,
+      kind = 'user',
+      content = { { id = 'echo_text', kind = 'text', text = 'instant optimistic text' } },
+    }
+    observed.entry_order[#observed.entry_order + 1] = 'msg_echo'
+    notify('messages')
+    assert.is_nil(contexts.current().render_state:get_message(pending.id))
+    assert.is_not_nil(contexts.current().render_state:get_message('msg_echo'))
+    local _, count = output():gsub('instant optimistic text', '')
+    assert.equals(1, count)
+    optimistic.finish(observation, pending)
+  end)
+
+  it('keeps a newly submitted prompt visible while the server still reports an undo boundary', function()
+    observed.session.revert = { messageID = 'msg_two' }
+    notify('session')
+    local pending = optimistic.begin(observation, 'new after undo')
+    renderer.on_optimistic_changed()
+    assert.is_not_nil(contexts.current().render_state:get_message(pending.id))
+    assert.is_nil(contexts.current().render_state:get_message('msg_two'))
+    optimistic.finish(observation, pending)
   end)
 
   it('writes the initial observed history once and preserves all rendered ranges', function()

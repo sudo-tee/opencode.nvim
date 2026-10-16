@@ -79,6 +79,7 @@ describe('native V2 service discovery', function()
 
   it('checkhealth clears and closes the Connection it acquired without killing the native service', function()
     local health_api = vim.health or require('health')
+    local config_file = require('opencode.config_file')
     local original = {
       executable = vim.fn.executable,
       system = vim.system,
@@ -88,6 +89,7 @@ describe('native V2 service discovery', function()
       error = health_api.error,
       warn = health_api.warn,
       info = health_api.info,
+      get_opencode_config = config_file.get_opencode_config,
     }
     local messages, acquired, killed = {}, nil, false
     for _, name in ipairs({ 'start', 'ok', 'error', 'warn', 'info' }) do
@@ -108,6 +110,11 @@ describe('native V2 service discovery', function()
     require('opencode.util').kill_pid = function()
       killed = true
     end
+    -- Health owns connection cleanup, not protocol-specific configuration routes.
+    config_file.get_opencode_config = function()
+      acquired = state.opencode_server
+      return Promise.new():resolve({})
+    end
     curl.request = function(opts)
       vim.schedule(function()
         if opts.url:match('/api/info$') then
@@ -115,9 +122,7 @@ describe('native V2 service discovery', function()
         elseif opts.url:match('/openapi%.json$') then
           opts.callback({ status = 404, body = '{}' })
         else
-          acquired = state.opencode_server
-          assert.matches('^http://127%.0%.0%.1:49374/api/config%?', opts.url)
-          opts.callback({ status = 200, body = '{}' })
+          error('Unexpected health request: ' .. opts.url)
         end
       end)
       return {
@@ -133,6 +138,7 @@ describe('native V2 service discovery', function()
     vim.fn.executable = original.executable
     vim.system = original.system
     require('opencode.util').kill_pid = original.kill_pid
+    config_file.get_opencode_config = original.get_opencode_config
     for _, name in ipairs({ 'start', 'ok', 'error', 'warn', 'info' }) do
       health_api[name] = original[name]
     end

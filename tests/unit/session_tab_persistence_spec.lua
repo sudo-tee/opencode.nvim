@@ -481,11 +481,21 @@ describe('session tab persistence', function()
         stub(ui, 'prepare_windows').returns(false),
         stub(ui, 'render_output'),
         stub(ui, 'is_opencode_focused').returns(true),
-        stub(agent_model, 'ensure_current_mode').returns(Promise.new():resolve(nil)),
+        stub(agent_model, 'ensure_current_mode').invokes(function()
+          state.model.set_mode('build')
+          return Promise.new():resolve(true)
+        end),
+        stub(agent_model, 'initialize_current_model').invokes(function()
+          state.model.set_model('test/model')
+          return Promise.new():resolve('test/model')
+        end),
         stub(agent_model, 'sync_from_server'),
       }
       connection.operations.get_current_project = function(_, location)
         return Promise.new():resolve({ id = location.directory == temporary and 'other-project' or 'test-project' })
+      end
+      connection.operations.create_session = function(_, location)
+        return Promise.new():resolve({ id = 'default-session', location = location })
       end
     end)
 
@@ -502,7 +512,8 @@ describe('session tab persistence', function()
       local previous = tabs.current()
       cwd = temporary
       runtime.handle_directory_change(cwd):wait()
-      assert.is_nil(state.active_session)
+      assert.equals('default-session', state.active_session.id)
+      assert.equals(temporary, state.active_session.location.directory)
       assert.equals(1, #tabs.list())
       assert.equals('second', previous.active_session.id)
       assert.stub(ui.hide_visible_windows).was_called(1)
@@ -512,6 +523,66 @@ describe('session tab persistence', function()
       assert.equals(previous, tabs.current())
       assert.equals('second', state.active_session.id)
     end)
+
+    it('creates a default session on first open without a snapshot and reuses it on reopen', function()
+      cwd = temporary
+      local create = stub(connection.operations, 'create_session').invokes(function(_, location)
+        return Promise.new():resolve({ id = 'fresh', location = location })
+      end)
+      table.insert(runtime_stubs, create)
+      runtime.open({ new_session = false }):wait()
+      assert.equals('fresh', state.active_session.id)
+      assert.equals(temporary, state.active_session.location.directory)
+      assert.equals(1, #tabs.list())
+      runtime.open({ new_session = false }):wait()
+      assert.stub(create).was_called(1)
+    end)
+
+    it('defers default-session creation for a hidden incoming group until the panel opens', function()
+      save_tabs()
+      table.insert(runtime_stubs, stub(state.ui, 'is_visible').returns(false))
+      cwd = temporary
+      runtime.handle_directory_change(cwd):wait()
+      assert.is_nil(state.active_session)
+      runtime.open({ new_session = false }):wait()
+      assert.equals('default-session', state.active_session.id)
+      assert.equals(temporary, state.active_session.location.directory)
+      assert.equals(1, #tabs.list())
+    end)
+
+    it('keeps restored sessions without creating an extra default session', function()
+      save_tabs()
+      restart()
+      local create = stub(connection.operations, 'create_session')
+      table.insert(runtime_stubs, create)
+      runtime.open({ new_session = false }):wait()
+      assert.equals('second', state.active_session.id)
+      assert.equals(2, #tabs.list())
+      assert.stub(create).was_not_called()
+    end)
+
+    for _, empty_snapshot in ipairs({ false, true }) do
+      it(
+        'creates a default session when ' .. (empty_snapshot and 'the snapshot is empty' or 'no saved sessions survive'),
+        function()
+          save_tabs()
+          if empty_snapshot then
+            for _, tab in ipairs(tabs.list()) do
+              tabs.remove(tab)
+            end
+            service.save()
+          else
+            connection.operations.get_session = function()
+              return Promise.new():reject('Not found')
+            end
+          end
+          restart()
+          runtime.open({ new_session = false }):wait()
+          assert.equals('default-session', state.active_session.id)
+          assert.equals(1, #tabs.list())
+        end
+      )
+    end
 
     it('pins a locked group across directory changes and subsequent panel opens', function()
       save_tabs()
@@ -524,7 +595,7 @@ describe('session tab persistence', function()
       assert.equals(2, #tabs.list())
       runtime.set_session_lock(false)
       runtime.open({ new_session = false, open_action = 'restore_hidden' }):wait()
-      assert.is_nil(state.active_session)
+      assert.equals('default-session', state.active_session.id)
       assert.equals(1, #tabs.list())
     end)
   end)

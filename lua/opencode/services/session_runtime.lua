@@ -454,9 +454,9 @@ M.open = Promise.async(function(opts)
       if not state.active_session then
         if not config.ui.restore_tabs_on_startup then
           state.session.set_active(last_workspace_session():await())
-          if not state.active_session then
-            state.session.set_active(M.create_new_session():await())
-          end
+        end
+        if not state.active_session then
+          state.session.set_active(M.create_new_session():await())
         end
       elseif not state.display_route and created_windows and ui.is_output_empty() then
         ui.render_output()
@@ -1141,7 +1141,7 @@ M.handle_directory_change = Promise.async(function(cwd)
     if current ~= previous or group_panel_visible then
       context.restore(session_tabs.get_context())
       if visible then
-        ui.prepare_windows('restore_hidden', { focus = 'input', new_session = false })
+        M.open({ focus = 'input', new_session = false, open_action = 'restore_hidden' }):await()
         if state.active_session then
           ui.render_output()
         end

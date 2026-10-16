@@ -452,6 +452,43 @@ describe('V2 protocol Observation interpretation', function()
     assert.equals('from another client', observed:read().entries_by_id['msg-user'].content[1].text)
   end)
 
+  it('projects restart and instruction notices into messages', function()
+    local observed = observation('ses-notice')
+
+    local restart = event('ses-notice', 'session.synthetic', {
+      text = 'The server restarted while you were working.',
+      description = 'Continuing after restart',
+    }, 100)
+    restart.id = 'evt_restart'
+    assert.is_true(observation_module.ingest_event(observed, restart))
+
+    local instructions = event('ses-notice', 'session.instructions.updated', {
+      delta = { ['core/mcp-guidance'] = 'hash-b', ['core/codemode'] = 'hash-a' },
+      text = 'The available MCP server instructions have changed.',
+    }, 101)
+    instructions.id = 'evt_instructions'
+    assert.is_true(observation_module.ingest_event(observed, instructions))
+
+    local state = observed:read()
+    assert.same({ 'msg_restart', 'msg_instructions' }, state.entry_order)
+    local synthetic = state.entries_by_id['msg_restart']
+    assert.equals('synthetic', synthetic.kind)
+    assert.equals('Continuing after restart', synthetic.description)
+    assert.equals('The server restarted while you were working.', synthetic.content[1].text)
+    local system = state.entries_by_id['msg_instructions']
+    assert.equals('system', system.kind)
+    assert.equals('Instructions updated: core/codemode, core/mcp-guidance', system.description)
+  end)
+
+  it('ignores instruction updates that carry no rendered text', function()
+    local observed = observation('ses-notice')
+    local baseline = event('ses-notice', 'session.instructions.updated', {
+      delta = { ['core/codemode'] = 'hash-a' },
+    }, 100)
+    assert.is_false(observation_module.ingest_event(observed, baseline))
+    assert.same({}, observed:read().entry_order)
+  end)
+
   it('applies native text, reasoning, and tool lifecycles without synthetic identities', function()
     local observed = observation('ses-target')
     assert.is_true(observation_module.ingest_event(

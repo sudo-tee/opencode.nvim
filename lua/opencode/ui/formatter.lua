@@ -1002,7 +1002,15 @@ end
 ---@return Output, boolean
 local function format_system_part(output, part, message)
   if part.kind == 'text' then
-    output:add_lines(vim.split(part.text, '\n'))
+    -- The schema gives system/synthetic messages a `description` field meant
+    -- "for transcript display"; `text` is the model-facing payload (instruction
+    -- snapshots, restart context) and stays hidden while a summary exists.
+    local description = message.description
+    if description and description ~= '' then
+      format_utils.format_action(output, icons.get('info'), description, '')
+      return output, true
+    end
+    output:add_lines(vim.split(part.text or '', '\n'))
     return output, true
   elseif system_formatters.format(part.kind, output) then
     return output, true
@@ -1130,6 +1138,7 @@ local part_formatters = {
   user = format_user_part,
   assistant = format_assistant_part,
   system = format_system_part,
+  synthetic = format_system_part,
   skill = format_skill_part,
   shell = format_shell_part,
   compaction = format_compaction_part,

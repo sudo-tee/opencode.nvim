@@ -115,6 +115,26 @@ describe('lazy render', function()
     assert.is_nil(lines:find('older messages not displayed', 1, true))
   end)
 
+  it('renders synthetic notices carrying a transcript description as single lines', function()
+    local data = {
+      make_message('msg-user', 'user'),
+      {
+        id = 'msg-restart',
+        session_id = 'ses_test',
+        kind = 'synthetic',
+        description = 'Continuing after restart',
+        content = { { kind = 'text', text = 'The server restarted while you were working.' } },
+      },
+    }
+
+    renderer._render_full_session_data(data)
+
+    assert.is_not_nil(contexts.current().render_state:get_message('msg-restart'))
+    local lines = table.concat(vim.api.nvim_buf_get_lines(state.windows.output_buf, 0, -1, false), '\n')
+    assert.truthy(lines:find('Continuing after restart', 1, true))
+    assert.is_nil(lines:find('The server restarted while you were working', 1, true))
+  end)
+
   it('truncates to lazy_render_count from the end', function()
     local session_data = make_session_data(50) -- 100 messages total
 

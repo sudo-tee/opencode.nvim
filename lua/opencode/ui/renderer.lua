@@ -66,7 +66,11 @@ end
 ---@param message table
 ---@return boolean
 local function is_non_conversation_record(message)
-  return message.kind == 'agent-switched' or message.kind == 'model-switched' or message.kind == 'synthetic'
+  -- A synthetic message is transcript-visible only through its `description`
+  -- (the schema's summary field); without one its text is model-facing payload.
+  return message.kind == 'agent-switched'
+    or message.kind == 'model-switched'
+    or (message.kind == 'synthetic' and not message.description)
 end
 
 ---@param message table|nil

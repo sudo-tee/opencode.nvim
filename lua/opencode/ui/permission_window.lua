@@ -2,6 +2,7 @@ local state = require('opencode.state')
 local session_tabs = require('opencode.state.session_tabs')
 local Dialog = require('opencode.ui.dialog')
 local formatter_utils = require('opencode.ui.formatter.utils')
+local util = require('opencode.util')
 
 ---@class PermissionRequest
 ---@field id string
@@ -221,10 +222,7 @@ function M.format_display(output)
   local render_content
   if preview and preview.diff then
     local diff = preview.diff
-    local file_type = ''
-    if preview.path then
-      file_type = vim.fn.fnamemodify(preview.path, ':e')
-    end
+    local file_type = preview.path and util.get_markdown_language(preview.path) or ''
     render_content = function(out)
       out:add_line(content[1])
       out:add_line('')

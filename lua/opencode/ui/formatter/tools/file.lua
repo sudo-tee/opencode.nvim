@@ -51,7 +51,7 @@ function M.format(output, part, context, _, message)
   local file_name = tool_type == 'read' and resolve_display_file_name(target.path or '', tool_output)
     or resolve_file_name(target.path or '')
 
-  local file_type = target.path and util.get_markdown_filetype(target.path) or ''
+  local file_type = target.path and util.get_markdown_language(target.path) or ''
 
   local utils = require('opencode.ui.formatter.utils')
   local config = require('opencode.config')

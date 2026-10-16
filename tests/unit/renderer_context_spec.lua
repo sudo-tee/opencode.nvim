@@ -261,12 +261,12 @@ describe('renderer content keys', function()
     local entry = {
       id = 'msg-a',
       content = {
-        { id = vim.json.encode({ 'msg-a', 'text', 0 }), kind = 'text', text = '' },
+        { id = 'msg-a:text:0', kind = 'text', text = '' },
         { kind = 'text', text = 'user text' },
       },
     }
     local instance = contexts.new()
-    assert.equals('["msg-a","text",0]', instance.content_key(entry, 1))
+    assert.equals('msg-a:text:0', instance.content_key(entry, 1))
     assert.equals('msg-a:content:2', instance.content_key(entry, 2))
   end)
 end)

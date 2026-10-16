@@ -140,7 +140,7 @@ local function ordinal_content(observation, data, event_type, create)
   if content or not create then
     return content
   end
-  content = { id = vim.json.encode({ entry.id, kind, data.ordinal }), kind = kind, text = '' }
+  content = { id = normalize.synthetic_id(entry.id, kind, data.ordinal), kind = kind, text = '' }
   entry.content[#entry.content + 1] = content
   index[key] = content
   return content
@@ -172,7 +172,7 @@ local function tool_content(observation, data, event_type, create)
     return nil
   end
   content = {
-    id = vim.json.encode({ entry.id, 'tool', data.id }),
+    id = normalize.synthetic_id(entry.id, 'tool', data.id),
     kind = 'tool',
     call_id = data.id,
     name = data.name,

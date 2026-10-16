@@ -151,10 +151,10 @@ describe('V2 protocol Observation interpretation', function()
     assert.same({ created = 200, streamed = 220, completed = 240 }, reply.time)
     assert.same({ start = 'snap-start', ['end'] = 'snap-end', files = { 'main.lua' } }, reply.snapshot)
     assert.same({ input = 10, output = 5, reasoning = 2, cache = { read = 3, write = 1 } }, reply.tokens)
-    assert.equals('["msg-assistant","reasoning",0]', reply.content[1].id)
-    assert.equals('["msg-assistant","text",0]', reply.content[2].id)
+    assert.equals('msg-assistant:reasoning:0', reply.content[1].id)
+    assert.equals('msg-assistant:text:0', reply.content[2].id)
     local tool = reply.content[3]
-    assert.equals('["msg-assistant","tool","tool-1"]', tool.id)
+    assert.equals('msg-assistant:tool:tool-1', tool.id)
     assert.equals('tool-1', tool.call_id)
     assert.equals('completed', tool.state)
     assert.is_nil(tool.metadata)
@@ -541,10 +541,10 @@ describe('V2 protocol Observation interpretation', function()
     assert.equals('AR', entry.content[1].text)
     assert.equals('BT', entry.content[2].text)
     assert.equals('C', entry.content[3].text)
-    assert.equals('["msg-live","reasoning",0]', entry.content[1].id)
-    assert.equals('["msg-live","text",0]', entry.content[2].id)
-    assert.equals('["msg-live","reasoning",1]', entry.content[3].id)
-    assert.equals('["msg-live","tool","tool-live"]', entry.content[4].id)
+    assert.equals('msg-live:reasoning:0', entry.content[1].id)
+    assert.equals('msg-live:text:0', entry.content[2].id)
+    assert.equals('msg-live:reasoning:1', entry.content[3].id)
+    assert.equals('msg-live:tool:tool-live', entry.content[4].id)
     assert.equals('tool-live', entry.content[4].call_id)
     assert.equals('completed', entry.content[4].state)
     assert.is_nil(entry.content[4].metadata)
@@ -683,10 +683,10 @@ describe('V2 protocol Observation interpretation', function()
     )
     assert.same(
       {
-        '["msg-mix","text",0]',
-        '["msg-mix","tool","tool-mix"]',
-        '["msg-mix","reasoning",0]',
-        '["msg-mix","text",1]',
+        'msg-mix:text:0',
+        'msg-mix:tool:tool-mix',
+        'msg-mix:reasoning:0',
+        'msg-mix:text:1',
       },
       vim.tbl_map(function(content)
         return content.id
@@ -718,10 +718,10 @@ describe('V2 protocol Observation interpretation', function()
     local replaced = observed:read().entries_by_id['msg-mix']
     assert.same(
       {
-        '["msg-mix","text",0]',
-        '["msg-mix","tool","tool-mix"]',
-        '["msg-mix","reasoning",0]',
-        '["msg-mix","text",1]',
+        'msg-mix:text:0',
+        'msg-mix:tool:tool-mix',
+        'msg-mix:reasoning:0',
+        'msg-mix:text:1',
       },
       vim.tbl_map(function(content)
         return content.id
@@ -741,7 +741,7 @@ describe('V2 protocol Observation interpretation', function()
       )
     )
     assert.equals('T0-final', replaced.content[1].text)
-    assert.equals('["msg-mix","text",0]', replaced.content[1].id)
+    assert.equals('msg-mix:text:0', replaced.content[1].id)
     assert.equals('snap-t1', replaced.content[4].text)
 
     assert.is_true(observation_module.ingest_event(
@@ -762,7 +762,7 @@ describe('V2 protocol Observation interpretation', function()
         content = { { type = 'text', text = 'done' } },
       })
     ))
-    assert.equals('["msg-mix","tool","tool-mix"]', replaced.content[2].id)
+    assert.equals('msg-mix:tool:tool-mix', replaced.content[2].id)
     assert.equals('tool-mix', replaced.content[2].call_id)
     assert.equals('completed', replaced.content[2].state)
   end)
@@ -807,11 +807,11 @@ describe('V2 protocol editor-context attachments', function()
     local context_entry = entry.content[2]
     assert.same('editor_context', context_entry.kind)
     assert.is_true(context_entry.synthetic)
-    assert.equals('["msg-user","file",1]', context_entry.id)
+    assert.equals('msg-user:file:1', context_entry.id)
     assert.same('selection', context_entry.source.kind)
     assert.same('test.py', context_entry.source.file_name)
     assert.same('1-2', context_entry.source.range)
     assert.same('selected code', context_entry.text)
-    assert.equals('["msg-user","file",2]', entry.content[3].id)
+    assert.equals('msg-user:file:2', entry.content[3].id)
   end)
 end)

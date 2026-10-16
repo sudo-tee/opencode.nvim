@@ -304,6 +304,16 @@ local function mapped_mention(value, text)
   return mention
 end
 
+---Part identity synthesized by this plugin for content the server sends
+---without an id. Opaque equality key: never decoded back into components.
+---@param owner_id string
+---@param kind string
+---@param key string|integer
+---@return string
+local function synthetic_id(owner_id, kind, key)
+  return owner_id .. ':' .. kind .. ':' .. tostring(key)
+end
+
 local function mapped_file(file, prompt_text)
   local parsed = file_shape:parse(file, 'V2 observation: invalid file attachment')
   ---@cast parsed OpencodeV2ValidatedFileAttachment
@@ -652,7 +662,7 @@ local function append_user_file(entry, file, index, text)
     ---@cast context_entry table
     part = context_entry
   end
-  part.id = vim.json.encode({ entry.id, 'file', index })
+  part.id = synthetic_id(entry.id, 'file', index)
   entry.content[#entry.content + 1] = part
 end
 
@@ -713,7 +723,7 @@ local function mapped_assistant(entry, info)
       coordinate = ordinals[part.type]
       ordinals[part.type] = coordinate + 1
     end
-    content.id = vim.json.encode({ info.id, part.type, coordinate })
+    content.id = synthetic_id(info.id, part.type, coordinate)
     entry.content[#entry.content + 1] = content
   end
   return entry
@@ -916,4 +926,5 @@ return {
   mapped_permission = mapped_permission,
   enrich_permission_previews = enrich_permission_previews,
   mapped_question = mapped_question,
+  synthetic_id = synthetic_id,
 }

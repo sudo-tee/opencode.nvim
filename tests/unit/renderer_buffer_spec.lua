@@ -270,7 +270,7 @@ describe('update_part_folds', function()
     assert.stub(set_folds_stub).was_not_called()
   end)
 
-  it('forces set_folds when in-place rewrites may have dropped buffer folds', function()
+  it('repairs only the current part when a rewrite keeps the same fold ranges', function()
     contexts.current().formatted_parts['part_a'] = {
       lines = { 'title', '', 'content', 'more' },
       fold_ranges = { { from = 1, to = 4 } },
@@ -280,14 +280,53 @@ describe('update_part_folds', function()
     buffer.update_part_folds('part_a')
     set_folds_stub:clear()
 
-    -- recorded folds are unchanged, but the buffer side may have lost them to a
-    -- set_lines rewrite; the forced path must re-apply anyway.
+    local repair = stub(output_window, 'repair_folds')
     buffer.update_part_folds('part_a', true)
 
-    assert.stub(set_folds_stub).was_called()
-    local last = set_folds_stub.calls[#set_folds_stub.calls]
-    assert.same({ { from = 11, to = 14 } }, last.vals[1])
-    assert.is_true(last.vals[2])
+    assert.stub(set_folds_stub).was_not_called()
+    assert.same({ { from = 11, to = 14 } }, repair.calls[1].vals[1])
+    repair:revert()
+  end)
+
+  it('does not rebuild history folds across ordinary text streaming rewrites', function()
+    local ctx = contexts.current()
+    ctx.formatted_parts.history = { lines = {}, fold_ranges = { { from = 2, to = 4 } } }
+    ctx.render_state:set_part({ id = 'history', kind = 'tool' }, 'old', 'history', 0, 4)
+    ctx.render_state:set_part({ id = 'text', kind = 'text' }, 'msg', 'text', 5, 5)
+    buffer.set_all_folds()
+    set_folds_stub:clear()
+    local repair = stub(output_window, 'repair_folds')
+    local previous = { lines = { 'start' }, extmarks = {}, actions = {}, fold_ranges = {} }
+    for i = 1, 100 do
+      local formatted = { lines = { 'token ' .. i }, extmarks = {}, actions = {}, fold_ranges = {} }
+      ctx.formatted_parts.text = formatted
+      buffer.upsert_part_now('text', 'msg', formatted, previous)
+      previous = formatted
+    end
+    assert.stub(set_folds_stub).was_not_called()
+    assert.stub(repair).was_not_called()
+    repair:revert()
+  end)
+
+  it('does not rebuild history folds across folded same-line streaming rewrites', function()
+    local ctx = contexts.current()
+    ctx.render_state:set_part({ id = 'tool', kind = 'tool' }, 'msg', 'tool', 0, 2)
+    local previous =
+      { lines = { 'title', 'body', '' }, extmarks = {}, actions = {}, fold_ranges = { { from = 2, to = 3 } } }
+    ctx.formatted_parts.tool = previous
+    buffer.set_all_folds()
+    set_folds_stub:clear()
+    local repair = stub(output_window, 'repair_folds')
+    for i = 1, 100 do
+      local formatted = vim.deepcopy(previous)
+      formatted.lines[2] = 'token ' .. i
+      ctx.formatted_parts.tool = formatted
+      buffer.upsert_part_now('tool', 'msg', formatted, previous)
+      previous = formatted
+    end
+    assert.stub(set_folds_stub).was_not_called()
+    assert.stub(repair).was_called(100)
+    repair:revert()
   end)
 
   it('merges existing folds from other parts', function()

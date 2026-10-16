@@ -493,12 +493,16 @@ end
 
 _G.opencode_fold_text = M.fold_text
 
-function M.get_open_fold_starts(win, buf)
+---@param win integer|nil
+---@param buf integer|nil
+---@param ranges? {from: number, to: number}[]
+---@return table<number, boolean>
+function M.get_open_fold_starts(win, buf, ranges)
   if not win or not buf then
     return {}
   end
 
-  local prev_folds = state.ui.get_output_folds().ranges
+  local prev_folds = ranges or state.ui.get_output_folds().ranges
 
   local was_open = {}
   vim.api.nvim_win_call(win, function()
@@ -514,9 +518,47 @@ function M.get_open_fold_starts(win, buf)
   return was_open
 end
 
+---Repair only the supplied folds after a buffer rewrite, leaving history alone.
+---Existing open folds stay open; a pre-write snapshot restores deleted open folds.
+---@param ranges {from: integer, to: integer}[]
+---@param was_open? table<number, boolean>
+function M.repair_folds(ranges, was_open)
+  local windows = state.windows
+  if not M.mounted(windows) or #ranges == 0 then
+    return
+  end
+  vim.api.nvim_win_call(windows.output_win, function()
+    local line_count = vim.api.nvim_buf_line_count(windows.output_buf)
+    ---@type table<string, integer>?
+    local view
+    for _, range in ipairs(ranges) do
+      if range.to <= line_count then
+        local exists = vim.fn.foldlevel(range.from) > 0
+        local closed_start = vim.fn.foldclosed(range.from)
+        local closed_end = vim.fn.foldclosedend(range.from)
+        if not exists or (closed_start ~= -1 and (closed_start ~= range.from or closed_end ~= range.to)) then
+          view = view or vim.fn.winsaveview()
+          if exists then
+            vim.cmd(range.from .. 'normal! zd')
+          end
+          vim.cmd(range.from .. ',' .. range.to .. 'fold')
+          if was_open and was_open[range.from] then
+            vim.cmd(range.from .. 'foldopen!')
+          end
+        end
+      end
+    end
+    if view then
+      vim.fn.winrestview(view)
+    end
+  end)
+end
+
 ---Set the folds for the output buffer
 ---@param fold_ranges {from: number, to: number}[]
-function M.set_folds(fold_ranges, force)
+---@param force? boolean
+---@param open_starts? table<number, boolean>
+function M.set_folds(fold_ranges, force, open_starts)
   local windows = state.windows
   if not M.mounted(windows) then
     return
@@ -532,6 +574,9 @@ function M.set_folds(fold_ranges, force)
   end
 
   local was_open = M.get_open_fold_starts(win, buf)
+  for start in pairs(open_starts or {}) do
+    was_open[start] = true
+  end
   local preserve_view = not M.is_at_bottom(win)
   state.ui.set_output_folds(folds)
 

@@ -50,13 +50,40 @@ local function inbox_shape(status)
   end)
 end
 
+---One changed file as the server reports it in edit/write permission metadata.
+local permission_preview_file_shape = v.object({
+  file = v.optional('string'),
+  path = v.optional('string'),
+  patch = v.optional('string'),
+  diff = v.optional('string'),
+}):convert(function(file)
+  return { path = file.file or file.path, diff = file.patch or file.diff }
+end)
+
+---The server moved the diff between versions. Accept every known location
+---(`filepath`/`diff`, `files[].file`/`files[].patch`) so a future move degrades
+---to an empty preview instead of dropping it.
 local permission_preview_shape = v.object({
   command = v.optional('string'),
   diff = v.optional('string'),
   filePath = v.optional('string'),
+  filepath = v.optional('string'),
   path = v.optional('string'),
+  files = v.optional(v.array(permission_preview_file_shape)),
 }):convert(function(metadata)
-  return { command = metadata.command, diff = metadata.diff, path = metadata.filePath or metadata.path }
+  local files = metadata.files or {}
+  local path = metadata.filepath or metadata.filePath or metadata.path or (files[1] and files[1].path)
+  local diff = metadata.diff
+  if diff == nil then
+    local patches = {}
+    for _, file in ipairs(files) do
+      if file.diff and file.diff ~= '' then
+        patches[#patches + 1] = file.diff
+      end
+    end
+    diff = #patches > 0 and table.concat(patches, '\n') or nil
+  end
+  return { command = metadata.command, diff = diff, path = path }
 end)
 
 local permission_source_shape = v.object({ type = v.literal('tool'), messageID = 'string', id = 'string' })

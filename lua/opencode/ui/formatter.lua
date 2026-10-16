@@ -306,6 +306,10 @@ function M.format_message_header(message, previous_message)
     if role == 'user' and message.queued then
       header_virt_text[#header_virt_text + 1] = { ' QUEUED', 'OpencodeQueued' }
     end
+    if role == 'user' and message.local_status then
+      local labels = { sending = ' SENDING', failed = ' SEND FAILED', unknown = ' DELIVERY UNKNOWN' }
+      header_virt_text[#header_virt_text + 1] = { labels[message.local_status], 'OpencodeHint' }
+    end
     vim.list_extend(header_virt_text, {
       { ' ' },
       { model_text, 'OpencodeHint' },

@@ -231,6 +231,7 @@
 ---@field mention? OpencodeV2Mention
 
 ---@class OpencodeV2SubmitInput
+---@field id? string Client-generated message ID for optimistic reconciliation
 ---@field text string
 ---@field context OpencodeV2ContextInput[]
 ---@field files OpencodeV2FileInput[]
@@ -304,7 +305,7 @@
 ---@field _v2_inbox_terminal table<string, table|nil>
 ---@field _v2_permission_terminal table<string, {answer: string}|nil>
 ---@field _v2_question_terminal table<string, {status: string, answers?: OpencodeV2FormAnswers}|nil>
----@field submit fun(self: OpencodeV2Observation, input: OpencodeV2SubmitInput): Promise<OpencodeSubmission>
+---@field submit fun(self: OpencodeV2Observation, input: OpencodeV2SubmitInput, selected?: {mode?: string, model?: string, variant?: string}, on_input_id?: fun(id: string)): Promise<OpencodeSubmission>
 ---@field activate_skill fun(self: OpencodeV2Observation, skill_id: string): Promise<boolean>
 ---@field load_older fun(self: OpencodeV2Observation): Promise<nil>
 ---@field load_complete_history fun(self: OpencodeV2Observation): Promise<nil>

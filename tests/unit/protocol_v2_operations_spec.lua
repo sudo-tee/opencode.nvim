@@ -391,6 +391,7 @@ describe('V2 protocol operations', function()
       :wait()
     local admission = operations
       .submit(connection, 'ses-1', {
+        id = 'msg_client',
         text = 'hello @main.lua',
         context = { { text = 'selected', source = { kind = 'selection', file_name = 'main.lua', range = '1-2' } } },
         files = {
@@ -423,6 +424,7 @@ describe('V2 protocol operations', function()
     )
     assert.equals('/api/session/ses-1/prompt', calls[6].request.path)
     assert.same({
+      id = 'msg_client',
       text = 'hello @main.lua',
       files = {
         {

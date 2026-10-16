@@ -911,6 +911,29 @@ describe('V2 protocol Observation runtime', function()
     stop()
   end)
 
+  it('reports a client message ID before submission so streamed echoes can precede acknowledgement', function()
+    local value = connection()
+    local admission = Promise.new()
+    local reported_id
+    install_operations(value, {
+      submit = function(_, _, input)
+        assert.equals(reported_id, input.id)
+        assert.is_truthy(input.id:match('^msg_'))
+        return admission
+      end,
+    })
+    local observed = value:observe({ id = 'ses-main' })
+    local submitted = observed:submit({ text = 'hello' }, nil, function(id)
+      reported_id = id
+    end)
+    assert.is_not_nil(reported_id)
+    assert.is_false(submitted:is_resolved())
+    admission:resolve({ id = reported_id, delivery = 'queue' })
+    local handle = submitted:wait()
+    assert.equals(reported_id, handle.input.id)
+    handle.stop()
+  end)
+
   it('keeps completion attached to each of two queued submissions', function()
     local value = connection()
     local next_id = 0

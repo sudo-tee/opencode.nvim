@@ -1,6 +1,7 @@
 local lifecycle = require('opencode.protocols.observation')
 local submission = require('opencode.protocols.submission')
 local boundary = require('opencode.protocols.v2.observation.boundary')
+local id = require('opencode.id')
 
 local M = {}
 
@@ -151,7 +152,13 @@ function M.attach(observation, connection)
   ---@param input OpencodeV2SubmitInput
   ---@return Promise<OpencodeSubmission>
   ---@param selected? {mode?: string, model?: string, variant?: string}
-  function observation:submit(input, selected)
+  ---@param on_input_id? fun(id: string)
+  function observation:submit(input, selected, on_input_id)
+    if on_input_id then
+      local input_id = input.id or id.ascending('message')
+      input = vim.tbl_extend('force', {}, input, { id = input_id })
+      on_input_id(input_id)
+    end
     if selected and selected.mode then
       input = vim.tbl_extend('force', {}, input, { agent = selected.mode })
     end
@@ -183,6 +190,9 @@ function M.attach(observation, connection)
       end
       if self._v2_admissions[admission.id] then
         boundary.fail('duplicate submit admission')
+      end
+      if input.id and admission.id ~= input.id then
+        boundary.fail('submit admission does not match requested input ID')
       end
 
       local release = self:_begin_local_operation()

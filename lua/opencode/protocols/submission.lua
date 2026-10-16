@@ -16,6 +16,9 @@ local M = {}
 ---@alias OpencodeSubmissionCompletion OpencodeReplyCompletion|OpencodeIdleCompletion
 
 ---@class OpencodeSubmission
+---Observation.submit optionally reports the protocol-owned input ID through
+---on_input_id before HTTP, allowing events to race safely with acknowledgement.
+---Callers use that ID to reconcile local display state, never prompt text.
 ---@field kind 'reply'|'accepted'
 ---@field input? table Accepted input, including its protocol-owned ID
 ---@field input_id? string Input ID for an immediate reply

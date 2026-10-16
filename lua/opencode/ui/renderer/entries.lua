@@ -20,6 +20,7 @@ local function message_snapshot(entry, previous)
     kind = entry.kind,
     agent = entry.agent,
     queued = entry.queued,
+    local_status = entry.local_status,
     model = entry.model,
     created = entry.time and entry.time.created,
     error = entry.error,

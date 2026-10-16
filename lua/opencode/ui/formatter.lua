@@ -664,13 +664,12 @@ local function current_part_text_references(part, message, text, context)
   end
 
   local trim_offset = part_text_trim_offset(part, text)
-  local message_id = message and message.id
   local refs = {}
   for _, ref in ipairs(context.current_refs) do
     local raw_range = ref.raw_range
     if
       ref.source_kind == 'assistant_text'
-      and ref.message_id == message_id
+      and ref.message_id == message.id
       and ref.part_id == part.id
       and raw_range
     then
@@ -845,8 +844,8 @@ end
 
 ---@param output Output Output object to write to
 ---@param text string
----@param part? table
----@param message? table
+---@param part table
+---@param message table
 ---@param context? FormatterContext
 function M._format_assistant_message(output, text, part, message, context)
   local references = current_part_text_references(part, message, text, context)

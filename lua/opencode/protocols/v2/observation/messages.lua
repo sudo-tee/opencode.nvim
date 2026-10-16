@@ -200,6 +200,64 @@ handlers['session.inbox.enqueued'] = function(observation, event, data)
   return true
 end
 
+---Server-side notices (restart, instruction changes) are projected into messages
+---by the backend, but the message snapshot can predate their arrival and the
+---snapshot itself is not re-pulled on ordinary traffic, so without these handlers
+---the notices never reach the observation. Mirrors the TUI's projection in
+---message-updater.ts.
+local function put_notice(observation, event, info)
+  local ok, entry = pcall(normalize.mapped_message, observation._session_id, info)
+  if not ok then
+    return boundary.diagnostic(observation, 'messages', tostring(entry))
+  end
+  ---@cast entry table
+  put_entry(observation, entry)
+  return true
+end
+
+local function notice_message_id(event)
+  -- SessionMessage.ID.fromEvent: the message id is the durable event id with the
+  -- evt_ prefix swapped, so the projected entry merges with the snapshot copy.
+  return (event.id:gsub('^evt_', 'msg_'))
+end
+
+---@param observation OpencodeV2Observation
+---@param event OpencodeV2Event
+---@param data table
+handlers['session.synthetic'] = function(observation, event, data)
+  if type(data.text) ~= 'string' then
+    return invalid(observation, event.type, 'is missing text')
+  end
+  return put_notice(observation, event, {
+    id = notice_message_id(event),
+    type = 'synthetic',
+    text = data.text,
+    description = data.description,
+    time = { created = event.created },
+  })
+end
+
+---@param observation OpencodeV2Observation
+---@param event OpencodeV2Event
+---@param data table
+handlers['session.instructions.updated'] = function(observation, event, data)
+  if data.text == nil then
+    return false
+  end
+  if type(data.text) ~= 'string' or type(data.delta) ~= 'table' then
+    return invalid(observation, event.type, 'has invalid text/delta')
+  end
+  local keys = vim.tbl_keys(data.delta)
+  table.sort(keys)
+  return put_notice(observation, event, {
+    id = notice_message_id(event),
+    type = 'system',
+    text = data.text,
+    description = 'Instructions updated: ' .. table.concat(keys, ', '),
+    time = { created = event.created },
+  })
+end
+
 ---@param observation OpencodeV2Observation
 ---@param event OpencodeV2Event
 ---@param data table
@@ -494,6 +552,9 @@ function M.attach_history(observation, connection)
     end)()
   end
 end
+
+---Exposed for the event-contract coverage test (tests/unit/protocol_v2_event_coverage_spec.lua).
+M.handlers = handlers
 
 ---@param observation OpencodeV2Observation
 function M.release(observation)

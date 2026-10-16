@@ -255,3 +255,18 @@ describe('renderer context ownership', function()
     assert.equals(1, two.releases)
   end)
 end)
+
+describe('renderer content keys', function()
+  it('keys parts by their synthesized identity and falls back to position for parts without id', function()
+    local entry = {
+      id = 'msg-a',
+      content = {
+        { id = 'msg-a:text:0', kind = 'text', text = '' },
+        { kind = 'text', text = 'user text' },
+      },
+    }
+    local instance = contexts.new()
+    assert.equals('msg-a:text:0', instance.content_key(entry, 1))
+    assert.equals('msg-a:content:2', instance.content_key(entry, 2))
+  end)
+end)

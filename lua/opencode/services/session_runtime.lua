@@ -473,8 +473,9 @@ M.open = Promise.async(function(opts)
     return Promise.new():reject(err)
   end
 
-  -- Re-sync model/variant from the server: the user may have switched them
-  -- in the TUI while this client was unfocused (no SSE broadcast on switch).
+  -- Re-sync model/variant from the server: switch events only carry increments,
+  -- so anything the user changed in the TUI while this client was unfocused
+  -- converges only through this GET on open.
   agent_model.sync_from_server()
 
   return Promise.new():resolve('ok')

@@ -659,7 +659,7 @@ local function part_text_trim_offset(part, text)
 end
 
 local function current_part_text_references(part, message, text, context)
-  if not (part and part.id and message and message.id and context and context.current_refs) then
+  if not (context and context.current_refs) then
     return {}
   end
 
@@ -844,8 +844,8 @@ end
 
 ---@param output Output Output object to write to
 ---@param text string
----@param part? table
----@param message? table
+---@param part table
+---@param message table
 ---@param context? FormatterContext
 function M._format_assistant_message(output, text, part, message, context)
   local references = current_part_text_references(part, message, text, context)

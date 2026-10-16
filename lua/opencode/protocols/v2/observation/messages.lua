@@ -2,6 +2,7 @@ local entries = require('opencode.protocols.entries')
 local Promise = require('opencode.promise')
 local normalize = require('opencode.protocols.v2.normalize')
 local boundary = require('opencode.protocols.v2.observation.boundary')
+local log = require('opencode.log')
 
 local M = {}
 
@@ -22,8 +23,8 @@ local function rebuild_content_index(observation, entry)
     if ordinals[content.kind] then
       index[content_key(content.kind, ordinals[content.kind])] = content
       ordinals[content.kind] = ordinals[content.kind] + 1
-    elseif content.kind == 'tool' and content.id then
-      index['tool:' .. content.id] = content
+    elseif content.kind == 'tool' and content.call_id then
+      index['tool:' .. content.call_id] = content
     end
   end
   observation._v2_content_by_message[entry.id] = index
@@ -139,7 +140,7 @@ local function ordinal_content(observation, data, event_type, create)
   if content or not create then
     return content
   end
-  content = { kind = kind, text = '' }
+  content = { id = normalize.synthetic_id(entry.id, kind, data.ordinal), kind = kind, text = '' }
   entry.content[#entry.content + 1] = content
   index[key] = content
   return content
@@ -170,7 +171,13 @@ local function tool_content(observation, data, event_type, create)
     invalid(observation, event_type, 'is missing tool name')
     return nil
   end
-  content = { id = data.id, kind = 'tool', call_id = data.id, name = data.name, state = 'streaming' }
+  content = {
+    id = normalize.synthetic_id(entry.id, 'tool', data.id),
+    kind = 'tool',
+    call_id = data.id,
+    name = data.name,
+    state = 'streaming',
+  }
   entry.content[#entry.content + 1] = content
   index['tool:' .. data.id] = content
   return content
@@ -390,12 +397,27 @@ end
 handlers['session.revert.committed'] = invalidate_messages
 handlers['session.compaction.ended'] = invalidate_messages
 
+-- Upstream adds and renames session event families independently of this plugin;
+-- record each unknown type once so a new gap is discoverable without flooding the log.
+local unknown_session_events = {}
+
 ---@param observation OpencodeV2Observation
 ---@param event OpencodeV2Event
 ---@return boolean changed
 function M.ingest_event(observation, event)
   local handler = handlers[event.type]
-  if not handler or event.data.sessionID ~= observation._session_id then
+  if not handler then
+    if
+      not unknown_session_events[event.type]
+      and event.type:sub(1, #'session.') == 'session.'
+      and event.data.sessionID == observation._session_id
+    then
+      unknown_session_events[event.type] = true
+      log.info('unhandled session event type: %s', event.type)
+    end
+    return false
+  end
+  if event.data.sessionID ~= observation._session_id then
     return false
   end
   local result = handler(observation, event, event.data)

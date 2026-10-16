@@ -130,6 +130,58 @@ describe('opencode.ui.reference_facts', function()
     assert.are.same({}, reference_facts.current_files())
   end)
 
+  it('collects v2 synthesized identities and still excludes id-less attachments', function()
+    rebuild({
+      {
+        id = 'user_1',
+        kind = 'user',
+        session_id = 'ses_1',
+        content = {
+          { kind = 'text', text = 'look' },
+          { id = 'user_1:file:1', kind = 'file', name = 'src/ok.lua' },
+        },
+      },
+      assistant_message('msg_1', 'ses_1', {
+        { id = 'msg_1:text:0', kind = 'text', text = 'See `src/ok.lua`.' },
+        { kind = 'agent', name = 'review' },
+        { kind = 'skill', skill_id = 's', name = 'review', text = 'x' },
+      }),
+    })
+
+    local refs = reference_facts.current_refs()
+
+    assert.equal(2, #refs)
+    assert.equal('user_file_part', refs[1].source_kind)
+    assert.equal('user_1:file:1', refs[1].part_id)
+    assert.equal('assistant_text', refs[2].source_kind)
+    assert.equal('msg_1:text:0', refs[2].part_id)
+  end)
+
+  it('isolates identical raw tool ids across messages under synthesized identities', function()
+    rebuild({
+      assistant_message('msg_a', 'ses_1', {
+        { id = 'msg_a:tool:shared', kind = 'tool', target = { path = '/repo/src/ok.lua' } },
+      }),
+      assistant_message('msg_b', 'ses_1', {
+        {
+          id = 'msg_b:tool:shared',
+          kind = 'tool',
+          target = { path = '/repo/src/tool.lua' },
+        },
+      }),
+    })
+
+    local refs = reference_facts.current_refs()
+
+    assert.equal(2, #refs)
+    assert.equal('msg_a', refs[1].message_id)
+    assert.equal('msg_a:tool:shared', refs[1].part_id)
+    assert.equal('src/ok.lua', refs[1].path)
+    assert.equal('msg_b', refs[2].message_id)
+    assert.equal('msg_b:tool:shared', refs[2].part_id)
+    assert.equal('src/tool.lua', refs[2].path)
+  end)
+
   it('available_files merges readable ref files with loaded plain buffers', function()
     local dedup_buf = vim.api.nvim_create_buf(false, true)
     vim.bo[dedup_buf].buftype = ''

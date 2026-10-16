@@ -47,16 +47,9 @@ local function is_current_session_user_message(session_id, message)
 end
 
 local function collect_part_refs(session_id, message, part, message_order, part_order)
-  if not part then
-    return {}
-  end
-
   if is_current_session_user_message(session_id, message) and part.kind == 'file' then
     local path = part.source and part.source.path or part.name
     if not path or path == '' then
-      return {}
-    end
-    if not part.id then
       return {}
     end
     return {
@@ -71,7 +64,7 @@ local function collect_part_refs(session_id, message, part, message_order, part_
     }
   end
 
-  if not is_current_session_assistant_message(session_id, message) or part.synthetic or not part.id then
+  if not is_current_session_assistant_message(session_id, message) or part.synthetic then
     return {}
   end
 

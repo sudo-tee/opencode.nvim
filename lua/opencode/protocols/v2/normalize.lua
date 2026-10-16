@@ -12,8 +12,7 @@ local function first(value, keys)
   end
 end
 
---- Validates `value` against shorthand or explicit schemas. Errors from this
---- module get the same context prefix as the older inline guards.
+--- Validates `value` against shorthand or explicit schemas.
 local function shape(value, spec, message)
   local full_message = message and 'V2 observation: ' .. message or nil
   return v.validate(value, spec, full_message)
@@ -332,6 +331,16 @@ local function mapped_mention(value, text)
   return mention
 end
 
+---Part identity synthesized by this plugin for content the server sends
+---without an id. Opaque equality key: never decoded back into components.
+---@param owner_id string
+---@param kind string
+---@param key string|integer
+---@return string
+local function synthetic_id(owner_id, kind, key)
+  return owner_id .. ':' .. kind .. ':' .. tostring(key)
+end
+
 local function mapped_file(file, prompt_text)
   local parsed = file_shape:parse(file, 'V2 observation: invalid file attachment')
   ---@cast parsed OpencodeV2ValidatedFileAttachment
@@ -570,7 +579,6 @@ local function mapped_tool(part)
   tool_part_shape:parse(part, 'V2 observation: invalid assistant tool content')
   local status = part.state.status
   local result = {
-    id = part.id,
     kind = 'tool',
     call_id = part.id,
     name = part.name,
@@ -667,20 +675,22 @@ local function append_user_file(entry, file, index, text)
   if context_name == 'review_comment' then
     context_name = 'review-comment'
   end
-  if not context_name then
-    entry.content[#entry.content + 1] = mapped_file(file, text)
-    return
-  end
 
-  -- Editor-context attachments are mapped to the same contract as V1 synthetic parts.
-  editor_context_file_shape:parse(file, 'V2 observation: invalid editor context attachment')
-  local context_entry, decode_err =
-    shared_decode_editor_context(context_name, vim.base64.decode(file.data), file.name, true, file.ignored)
-  v.expect(not decode_err, 'V2 observation: ' .. tostring(decode_err))
-  v.expect(context_entry ~= nil, 'V2 observation: invalid ' .. tostring(context_name) .. ' editor context attachment')
-  ---@cast context_entry table
-  context_entry.id = file.name .. '#' .. index
-  entry.content[#entry.content + 1] = context_entry
+  local part
+  if not context_name then
+    part = mapped_file(file, text)
+  else
+    -- Editor-context attachments are mapped to the same contract as V1 synthetic parts.
+    editor_context_file_shape:parse(file, 'V2 observation: invalid editor context attachment')
+    local context_entry, decode_err =
+      shared_decode_editor_context(context_name, vim.base64.decode(file.data), file.name, true, file.ignored)
+    v.expect(not decode_err, 'V2 observation: ' .. tostring(decode_err))
+    v.expect(context_entry ~= nil, 'V2 observation: invalid ' .. tostring(context_name) .. ' editor context attachment')
+    ---@cast context_entry table
+    part = context_entry
+  end
+  part.id = synthetic_id(entry.id, 'file', index)
+  entry.content[#entry.content + 1] = part
 end
 
 local function mapped_user(entry, info)
@@ -730,8 +740,18 @@ local function mapped_assistant(entry, info)
       error = mapped_error(info.retry.error),
     }
   end
+  local ordinals = { text = 0, reasoning = 0 }
   for _, part in ipairs(info.content) do
-    entry.content[#entry.content + 1] = mapped_assistant_content(part)
+    local content = mapped_assistant_content(part)
+    local coordinate
+    if part.type == 'tool' then
+      coordinate = content.call_id
+    else
+      coordinate = ordinals[part.type]
+      ordinals[part.type] = coordinate + 1
+    end
+    content.id = synthetic_id(info.id, part.type, coordinate)
+    entry.content[#entry.content + 1] = content
   end
   return entry
 end
@@ -933,4 +953,5 @@ return {
   mapped_permission = mapped_permission,
   enrich_permission_previews = enrich_permission_previews,
   mapped_question = mapped_question,
+  synthetic_id = synthetic_id,
 }

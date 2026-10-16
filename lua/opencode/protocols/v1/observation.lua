@@ -13,6 +13,7 @@ local mapped_permission = normalize.mapped_permission
 local mapped_question = normalize.mapped_question
 
 local lifecycle = require('opencode.protocols.observation')
+local log = require('opencode.log')
 local id = require('opencode.id')
 local Promise = require('opencode.promise')
 local util = require('opencode.util')
@@ -119,6 +120,7 @@ local function record_diagnostic(observation, message)
     state = 'error',
     error = { kind = 'protocol_contract', message = message },
   }
+  log.warn('V1 observation diagnostic (messages): %s', message)
 end
 
 local function remove_from_order(order, item_id)

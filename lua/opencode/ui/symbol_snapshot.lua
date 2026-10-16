@@ -1,3 +1,5 @@
+local log = require('opencode.log')
+
 local M = {}
 
 ---@class SymbolReferenceTarget
@@ -21,6 +23,9 @@ local function source_version(path)
   local bufnr = vim.fn.bufnr and vim.fn.bufnr(path) or -1
   if bufnr and bufnr > 0 and vim.api.nvim_buf_is_loaded and vim.api.nvim_buf_is_loaded(bufnr) then
     local ok, changedtick = pcall(vim.api.nvim_buf_get_changedtick, bufnr)
+    if not ok then
+      log.debug('symbol snapshot: buffer changedtick read failed: %s', tostring(changedtick))
+    end
     return ok and 'buffer:' .. bufnr .. ':' .. changedtick or nil
   end
 
@@ -66,10 +71,14 @@ local function current_source_root(path, lang)
     end)
     if parser_ok then
       parser = buffer_parser
+    else
+      log.debug('symbol snapshot: buffer parser creation failed: %s', tostring(buffer_parser))
     end
   else
     local read_ok, lines = pcall(vim.fn.readfile, path)
-    if read_ok and type(lines) == 'table' then
+    if not read_ok then
+      log.debug('symbol snapshot: file read failed: %s', tostring(lines))
+    elseif type(lines) == 'table' then
       local content = table.concat(lines, '\n')
       source = content
       local parser_ok, string_parser = pcall(function()
@@ -79,6 +88,8 @@ local function current_source_root(path, lang)
       end)
       if parser_ok then
         parser = string_parser
+      else
+        log.debug('symbol snapshot: string parser creation failed: %s', tostring(string_parser))
       end
     end
   end
@@ -90,11 +101,15 @@ local function current_source_root(path, lang)
   local parse_ok, trees = pcall(function()
     return parser:parse()
   end)
+  if not parse_ok then
+    log.debug('symbol snapshot: tree parse failed: %s', tostring(trees))
+  end
   local tree = parse_ok and trees and trees[1] or nil
   local root_ok, root = pcall(function()
     return tree and tree:root() or nil
   end)
   if not root_ok then
+    log.debug('symbol snapshot: tree root failed: %s', tostring(root))
     return nil, nil
   end
 
@@ -159,6 +174,9 @@ local function collect_path(path)
       return vim.treesitter.language.get_lang(filetype)
     end
   end)
+  if not lang_ok then
+    log.debug('symbol snapshot: parser language lookup failed: %s', tostring(parser_lang))
+  end
   if lang_ok and parser_lang then
     lang = parser_lang
   end
@@ -175,7 +193,11 @@ local function collect_path(path)
       return vim.treesitter.query.get(lang, 'locals')
     end
   end)
-  if not query_ok or not query then
+  if not query_ok then
+    log.debug('symbol snapshot: query compile failed for %s: %s', lang, tostring(query))
+    return by_token
+  end
+  if not query then
     return by_token
   end
 
@@ -187,16 +209,30 @@ local function collect_path(path)
   local iter_ok, iter, iter_state, iter_initial = pcall(function()
     return query:iter_captures(root, source, 0, -1)
   end)
-  if not iter_ok or not iter then
+  if not iter_ok then
+    log.debug('symbol snapshot: capture iterator creation failed: %s', tostring(iter))
+    return by_token
+  end
+  if not iter then
     return by_token
   end
 
+  local capture_counts = {}
+  local capture_total = 0
+
   for capture_id, node in iter, iter_state, iter_initial do
+    ---@type string?
     local capture = query.captures and query.captures[capture_id]
+    capture_total = capture_total + 1
+    local capture_name = capture or ('?capture:' .. tostring(capture_id))
+    capture_counts[capture_name] = (capture_counts[capture_name] or 0) + 1
     local kind = capture and capture:match('^local%.definition%.(.+)$')
     local text_ok, token = pcall(function()
       return vim.treesitter.get_node_text(node, source)
     end)
+    if not text_ok then
+      log.debug('symbol snapshot: node text extraction failed: %s', tostring(token))
+    end
     if kind and kind ~= 'associated' and text_ok and definition_token(token) then
       local row, col = node:range()
       local targets = by_token[token]
@@ -213,6 +249,22 @@ local function collect_path(path)
       })
     end
   end
+
+  -- Distribution of capture names as this Neovim actually resolved them: a
+  -- silent treesitter difference (renamed captures, a stripped 'locals' query)
+  -- shows up here as missing names while every call still "succeeds".
+  local distribution = {}
+  for name, count in pairs(capture_counts) do
+    distribution[#distribution + 1] = name .. 'x' .. count
+  end
+  table.sort(distribution)
+  log.debug(
+    'symbol snapshot: %s: %d captures (%s), %d definition tokens',
+    path,
+    capture_total,
+    #distribution > 0 and table.concat(distribution, ', ') or 'none',
+    #vim.tbl_keys(by_token)
+  )
 
   if cache_key then
     path_cache:set(path, { version = cache_key, by_token = by_token })

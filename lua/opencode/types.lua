@@ -326,6 +326,7 @@
 ---@field use_folds boolean
 ---@field fold_exclude (string|{server: string, tool: string})[]|nil
 ---@field folding_threshold number
+---@field streaming_preview_lines integer -- Trailing content lines visible in streaming folds; 0 disables
 
 ---@class OpencodeUIOutputConfig
 ---@field time_format string|nil # Custom os.date format for timestamps, e.g. '%m/%d %H:%M'. Uses fixed default when nil.

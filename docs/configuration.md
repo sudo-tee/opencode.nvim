@@ -291,6 +291,8 @@ require('opencode').setup({
         -- Reduced default threshold to make small tool outputs foldable by default.
         -- Users can override this in their config if they prefer the previous value.
         folding_threshold = 25,
+        -- Keep trailing content visible while a folded tool or reasoning part streams; 0 disables.
+        streaming_preview_lines = 1,
       },
 
       max_messages = nil,
@@ -559,6 +561,12 @@ require('opencode').setup({
 
 `fold_exclude` accepts exact built-in tool names or MCP server/tool pairs.
 `<leader>ott` and `<leader>otr` toggle tool and reasoning output at runtime.
+
+`ui.output.tools.streaming_preview_lines = 1` keeps the latest content line of
+the final folded section visible while a tool or reasoning part streams. Blank
+lines and Markdown fences do not count toward the preview. Increase it for more
+context, or set it to `0` to disable. Completion restores normal folding, and
+manually opened folds stay open. Reasoning titles remain outside their folds.
 
 Markdown Treesitter support is enabled by `ui.enable_treesitter_markdown`.
 Rendering settings live under `ui.output.rendering`: debounce is `250` ms,

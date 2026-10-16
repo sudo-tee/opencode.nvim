@@ -273,6 +273,8 @@ M.defaults = {
         -- Reduced default threshold to make small tool outputs foldable by default.
         -- Users can override this in their config if they prefer the previous value.
         folding_threshold = 25,
+        -- Keep trailing content visible while a folded tool or reasoning part streams; 0 disables.
+        streaming_preview_lines = 1,
       },
 
       max_messages = nil,

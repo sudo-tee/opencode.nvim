@@ -119,6 +119,35 @@ function Output:add_fold_with_threshold(start_line, show, use_folds)
   end
 end
 
+---Expose the latest folded content without counting blank lines or Markdown fences.
+---Only the last fold changes, so completed input sections stay collapsed.
+---@param line_count integer
+function Output:preview_fold_tail(line_count)
+  local range = self.fold_ranges[#self.fold_ranges]
+  if line_count <= 0 or not range then
+    return
+  end
+  ---@type integer?
+  local preview_start
+  for line = range.to, range.from, -1 do
+    local text = self.lines[line] --[[@as string]]
+    if text:find('%S') and not text:match('^%s*```') and not text:match('^%s*~~~') then
+      preview_start = line --[[@as integer]]
+      line_count = line_count - 1
+      if line_count == 0 then
+        break
+      end
+    end
+  end
+  if preview_start then
+    if preview_start <= range.from + 1 then
+      table.remove(self.fold_ranges)
+    else
+      range.to = preview_start - 1
+    end
+  end
+end
+
 ---Get the number of lines
 ---@return integer
 function Output:get_line_count()

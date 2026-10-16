@@ -15,6 +15,7 @@ local M = {}
 M.namespace = vim.api.nvim_create_namespace('opencode_output')
 M.debug_namespace = vim.api.nvim_create_namespace('opencode_output_debug')
 M.markdown_namespace = vim.api.nvim_create_namespace('opencode_output_markdown')
+M.fold_namespace = vim.api.nvim_create_namespace('opencode_output_folds')
 M._last_visible_bottom_by_win = {}
 M._was_at_bottom_by_win = {}
 M._prev_line_count_by_win = {}
@@ -461,37 +462,68 @@ function M.update_dimensions(windows)
   pcall(vim.api.nvim_win_set_width, output_win, width)
 end
 
----Fold text for the output buffer
+---@param line_count integer
+---@param width integer
+---@return string
+local function fold_summary(line_count, width)
+  local text = string.format('▶ %d lines hidden (zo open, zc close) ◀', line_count)
+  local remaining = math.max(0, width - vim.fn.strdisplaywidth(text))
+  local padding = math.floor(remaining / 2)
+  return string.rep('-', padding) .. text .. string.rep('-', remaining - padding)
+end
+
+---Native fold bounds remain authoritative while cached ranges are being shifted.
 ---@return string
 function M.fold_text()
-  local windows = state.windows
-  local output_buf = windows and windows.output_buf
-  local line = vim.v.foldstart
-
-  if not output_buf or not vim.api.nvim_buf_is_valid(output_buf) then
-    return vim.fn.foldtext()
-  end
-
-  local folds = state.ui.get_output_folds().ranges
-
-  local line_count = 0
-  for _, range in ipairs(folds) do
-    if line >= range.from and line <= range.to then
-      line_count = range.to - range.from + 1
-      break
-    end
-  end
-
-  if line_count > 0 then
-    local text = string.format('▶ %d lines hidden (zo open, zc close) ◀', line_count)
-    local width = vim.api.nvim_win_get_width(0)
-    local padding = math.max(0, math.floor((width - #text) / 2))
-    return string.rep('-', padding) .. text .. string.rep('-', padding)
-  end
-  return vim.fn.foldtext()
+  return fold_summary(vim.v.foldend - vim.v.foldstart + 1, vim.api.nvim_win_get_width(0))
 end
 
 _G.opencode_fold_text = M.fold_text
+
+---@type table<integer, string>
+local visible_fold_summaries = {}
+vim.api.nvim_set_decoration_provider(M.fold_namespace, {
+  on_win = function(_, win, buf, top, bottom)
+    local windows = state.windows
+    if not windows or win ~= windows.output_win or buf ~= windows.output_buf then
+      return false
+    end
+    local info = vim.fn.getwininfo(win)[1] --[[@as {textoff: integer}]]
+    local width = vim.api.nvim_win_get_width(win) - info.textoff
+    visible_fold_summaries = {}
+    -- Query the target window once; provider callbacks need not run in it.
+    -- Jump over closed bodies so work is bounded by visible rows, not history.
+    vim.api.nvim_win_call(win, function()
+      local line = top + 1
+      local last = math.min(bottom + 1, vim.api.nvim_buf_line_count(buf))
+      while line <= last do
+        local from = vim.fn.foldclosed(line)
+        if from == -1 then
+          line = line + 1
+        else
+          local to = vim.fn.foldclosedend(line)
+          visible_fold_summaries[from - 1] = fold_summary(to - from + 1, width)
+          line = to + 1
+        end
+      end
+    end)
+    return true
+  end,
+  on_line = function(_, _, buf, row)
+    local summary = visible_fold_summaries[row]
+    if not summary then
+      return
+    end
+    -- Closed folds inherit source-line virtual text from Markdown plugins. Mask
+    -- only the summary row, without deleting decorations needed when it opens.
+    vim.api.nvim_buf_set_extmark(buf, M.fold_namespace, row, 0, {
+      ephemeral = true,
+      virt_text = { { summary, 'Folded' } },
+      virt_text_win_col = 0,
+      priority = 65535,
+    })
+  end,
+})
 
 ---@param win integer|nil
 ---@param buf integer|nil

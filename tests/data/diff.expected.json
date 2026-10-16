@@ -564,7 +564,7 @@
     "",
     "**  edit** `/Users/cam/tmp/a/diff-test.txt` 5s",
     "",
-    "`````text",
+    "`````txt",
     "   this is a string",
     "   this is a great string",
     "",
@@ -585,6 +585,6 @@
     ],
     "effective_bottom": 23,
     "line_count": 24,
-    "visible_bottom": 23
+    "visible_bottom": 24
   }
 }

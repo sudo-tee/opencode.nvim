@@ -534,6 +534,10 @@ local _filetype_languages = {
   sshconfig = 'ssh_config',
   svg = 'xml',
   tex = 'latex',
+  -- No text/txt parser exists; Neovim nightly reports the `text` filetype for
+  -- .txt while older versions fall back to the `txt` extension, so normalize
+  -- both to one label.
+  text = 'txt',
   typescriptreact = 'tsx',
   verilog = 'systemverilog',
   xsd = 'xml',

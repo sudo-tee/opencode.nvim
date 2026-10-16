@@ -403,7 +403,7 @@
     "",
     "**  write** `/Users/cam/tmp/a/test.txt` 8s",
     "",
-    "`````text",
+    "`````txt",
     ":)",
     "`````",
     "",
@@ -422,6 +422,6 @@
     ],
     "effective_bottom": 19,
     "line_count": 20,
-    "visible_bottom": 19
+    "visible_bottom": 20
   }
 }

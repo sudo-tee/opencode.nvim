@@ -196,7 +196,8 @@ local function write_in_place(cached, previous_formatted, formatted_data)
   local clear_start, clear_end =
     extmark_clear_range(previous_formatted, formatted_data, cached.line_start, old_line_end, new_line_end, prefix_len)
 
-  output_window.clear_extmarks(clear_start, clear_end)
+  -- The buffer still has the old layout: the new extent may overlap following parts.
+  output_window.clear_extmarks(clear_start, math.min(clear_end, old_line_end + 1))
   output_window.set_lines(lines_to_write, write_start, cached.line_end + 1)
   highlight_written_lines(write_start, lines_to_write)
 

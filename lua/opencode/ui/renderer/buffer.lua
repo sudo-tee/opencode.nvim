@@ -639,7 +639,7 @@ function M.refresh_part_metadata(part_id, formatted_data, previous, ctx)
   end
   apply_part_render_data(ctx, part_id, formatted_data, cached.line_start)
   if not vim.deep_equal(previous and previous.fold_ranges or {}, formatted_data.fold_ranges or {}) then
-    M.update_part_folds(part_id, ctx)
+    M.update_part_folds(part_id, false, ctx)
   end
 end
 
@@ -678,7 +678,7 @@ function M.append_part_now(part_id, extra_lines, extra_extmarks, previous_format
       prefix_len
     )
     if formatted_data.fold_ranges then
-      M.update_part_folds(part_id, ctx)
+      M.update_part_folds(part_id, false, ctx)
     end
   elseif has_extmarks(extra_extmarks) then
     output_window.set_extmarks(extra_extmarks, insert_at)

@@ -159,6 +159,35 @@ describe('renderer.buffer extmarks', function()
     }, 12)
   end)
 
+  it('passes the explicit context when refreshing fold metadata', function()
+    local ctx = contexts.new()
+    ctx.render_state:set_part({ id = 'part_1', kind = 'text' }, 'msg_1', 'part_1', 0, 3)
+    local formatted = { lines = {}, extmarks = {}, actions = {}, fold_ranges = { { from = 2, to = 4 } } }
+    local update = stub(buffer, 'update_part_folds')
+
+    buffer.refresh_part_metadata('part_1', formatted, { fold_ranges = {} }, ctx)
+
+    assert.stub(update).was_called_with('part_1', false, ctx)
+    update:revert()
+  end)
+
+  it('passes the explicit context when appending folded output', function()
+    local ctx = contexts.new()
+    ctx.render_state:set_part({ id = 'part_1', kind = 'text' }, 'msg_1', 'part_1', 0, 1)
+    ctx.formatted_parts.part_1 = {
+      lines = { 'title', 'body', 'tail' },
+      extmarks = {},
+      actions = {},
+      fold_ranges = { { from = 2, to = 3 } },
+    }
+    local update = stub(buffer, 'update_part_folds')
+
+    buffer.append_part_now('part_1', { 'tail' }, nil, nil, ctx)
+
+    assert.stub(update).was_called_with('part_1', false, ctx)
+    update:revert()
+  end)
+
   it('replaces rendered targets with line offset when updating a part', function()
     contexts.current().render_state:set_part({ id = 'part_1', kind = 'text' }, 'msg_1', 'part_1', 10, 10)
     contexts.current().render_state:add_targets('part_1', {

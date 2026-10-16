@@ -79,7 +79,7 @@ function M._format_reasoning(output, part)
     output:add_empty_line()
     output:add_lines(vim.split(text, '\n'))
     output:add_empty_line()
-    output:add_fold_with_threshold(start_line, show, use_folds)
+    output:add_fold_with_threshold(start_line + 1, show, use_folds)
   end
 
   local end_line = output:get_line_count()
@@ -1155,6 +1155,19 @@ function M.format_part(part, message, is_last_part, context)
   local formatter = part_formatters[message.kind]
   if formatter then
     output, content_added = formatter(output, part, message, context)
+  end
+
+  if message.kind == 'assistant' then
+    local streaming_tool = part.kind == 'tool'
+      and (part.state == 'streaming' or part.state == 'pending' or part.state == 'running')
+    local streaming_reasoning = part.kind == 'reasoning'
+      and part.time
+      and (part.time.started or part.time.created)
+      and not part.time.completed
+      and not (message.time and message.time.completed)
+    if streaming_tool or streaming_reasoning then
+      output:preview_fold_tail(config.ui.output.tools.streaming_preview_lines)
+    end
   end
 
   if content_added then

@@ -189,6 +189,9 @@ function M.format_display(output)
 
   local content = {}
   local perm_type = permission.permission or permission.action or ''
+  -- Fences need a treesitter language: v2 names the shell action "shell", but
+  -- the command shown is shell script, whose language is "bash".
+  local code_language = perm_type == 'shell' and 'bash' or perm_type
   local description = permission.message
   local patterns = permission.patterns or permission.resources or {}
   local preview = permission.preview
@@ -200,7 +203,7 @@ function M.format_display(output)
   else
     table.insert(content, (icons.get(perm_type)) .. ' *' .. perm_type .. '*')
     if not preview or (not preview.command and not preview.diff) then
-      table.insert(content, string.format('```%s', perm_type))
+      table.insert(content, string.format('```%s', code_language))
       for _, pattern in ipairs(patterns) do
         pattern = type(pattern) == 'string' and pattern or vim.inspect(pattern)
         for _, line in ipairs(vim.split(pattern, '\n')) do
@@ -214,7 +217,7 @@ function M.format_display(output)
   table.insert(content, '')
 
   if preview and preview.command then
-    table.insert(content, string.format('```%s', perm_type))
+    table.insert(content, string.format('```%s', code_language))
     vim.list_extend(content, vim.split(preview.command, '\n'))
     table.insert(content, '```')
   end

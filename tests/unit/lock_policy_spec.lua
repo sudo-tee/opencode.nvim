@@ -72,10 +72,13 @@ describe('session lock policy', function()
   end)
 
   it('loads the target when the function returns false', function()
+    local enabled = config.ui.restore_tabs_on_startup
+    config.ui.restore_tabs_on_startup = false
     config.lock_session_to_directory = function()
       return false
     end
     runtime.handle_directory_change(other):wait()
+    config.ui.restore_tabs_on_startup = enabled
     assert.equal('other', state.active_session.id)
     assert.equal(other, state.current_cwd)
   end)

@@ -209,7 +209,7 @@ function M.setup_autocmds(windows)
     pattern = { 'global', 'tabpage' },
     group = group,
     callback = function(event)
-      if state.current_cwd == event.file then
+      if not require('opencode.config').ui.restore_tabs_on_startup and state.current_cwd == event.file then
         return
       end
 

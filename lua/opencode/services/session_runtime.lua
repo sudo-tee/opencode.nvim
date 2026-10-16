@@ -9,10 +9,13 @@ local Promise = require('opencode.promise')
 local log = require('opencode.log')
 local agent_model = require('opencode.services.agent_model')
 local session_tabs = require('opencode.state.session_tabs')
+local tab_persistence = require('opencode.services.session_tab_persistence')
 
 local M = {}
 
 local active_binding
+local directory_change_generation = 0
+local group_panel_visible = false
 
 local function release_active_observation()
   local previous = active_binding
@@ -338,6 +341,13 @@ end
 
 M.check_cwd = function()
   local runtime = session_tabs.current()
+  if config.ui.restore_tabs_on_startup then
+    if runtime and runtime.bound_directory then
+      runtime.bound_editor_cwd = vim.fn.getcwd()
+      state.context.set_current_cwd(runtime.bound_directory)
+    end
+    return
+  end
   if runtime and runtime.bound_directory then
     local cwd = vim.fn.getcwd()
     if runtime.bound_editor_cwd == cwd or M.is_session_locked(cwd) then
@@ -363,9 +373,21 @@ M.check_cwd = function()
   end
 end
 
+local function prepare_group_switch()
+  group_panel_visible = group_panel_visible or state.ui.is_visible()
+  state.ui.set_opening(false)
+  session_tabs.set_context(context.snapshot())
+  if state.ui.is_visible() then
+    ui.prepare_session_tab_switch()
+    ui.hide_visible_windows(state.windows, true)
+  end
+  session_tabs.sync()
+end
+
 ---@param opts? OpenOpts
 M.open = Promise.async(function(opts)
   opts = opts or { focus = 'input', new_session = false }
+  local editor_cwd = vim.fs.normalize(vim.fn.getcwd())
 
   session_tabs.ensure_current()
   session_tabs.set_context(context.snapshot())
@@ -374,7 +396,27 @@ M.open = Promise.async(function(opts)
 
   local created_windows
   local server_ok, server = pcall(function()
+    local previous = session_tabs.current()
+    local pinned = state.active_session and M.is_session_locked() and tab_persistence.is_initialized()
+    local restoring
+    if not pinned then
+      restoring = tab_persistence.restore(opts.new_session == true, prepare_group_switch)
+    end
+    if restoring then
+      restoring:await()
+    end
+    if vim.fs.normalize(vim.fn.getcwd()) ~= editor_cwd then
+      error('Working directory changed while opening panel')
+    end
+    local switched = session_tabs.current() ~= previous
+    if switched then
+      context.restore(session_tabs.get_context())
+    end
+    state.ui.set_opening(true)
     local open_action = opts.open_action or state.ui.resolve_open_windows_action()
+    if switched and open_action == 'reuse_visible' then
+      open_action = state.ui.resolve_open_windows_action()
+    end
     if opts.new_session then
       context.clear_files()
       context.clear_selections()
@@ -386,6 +428,7 @@ M.open = Promise.async(function(opts)
       M.is_prompting_allowed()
     end
     created_windows = ui.prepare_windows(open_action, opts)
+    group_panel_visible = false
     return server_job.ensure_server():await()
   end)
   if not server_ok then
@@ -409,7 +452,9 @@ M.open = Promise.async(function(opts)
     else
       agent_model.ensure_current_mode():await()
       if not state.active_session then
-        state.session.set_active(last_workspace_session():await())
+        if not config.ui.restore_tabs_on_startup then
+          state.session.set_active(last_workspace_session():await())
+        end
         if not state.active_session then
           state.session.set_active(M.create_new_session():await())
         end
@@ -1063,6 +1108,8 @@ end)
 
 ---@param cwd? string Directory from DirChanged; defaults to Neovim cwd.
 M.handle_directory_change = Promise.async(function(cwd)
+  directory_change_generation = directory_change_generation + 1
+  local request = directory_change_generation
   cwd = cwd or vim.fn.getcwd()
   local locked = M.is_session_locked(cwd)
   log.debug('Working directory change %s', vim.inspect({ cwd = cwd, locked = locked }))
@@ -1078,6 +1125,39 @@ M.handle_directory_change = Promise.async(function(cwd)
       'Session locked, staying on [' .. state.active_session.id .. '] in new working dir [' .. cwd .. ']',
       vim.log.levels.INFO
     )
+    return
+  end
+
+  if config.ui.restore_tabs_on_startup then
+    local visible = state.ui.is_visible() or group_panel_visible
+    local previous = session_tabs.current()
+    local restoring = tab_persistence.restore(false, prepare_group_switch, cwd)
+    if restoring then
+      restoring:await()
+    end
+    -- A newer DirChanged owns the panel after an asynchronous lookup.
+    if request ~= directory_change_generation or vim.fs.normalize(vim.fn.getcwd()) ~= vim.fs.normalize(cwd) then
+      return
+    end
+    local current = session_tabs.current()
+    if current ~= previous or group_panel_visible then
+      context.restore(session_tabs.get_context())
+      if visible then
+        M.open({ focus = 'input', new_session = false, open_action = 'restore_hidden' }):await()
+        if state.active_session then
+          ui.render_output()
+        end
+      end
+      group_panel_visible = false
+    end
+    for _, tab in ipairs(session_tabs.list()) do
+      if tab.bound_directory then
+        tab.bound_editor_cwd = cwd
+      end
+    end
+    if current and not current.bound_directory then
+      state.context.set_current_cwd(current.current_cwd or cwd)
+    end
     return
   end
 

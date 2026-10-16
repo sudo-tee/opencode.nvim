@@ -179,12 +179,15 @@ describe('directory-bound session API', function()
   end)
 
   it('preserves a locked binding but releases it on unlocked DirChanged', function()
+    local enabled = config.ui.restore_tabs_on_startup
+    config.ui.restore_tabs_on_startup = false
     runtime.open_session({ directory = directory, new = true }):wait()
     runtime.set_session_lock(true)
     runtime.handle_directory_change(vim.fn.getcwd()):wait()
     assert.equal(directory, state.current_cwd)
     runtime.set_session_lock(false)
     runtime.handle_directory_change(vim.fn.getcwd()):wait()
+    config.ui.restore_tabs_on_startup = enabled
     assert.is_nil(state.session_tabs.current().bound_directory)
     assert.equal(vim.fn.getcwd(), state.current_cwd)
   end)

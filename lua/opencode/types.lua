@@ -264,6 +264,7 @@
 ---@field input_position 'bottom'|'top' # Position of the input window (default: 'bottom')
 ---@field window_width number
 ---@field persist_state boolean
+---@field restore_tabs_on_startup boolean # Keep project-scoped panel tab groups and restore them across Neovim restarts
 ---@field zoom_width number
 ---@field float OpencodeUIFloatConfig
 ---@field picker_width number|false|nil # Width for pickers. 0<w<=1 = fraction of screen; >1 = absolute columns; false = use picker backend defaults.

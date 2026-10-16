@@ -554,6 +554,47 @@ describe('V2 protocol Observation runtime', function()
     stop()
   end)
 
+  it('maps edit permission diffs from the live server files[] metadata', function()
+    local normalize = require('opencode.protocols.v2.normalize')
+    -- Real 2.0.14 payload: the diff lives under metadata.files[].patch, not metadata.diff.
+    local request = normalize.mapped_permission({
+      id = 'per-edit',
+      sessionID = 'ses-main',
+      action = 'edit',
+      resources = { 'src/main.rs' },
+      metadata = {
+        files = {
+          {
+            file = 'src/main.rs',
+            patch = 'Index: src/main.rs\n@@ -1,2 +1,2 @@\n line one\n-line two\n+line TWO changed\n',
+            status = 'modified',
+            additions = 1,
+            deletions = 1,
+          },
+        },
+      },
+      source = { type = 'tool', messageID = 'msg-tool', id = 'tool-edit' },
+    })
+    assert.equals('src/main.rs', request.preview.path)
+    assert.equals(
+      'Index: src/main.rs\n@@ -1,2 +1,2 @@\n line one\n-line two\n+line TWO changed\n',
+      request.preview.diff
+    )
+  end)
+
+  it('keeps legacy filepath/diff permission metadata working', function()
+    local normalize = require('opencode.protocols.v2.normalize')
+    local request = normalize.mapped_permission({
+      id = 'per-legacy',
+      sessionID = 'ses-main',
+      action = 'edit',
+      resources = { 'a.lua' },
+      metadata = { filepath = 'a.lua', diff = 'OLD DIFF' },
+    })
+    assert.equals('a.lua', request.preview.path)
+    assert.equals('OLD DIFF', request.preview.diff)
+  end)
+
   it('fills previews from the exact linked tool and publishes them after online tool input arrives', function()
     local value = connection()
     local streams = install_operations(value)

@@ -3,6 +3,15 @@ local output_window = require('opencode.ui.output_window')
 
 local M = {}
 
+---@param text string
+---@return integer
+local function line_display_width(text)
+  -- Vimscript receives NUL-containing Lua strings as Blobs. Its string
+  -- representation of a buffer NUL is a newline, with the same display width.
+  local display_text = text:gsub('%z', '\n')
+  return math.max(1, vim.fn.strdisplaywidth(display_text))
+end
+
 ---@param win integer
 ---@return boolean
 local function window_wraps(win)
@@ -38,7 +47,7 @@ local function get_bottom_aligned_topline(buf, win, target_line)
         line = fold_start - 1
       else
         local text = vim.api.nvim_buf_get_lines(buf, line - 1, line, false)[1] or ''
-        local display_width = math.max(1, vim.fn.strdisplaywidth(text))
+        local display_width = line_display_width(text)
         rows = rows + math.max(1, math.ceil(display_width / text_width))
         line = line - 1
       end
@@ -87,10 +96,7 @@ local function end_of_target_line_fits_view(buf, win, target_line)
       end)
     else
       local text = vim.api.nvim_buf_get_lines(buf, line - 1, line, false)[1] or ''
-      if type(text) ~= 'string' then
-        text = tostring(text)
-      end
-      local display_width = math.max(1, vim.fn.strdisplaywidth(text))
+      local display_width = line_display_width(text)
       rows = rows + math.max(1, math.ceil(display_width / text_width))
       line = line + 1
     end
@@ -128,9 +134,6 @@ function M.scroll_win_to_bottom(win, buf)
   end
 
   local target_text = vim.api.nvim_buf_get_lines(buf, target_line - 1, target_line, false)[1] or ''
-  if type(target_text) ~= 'string' then
-    target_text = tostring(target_text)
-  end
   local visible_bottom = output_window.get_visible_bottom_line(win)
   vim.api.nvim_win_set_cursor(win, { target_line, #target_text })
   state.ui.set_cursor_position('output', { target_line, #target_text })

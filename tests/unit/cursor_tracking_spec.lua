@@ -579,6 +579,51 @@ describe('renderer.scroll_to_bottom', function()
     config.values.ui.output.always_scroll_to_bottom = false
   end)
 
+  it('follows visible binary output without converting NUL-containing strings to Blobs', function()
+    local scroll = require('opencode.ui.renderer.scroll')
+    local text = string.rep('x\0', 15)
+    vim.api.nvim_win_set_width(win, 20)
+    vim.api.nvim_win_set_height(win, 5)
+    vim.api.nvim_set_option_value('wrap', true, { win = win })
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, { 'header', text })
+    vim.api.nvim_win_set_cursor(win, { 1, 0 })
+
+    assert.equals(2, output_window.get_visible_bottom_line(win))
+    scroll.scroll_win_to_bottom(win, buf)
+    assert.same({ 2, #text - 1 }, vim.api.nvim_win_get_cursor(win))
+
+    local snapshot = scroll.pre_flush(buf)
+    assert.is_true(snapshot.follow)
+    text = text .. string.rep('y\0', 10)
+    vim.api.nvim_buf_set_lines(buf, 1, 2, false, { text })
+    scroll.post_flush(snapshot, buf)
+
+    assert.same({ 2, #text - 1 }, vim.api.nvim_win_get_cursor(win))
+    assert.equals(text, vim.api.nvim_buf_get_lines(buf, 1, 2, false)[1])
+  end)
+
+  it('bottom-aligns binary output using the display width of NUL bytes', function()
+    local scroll = require('opencode.ui.renderer.scroll')
+    local lines = {}
+    for i = 1, 20 do
+      lines[i] = 'line ' .. i
+    end
+    lines[19] = string.rep('x\0', 10)
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+    vim.api.nvim_win_set_width(win, 20)
+    vim.api.nvim_win_set_height(win, 5)
+    vim.api.nvim_set_option_value('wrap', true, { win = win })
+    vim.api.nvim_win_set_cursor(win, { 1, 0 })
+
+    assert.is_true(output_window.get_visible_bottom_line(win) < 20)
+    scroll.scroll_win_to_bottom(win, buf)
+
+    assert.equals(17, output_window.get_visible_top_line(win))
+    assert.equals(20, output_window.get_visible_bottom_line(win))
+    assert.equals(20, vim.api.nvim_win_get_cursor(win)[1])
+    assert.equals(lines[19], vim.api.nvim_buf_get_lines(buf, 18, 19, false)[1])
+  end)
+
   it('moves to the visual end when the last wrapped line grows', function()
     local long_line = string.rep('x', 120)
     local longer_line = string.rep('x', 180)

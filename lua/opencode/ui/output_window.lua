@@ -215,6 +215,8 @@ function M.on_user_navigation(win)
   local previous_cursor = M._last_cursor_by_win[win]
   M._last_cursor_by_win[win] = cursor
   local bottom_text = vim.api.nvim_buf_get_lines(windows.output_buf, effective_bottom - 1, effective_bottom, false)[1] --[[@as string]]
+  -- Avoid Blob conversion at the Vimscript boundary without shifting byte offsets.
+  bottom_text = bottom_text:gsub('%z', '\n')
   local cursor_at_end = cursor_line >= effective_bottom and cursor[2] >= math.max(0, vim.fn.match(bottom_text, '.$'))
   local moved_toward_end = (previous_cursor and (cursor_line > previous_cursor[1] or cursor[2] > previous_cursor[2]))
     or (top and previous_top and top > previous_top)

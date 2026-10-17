@@ -137,11 +137,11 @@ describe('permission_window', function()
       }
       permission_window.format_display(Output.new())
       assert.is_truthy(captured_opts.content[1]:find('*shell*', 1, true))
-      assert.same({ '', '```shell', command, '```' }, vim.list_slice(captured_opts.content, 2))
+      assert.same({ '', '```bash', command, '```' }, vim.list_slice(captured_opts.content, 2))
 
       permission_window._permission_queue[1].resources = { command }
       permission_window.format_display(Output.new())
-      assert.same({ '', '```shell', command, '```' }, vim.list_slice(captured_opts.content, 2))
+      assert.same({ '', '```bash', command, '```' }, vim.list_slice(captured_opts.content, 2))
     end)
 
     it('keeps V2 resource patterns as fallback when no preview is available', function()
@@ -156,7 +156,7 @@ describe('permission_window', function()
       }
       permission_window.format_display(Output.new())
       assert.same(
-        { '```shell', 'make format-check', 'make typecheck', '```', '' },
+        { '```bash', 'make format-check', 'make typecheck', '```', '' },
         vim.list_slice(captured_opts.content, 2)
       )
     end)

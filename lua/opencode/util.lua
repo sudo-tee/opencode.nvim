@@ -513,37 +513,61 @@ function M.check_prompt_allowed(guard_callback, mentioned_files)
   return result, nil
 end
 
-local _filetype_overrides = {
-  javascriptreact = 'jsx',
-  typescriptreact = 'tsx',
-  typescript = 'ts',
-  javascipt = 'js',
+--- Filetypes whose treesitter language differs from the filetype name. Neovim
+--- core resolves only a few of these, so keep the common ones here to stay
+--- independent of nvim-treesitter's filetype registrations.
+local _filetype_languages = {
+  bib = 'bibtex',
+  bzl = 'starlark',
+  confini = 'ini',
+  cs = 'c_sharp',
+  dosini = 'ini',
+  gitconfig = 'git_config',
+  handlebars = 'glimmer',
+  javascriptreact = 'javascript',
+  jsonc = 'json',
+  pandoc = 'markdown',
+  ps1 = 'powershell',
+  qml = 'qmljs',
+  sbt = 'scala',
   sh = 'bash',
-  yaml = 'yml',
-  text = 'txt', -- nvim 0.12-nightly returns text as the type which breaks our unit tests
+  sshconfig = 'ssh_config',
+  svg = 'xml',
+  tex = 'latex',
+  -- No text/txt parser exists; Neovim nightly reports the `text` filetype for
+  -- .txt while older versions fall back to the `txt` extension, so normalize
+  -- both to one label.
+  text = 'txt',
+  typescriptreact = 'tsx',
+  verilog = 'systemverilog',
+  xsd = 'xml',
+  xslt = 'xml',
 }
-local _filetype_cache = {}
+local _language_cache = {}
 
---- Get the markdown type to use based on the filename. First gets the neovim type
---- for the file. Then apply any specific overrides. Falls back to using the file
---- extension if nothing else matches
+--- Resolve a filename to the treesitter language for its markdown code fence.
+--- Treesitter wants a language name, not a file extension (`rs` is not a
+--- language, `rust` is), so map the path to a filetype and then to its language
+--- instead of using the extension directly.
 --- @param filename string filename, possibly including path
---- @return string markdown_filetype
-function M.get_markdown_filetype(filename)
+--- @return string treesitter language; '' for an empty filename, else the
+--- extension when no filetype matches
+function M.get_markdown_language(filename)
   if not filename or filename == '' then
     return ''
   end
 
-  local cached = _filetype_cache[filename]
+  local cached = _language_cache[filename]
   if cached ~= nil then
     return cached
   end
 
-  local file_type = vim.filetype.match({ filename = filename }) or ''
-  local result = _filetype_overrides[file_type] or (file_type ~= '' and file_type) or vim.fn.fnamemodify(filename, ':e')
+  local filetype = vim.filetype.match({ filename = filename })
+  local name = filetype or vim.fn.fnamemodify(filename, ':e')
+  local language = name ~= '' and (_filetype_languages[name] or vim.treesitter.language.get_lang(name) or name) or ''
 
-  _filetype_cache[filename] = result
-  return result
+  _language_cache[filename] = language
+  return language
 end
 
 function M.strdisplaywidth(str)

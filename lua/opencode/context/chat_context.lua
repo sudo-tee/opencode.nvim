@@ -180,7 +180,7 @@ end
 ---@param selection OpencodeContextSelection
 ---@return table
 local function capture_selection(selection)
-  local lang = util.get_markdown_filetype(selection.file and selection.file.name or '') or ''
+  local lang = util.get_markdown_language(selection.file and selection.file.name or '')
 
   return {
     text = vim.json.encode({
@@ -218,7 +218,7 @@ end
 ---@return table
 local function capture_cursor_data(cursor_data, get_current_buf)
   local buf = (get_current_buf() or 0) --[[@as integer]]
-  local lang = util.get_markdown_filetype(vim.api.nvim_buf_get_name(buf)) or ''
+  local lang = util.get_markdown_language(vim.api.nvim_buf_get_name(buf))
   return {
     text = vim.json.encode({
       context_type = 'cursor-data',

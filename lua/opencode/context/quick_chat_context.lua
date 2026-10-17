@@ -14,7 +14,7 @@ local severity_names = {
 ---@param selection table
 ---@return string
 local function format_selection(selection)
-  local lang = util.get_markdown_filetype(selection.file and selection.file.name or '') or ''
+  local lang = util.get_markdown_language(selection.file and selection.file.name or '')
   local file_info = selection.file and selection.file.name or 'unknown'
   local lines_info = selection.lines and (' (lines ' .. selection.lines .. ')') or ''
 
@@ -131,7 +131,7 @@ M.format_message = Promise.async(function(prompt, opts)
 
   local range = opts.range
   local file_name = vim.api.nvim_buf_get_name(buf)
-  local lang = util.get_markdown_filetype(file_name) or vim.fn.fnamemodify(file_name, ':e') or ''
+  local lang = util.get_markdown_language(file_name)
 
   local text_parts = {}
 

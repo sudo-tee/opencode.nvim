@@ -2,9 +2,11 @@ local M = {}
 
 local config = require('opencode.config')
 
-local log_path = (config.logging and config.logging.outfile) or vim.fn.stdpath('log') .. '/opencode.log'
 local log_levels = { debug = 1, info = 2, warn = 3, error = 4 }
-local current_level = log_levels[(config.logging and config.logging.level or 'warn'):lower()] or 3
+
+local function log_path()
+  return (config.logging and config.logging.outfile) or vim.fn.stdpath('log') .. '/opencode.log'
+end
 
 local function caller_info()
   local level = 2
@@ -22,10 +24,12 @@ local function caller_info()
 end
 
 local function log(level, msg, ...)
-  if not config.logging.enabled then
+  local settings = config.logging or {}
+  if not settings.enabled then
     return
   end
-  if log_levels[level] < current_level then
+  local threshold = log_levels[(settings.level or 'warn'):lower()] or log_levels.warn
+  if log_levels[level] < threshold then
     return
   end
   local line = string.format(
@@ -35,7 +39,7 @@ local function log(level, msg, ...)
     caller_info(),
     string.format(msg, ...)
   )
-  local file = io.open(log_path, 'a')
+  local file = io.open(log_path(), 'a')
   if file then
     file:write(line)
     file:close()
@@ -56,7 +60,7 @@ function M.error(msg, ...)
 end
 
 function M.get_path()
-  return config.logging.enabled and log_path or nil
+  return config.logging and config.logging.enabled and log_path() or nil
 end
 
 --- Emit a user-visible notification and write the same message to the log.

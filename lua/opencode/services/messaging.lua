@@ -250,7 +250,7 @@ local function materialize_draft_session(tab_id, token)
   if session_tabs.active_id() == tab_id then
     state.session.set_active(session)
   else
-    owner.active_session = session
+    session_tabs.set_session(owner, session)
   end
   return observation, snapshot, release
 end

@@ -223,6 +223,7 @@ describe('renderer context ownership', function()
       end,
     })
     state.store.set_raw('active_session', { id = 'one' })
+    tabs.set_session(first, { id = 'one' })
     renderer.on_session_changed()
     local a, b = first.renderer_context, second.renderer_context
     local original_session = a.render_session

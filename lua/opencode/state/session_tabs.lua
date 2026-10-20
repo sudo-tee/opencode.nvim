@@ -217,9 +217,38 @@ local function capture_runtime(id)
     return nil
   end
 
+  local session = runtime.active_session
   copy_from_store(runtime)
+  runtime.active_session = session
   runtime.id = id
   return runtime
+end
+
+---@param session_id string
+---@return OpencodeSessionTabRuntime|nil
+function M.owner_of(session_id)
+  for _, runtime in pairs(runtimes) do
+    local active = runtime.active_session
+    if active and active.id == session_id then
+      return runtime
+    end
+  end
+  return nil
+end
+
+---@param context string Operation that just changed the tab registry
+local function verify_unique_session_tabs(context)
+  local seen = {}
+  for _, runtime in pairs(runtimes) do
+    local session_id = runtime.active_session and runtime.active_session.id
+    if session_id then
+      local owner = rawget(seen, session_id)
+      if owner then
+        error(('session %s is bound to both tab %s and tab %s after %s'):format(session_id, owner, runtime.id, context))
+      end
+      seen[session_id] = runtime.id
+    end
+  end
 end
 
 ---@param group? string Omitted includes every group
@@ -553,11 +582,19 @@ function M.ensure_current()
     return runtimes[id]
   end
 
+  local session = store.get('active_session')
+  local existing = session and session.id and M.owner_of(session.id)
+  if existing then
+    M.activate(existing)
+    return existing
+  end
+
   id = new_id()
   local runtime = runtime_from_current(id, false)
   runtimes[id] = runtime
   renderer_context.select(runtime.renderer_context)
   store.set('active_session_tab', id)
+  verify_unique_session_tabs('ensure_current')
   return runtime
 end
 
@@ -585,12 +622,21 @@ function M.activate(runtime)
     capture_runtime(runtime.id)
   end
 
+  verify_unique_session_tabs('activate')
   return true
 end
 
 ---@param session OpencodeSession|nil
 ---@return OpencodeSessionTabRuntime
 function M.create(session)
+  if session and session.id then
+    local existing = M.owner_of(session.id)
+    if existing then
+      log.warn('session %s already has tab %s; reusing it instead of creating a second one', session.id, existing.id)
+      return existing
+    end
+  end
+
   local runtime = runtime_from_current(new_id(), false)
   runtime.active_session = normalize_session(session)
   runtime.messages = nil
@@ -605,7 +651,15 @@ function M.create(session)
   runtime.tokens_count = 0
   runtimes[runtime.id] = runtime
   notify_change()
+  verify_unique_session_tabs('create')
   return runtime
+end
+
+---@param runtime OpencodeSessionTabRuntime
+---@param session OpencodeSession|nil
+function M.set_session(runtime, session)
+  runtime.active_session = normalize_session(session)
+  verify_unique_session_tabs('set_session')
 end
 
 ---@param runtime OpencodeSessionTabRuntime
@@ -619,6 +673,7 @@ function M.remove(runtime)
   runtime.renderer_context:close()
   runtimes[runtime.id] = nil
   notify_change()
+  verify_unique_session_tabs('remove')
   if store.get('active_session_tab') == runtime.id then
     renderer_context.select()
     store.set('active_session_tab', nil)
@@ -649,6 +704,7 @@ function M.setup()
   runtimes[runtime.id] = runtime
   renderer_context.select(runtime.renderer_context)
   store.set('active_session_tab', runtime.id)
+  verify_unique_session_tabs('setup')
 end
 
 return M

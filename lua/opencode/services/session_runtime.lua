@@ -449,7 +449,7 @@ M.open = Promise.async(function(opts)
       agent_model.ensure_current_mode():await()
     else
       agent_model.ensure_current_mode():await()
-      if not state.active_session then
+      if not state.active_session and not opts.draft then
         local resumed, recent = pcall(function()
           return last_workspace_session():await()
         end)
@@ -655,16 +655,16 @@ M.fork_session = Promise.async(function(session, message_id)
 end)
 
 ---Mount an existing session in a new logical panel tab.
----@param selected_session OpencodeSession
+---@param selected_session OpencodeSession|nil Nil mounts a tab with no session; the first prompt creates one.
 ---@param directory? string Explicit tab directory; omitted preserves existing behavior.
 ---@return Promise<OpencodeSession|nil>
 M.open_session_in_tab = Promise.async(function(selected_session, directory)
-  if not selected_session or not selected_session.id then
+  if selected_session and not selected_session.id then
     return nil
   end
 
   for _, runtime in ipairs(session_tabs.list()) do
-    if runtime.active_session and runtime.active_session.id == selected_session.id then
+    if selected_session and runtime.active_session and runtime.active_session.id == selected_session.id then
       if directory then
         runtime.bound_directory = directory
         runtime.bound_editor_cwd = vim.fn.getcwd()
@@ -699,6 +699,7 @@ M.open_session_in_tab = Promise.async(function(selected_session, directory)
     focus = 'input',
     start_insert = true,
     new_session = false,
+    draft = selected_session == nil,
     open_action = 'create_fresh',
   }):await()
 
@@ -788,11 +789,14 @@ M.open_session_in_tab_by_id = Promise.async(function(session_id)
 end)
 
 ---Open a new session in a logical tab inside the Opencode panel.
----@param title? string
+---@param title? string Named tabs create the session up front; untitled ones stay empty until the first prompt.
 ---@return Promise<OpencodeSession|nil>
 M.open_session_tab = Promise.async(function(title)
   local runtime = session_tabs.current()
   local directory = runtime and runtime.bound_directory
+  if not title then
+    return M.open_session_in_tab(nil, directory):await()
+  end
   local new_session = M.create_new_session(title):await()
   if not new_session then
     return nil
@@ -830,6 +834,7 @@ M.switch_session_tab = Promise.async(function(tab_id)
     focus = focus,
     new_session = false,
     open_action = 'restore_hidden',
+    draft = runtime.active_session == nil,
   }):await()
 
   return runtime.active_session

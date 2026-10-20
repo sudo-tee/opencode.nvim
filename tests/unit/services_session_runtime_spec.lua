@@ -31,6 +31,9 @@ describe('opencode.services.session_runtime', function()
 
   before_each(function()
     original = support.snapshot_state()
+    -- Tabs are not part of the snapshot; leftovers from earlier specs would
+    -- otherwise be bound to the sessions these tests activate.
+    state.session_tabs.reset()
     -- Keep open() away from snapshots in the real stdpath('state').
     original_restore_tabs_on_startup = config.ui.restore_tabs_on_startup
     config.ui.restore_tabs_on_startup = false
@@ -337,6 +340,23 @@ describe('opencode.services.session_runtime', function()
       state.session.set_active({ id = 'old-session' })
       session_runtime.open({ new_session = true, focus = 'input' }):wait()
       assert.is_nil(state.active_session)
+    end)
+
+    it('leaves a new session tab empty instead of resuming the last session', function()
+      state.ui.set_windows(nil)
+      state.session.set_active({ id = 'old-session' })
+      state.opencode_server.operations.list_sessions_project = function()
+        return Promise.new():resolve({
+          { id = 'recent-session', title = 'recent', time = { updated = 5 } },
+        })
+      end
+      local create = stub(session_runtime, 'create_new_session').returns(Promise.new():resolve({ id = 'eager' }))
+
+      session_runtime.open_session_tab():wait()
+
+      assert.stub(create).was_not_called()
+      assert.is_nil(state.active_session)
+      create:revert()
     end)
 
     it('clears old attachments before loading editor context for a new session', function()

@@ -338,6 +338,10 @@ end
 ---@param key string|integer
 ---@return string
 local function synthetic_id(owner_id, kind, key)
+  -- ':' is the separator: a colon inside owner_id would let two coordinates collide.
+  if owner_id:find(':', 1, true) then
+    error('V2 observation: message id must not contain ":": ' .. owner_id)
+  end
   return owner_id .. ':' .. kind .. ':' .. tostring(key)
 end
 

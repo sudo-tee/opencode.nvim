@@ -119,7 +119,7 @@ describe('renderer incremental reconciliation', function()
     end
   end)
 
-  it('renders a local prompt before server events and replaces it with the authoritative entry', function()
+  it('keeps an echoed prompt suppressed after observed history is replaced', function()
     writes:revert()
     writes = spy.on(output_window, 'set_lines')
     local pending = optimistic.begin(observation, 'instant optimistic text')
@@ -145,6 +145,15 @@ describe('renderer incremental reconciliation', function()
     assert.is_not_nil(contexts.current().render_state:get_message('msg_echo'))
     local _, count = output():gsub('instant optimistic text', '')
     assert.equals(1, count)
+
+    observed.entries_by_id.msg_echo = nil
+    observed.entry_order = { 'msg_one', 'msg_two' }
+    notify('messages')
+    assert.is_nil(contexts.current().render_state:get_message(pending.id))
+    assert.is_nil(contexts.current().render_state:get_message('msg_echo'))
+    local _, resurfaced = output():gsub('instant optimistic text', '')
+    assert.equals(0, resurfaced)
+
     optimistic.finish(observation, pending)
   end)
 

@@ -319,12 +319,14 @@ end
 ---@param topline integer
 function M.restore_view_topline(win, topline)
   vim.api.nvim_win_call(win, function()
+    local cursor = vim.api.nvim_win_get_cursor(0)
     local view = vim.fn.winsaveview()
     view.topline = math.max(1, topline)
     view.skipcol = 0
     vim.fn.winrestview(view)
-    -- Apply the restored viewport before later line('w$') reads inspect it.
-    vim.cmd('redraw')
+    -- Reapplying cursor through the API resolves wrapped-line skipcol without
+    -- synchronously redrawing while Tree-sitter may still hold stale ranges.
+    vim.api.nvim_win_set_cursor(0, cursor)
   end)
 end
 

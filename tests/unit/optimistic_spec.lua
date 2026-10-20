@@ -29,6 +29,19 @@ describe('optimistic prompt state', function()
     assert.is_false(optimistic.is_sending(observation))
   end)
 
+  it('does not resurface a prompt after its server echo leaves observed history', function()
+    local prompt = optimistic.begin(observation, 'hello')
+    local echo = { id = 'server-id', kind = 'user', content = {} }
+    optimistic.bind(prompt, echo.id)
+    observation:read().entries_by_id[echo.id] = echo
+    assert.same({ echo }, optimistic.project(observation, { echo }))
+
+    observation:read().entries_by_id[echo.id] = nil
+    assert.same({}, optimistic.project(observation, {}))
+    assert.is_false(optimistic.is_sending(observation))
+    optimistic.finish(observation, prompt)
+  end)
+
   it('does not match another client or repeated prompt by text', function()
     local first = optimistic.begin(observation, 'same')
     local second = optimistic.begin(observation, 'same')

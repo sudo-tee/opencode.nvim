@@ -69,11 +69,18 @@ end
 ---@return OpencodeOptimisticPrompt[]
 local function visible(observation)
   local result = {}
+  local remaining = {}
   local entries = observation:read().entries_by_id
   for _, prompt in ipairs(prompts[observation] or {}) do
     if not (prompt.server_id and entries[prompt.server_id]) then
       result[#result + 1] = prompt
+      remaining[#remaining + 1] = prompt
     end
+  end
+  if #remaining > 0 then
+    prompts[observation] = remaining
+  else
+    prompts[observation] = nil
   end
   return result
 end

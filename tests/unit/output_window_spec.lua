@@ -360,6 +360,47 @@ describe('output_window.setup', function()
   end)
 end)
 
+describe('output_window.restore_view_topline', function()
+  local buf
+  local win
+  local command_stub
+
+  before_each(function()
+    buf = vim.api.nvim_create_buf(false, true)
+    local lines = {}
+    for i = 1, 30 do
+      lines[i] = tostring(i)
+    end
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+    win = vim.api.nvim_open_win(buf, true, {
+      relative = 'editor',
+      width = 80,
+      height = 10,
+      row = 0,
+      col = 0,
+    })
+  end)
+
+  after_each(function()
+    if command_stub then
+      command_stub:revert()
+      command_stub = nil
+    end
+    pcall(vim.api.nvim_win_close, win, true)
+    pcall(vim.api.nvim_buf_delete, buf, { force = true })
+  end)
+
+  it('restores the viewport without forcing a synchronous redraw', function()
+    vim.api.nvim_win_set_cursor(win, { 8, 0 })
+    command_stub = stub(vim, 'cmd')
+
+    output_window.restore_view_topline(win, 4)
+
+    assert.equals(4, output_window.get_visible_top_line(win))
+    assert.stub(command_stub).was_not_called()
+  end)
+end)
+
 describe('output_window extmarks', function()
   local buf
 

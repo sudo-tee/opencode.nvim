@@ -212,12 +212,12 @@ describe('V2 protocol operations', function()
       end)
       :wait()
     assert.equals('/api/session/ses_123/diff', request.path)
-    assert.equals('context=1000000000&from=msg_one&to=msg_two', request.query)
+    assert.equals('context=1073741823&from=msg_one&to=msg_two', request.query)
     assert.equals('/host/file.lua', files[1].file)
     assert.equals('@@ -1 +1 @@\n-old\n+new', files[1].patch)
   end)
 
-  it('requests bounded full-file context even without explicit turn boundaries', function()
+  it('requests the largest context Git can safely double even without explicit turn boundaries', function()
     local request
     transport.request = function(_, value)
       request = value
@@ -226,7 +226,77 @@ describe('V2 protocol operations', function()
     assert.same({}, operations.diff_session(ready_connection(), 'ses_123'):wait())
     assert.equals('GET', request.method)
     assert.equals('/api/session/ses_123/diff', request.path)
-    assert.equals('context=1000000000', request.query)
+    assert.equals('context=1073741823', request.query)
+    local context = assert(tonumber(request.query:match('^context=(%d+)$')))
+    local int_max = 2 ^ 31 - 1
+    assert.is_true(context * 2 <= int_max)
+    assert.is_true((context + 1) * 2 > int_max)
+  end)
+
+  describe('side-by-side session diffs', function()
+    local SERVER_DEFAULT_DIFF_CONTEXT = '2147483647' -- Signed 32-bit INT_MAX.
+    local directory
+
+    before_each(function()
+      directory = vim.fn.tempname()
+      vim.fn.mkdir(directory, 'p')
+    end)
+
+    after_each(function()
+      vim.fn.delete(directory .. '/before')
+      vim.fn.delete(directory .. '/after')
+      vim.fn.delete(directory, 'd')
+    end)
+
+    it('reconstructs both revisions when the file has separated edits', function()
+      local before = {}
+      for i = 1, 30 do
+        before[i] = 'line ' .. i
+      end
+      local after = vim.deepcopy(before)
+      -- Two separated edits exercise Git's hunk merging; a single edit does not
+      -- reproduce the overflow, even with the same context value.
+      after[3] = 'changed three'
+      after[25] = 'changed twenty-five'
+      vim.fn.writefile(before, directory .. '/before')
+      vim.fn.writefile(after, directory .. '/after')
+
+      transport.request = function(_, request)
+        -- The V2 server defaults to INT_MAX context. Git doubles context while
+        -- merging hunks, which can overflow and produce overlapping hunks that
+        -- cannot reconstruct either revision. Run real Git with the requested
+        -- context (or the server default) so removing the workaround breaks the
+        -- reconstruction assertions below, not just a query-string assertion.
+        local context = request.query:match('context=(%d+)') or SERVER_DEFAULT_DIFF_CONTEXT
+        local result = vim
+          .system({
+            'git',
+            '--no-pager',
+            'diff',
+            '--no-index',
+            '--no-color',
+            '--no-ext-diff',
+            '--no-textconv',
+            '--text',
+            '--diff-algorithm=myers',
+            '--unified=' .. context,
+            '--',
+            'before',
+            'after',
+          }, { cwd = directory, text = true })
+          :wait()
+        assert.equals(1, result.code, result.stderr)
+        return Promise.new():resolve({
+          status = 200,
+          body = vim.json.encode({ data = { { file = '/server/file.lua', patch = result.stdout } } }),
+        })
+      end
+
+      local files = operations.diff_session(ready_connection(), 'ses_123'):wait()
+      local reconstructed_before, reconstructed_after = require('opencode.session_patch').sides(files[1].patch)
+      assert.same(before, reconstructed_before)
+      assert.same(after, reconstructed_after)
+    end)
   end)
 
   it('uses direct, location/data, and page response contracts from the V2 fixtures', function()

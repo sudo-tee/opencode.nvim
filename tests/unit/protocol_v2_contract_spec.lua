@@ -69,14 +69,18 @@ describe('V2 operations contract', function()
     vim.notify:revert()
   end)
 
-  it('skips the check quietly when the server does not answer with an openapi document', function()
+  it('logs the reason when the server does not answer with an openapi document', function()
     stub(transport, 'request').invokes(function()
       return Promise.new():reject({ kind = 'transport', cause = 'refused' })
     end)
-    local warned = stub(log, 'warn').invokes(function() end)
+    local seen
+    local warned = stub(log, 'warn').invokes(function(_, err)
+      seen = err
+    end)
 
     assert.is_nil(contract_check.check({ protocol = 'v2', version = '2.0.14' }):wait())
-    assert.stub(warned).was_not_called()
+    assert.stub(warned).was_called(1)
+    assert.is_truthy(seen:match('^table: '))
 
     transport.request:revert()
     log.warn:revert()

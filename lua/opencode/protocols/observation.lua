@@ -1,3 +1,5 @@
+local log = require('opencode.log')
+
 local M = {}
 
 local resource_names = {
@@ -452,6 +454,7 @@ local function stream_failure(connection, owner, reason)
   close_stream(connection)
   local message = type(reason) == 'table' and tostring(reason.message or reason.code or 'event stream disconnected')
     or tostring(reason or 'event stream disconnected')
+  log.warn('event stream failed (%s): %s', owner.runtime.name, message)
   for _, observation in pairs(connection.observations) do
     if observation._runtime.on_stream_error then
       observation._runtime.on_stream_error(observation, message)
@@ -472,7 +475,10 @@ local function decode_record(connection, owner)
     stream_failure(connection, owner, 'invalid ' .. owner.runtime.name .. ' event JSON')
     return
   end
-  owner.runtime.route_event(connection, event)
+  local routed, err = pcall(owner.runtime.route_event, connection, event)
+  if not routed then
+    log.error('event routing failed (%s): %s', owner.runtime.name, tostring(err))
+  end
 end
 
 local function consume_stream_chunk(connection, owner, chunk)
@@ -599,6 +605,13 @@ function Observation:_start_resource(resource)
     if owns_request() then
       self._loading[resource] = nil
       self._state.sync[resource] = M.sync_error('operation', err)
+      log.warn(
+        'observation %s load failed for %s (%s): %s',
+        self._session_id,
+        resource,
+        self._runtime.name,
+        tostring(err)
+      )
       self:_notify(resource)
     end
   end

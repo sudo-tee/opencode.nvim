@@ -45,7 +45,12 @@ function M.check(connection)
         return nil
       end
       local ok, spec = pcall(vim.json.decode, response.body)
-      if not ok or type(spec.paths) ~= 'table' then
+      if not ok then
+        log.warn('contract check: could not decode /openapi.json: %s', tostring(spec))
+        return nil
+      end
+      if type(spec.paths) ~= 'table' then
+        log.warn('contract check: /openapi.json has no paths table')
         return nil
       end
 
@@ -70,7 +75,8 @@ function M.check(connection)
       end
       return missing
     end)
-    :catch(function()
+    :catch(function(err)
+      log.warn('contract check skipped: %s', tostring(err))
       return nil
     end)
 end

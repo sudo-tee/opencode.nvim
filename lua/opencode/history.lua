@@ -1,3 +1,5 @@
+local log = require('opencode.log')
+
 local M = {}
 
 local cached_history = nil
@@ -26,12 +28,17 @@ M.write = function(prompt)
   end
   local file = io.open(path, 'a')
   if not file then
+    log.warn('history: could not open %s for appending', path)
     return false
   end
   local written = file:write(vim.json.encode(prompt) .. '\n')
   local closed = file:close()
   cached_history = nil
-  return written ~= nil and closed ~= nil
+  if written == nil or closed == nil then
+    log.warn('history: failed to append to %s', path)
+    return false
+  end
+  return true
 end
 
 ---@return string[]
@@ -49,7 +56,9 @@ M.read = function()
     for line in file:lines() do
       if is_json then
         local ok, prompt = pcall(vim.json.decode, line)
-        if ok and type(prompt) == 'string' then
+        if not ok then
+          log.warn('history: skipping undecodable line: %s', line)
+        elseif type(prompt) == 'string' then
           lines[#lines + 1] = prompt
         end
       elseif line:find('%S') then

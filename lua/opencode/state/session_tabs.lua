@@ -1,4 +1,5 @@
 local store = require('opencode.state.store')
+local log = require('opencode.log')
 local renderer_context = require('opencode.ui.renderer.ctx')
 
 ---@class OpencodeSessionTabRuntime
@@ -307,7 +308,9 @@ function M.find_by_session_id(session_id)
     local render_state = runtime.renderer_context and runtime.renderer_context.render_state
     if render_state and render_state.get_task_part_by_child_session then
       local ok, task_part = pcall(render_state.get_task_part_by_child_session, render_state, session_id)
-      if ok and task_part then
+      if not ok then
+        log.warn('task part lookup failed for %s: %s', session_id, tostring(task_part))
+      elseif task_part then
         return runtime
       end
     end
@@ -609,6 +612,9 @@ end
 function M.remove(runtime)
   if not runtime then
     return
+  end
+  if runtime._draft_release then
+    runtime._draft_release()
   end
   runtime.renderer_context:close()
   runtimes[runtime.id] = nil

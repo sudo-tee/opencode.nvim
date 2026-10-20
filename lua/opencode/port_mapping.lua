@@ -32,7 +32,11 @@ local function load()
   local content = file:read('*all')
   file:close()
   local ok, data = pcall(vim.json.decode, content or '')
-  return ok and data or {}
+  if not ok then
+    log.warn('port_mapping: discarding unreadable %s: %s', file_path(), tostring(data))
+    return {}
+  end
+  return data
 end
 
 --- @param mappings table<string, PortMapping>

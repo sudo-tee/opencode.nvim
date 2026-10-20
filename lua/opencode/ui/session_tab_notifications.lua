@@ -1,10 +1,7 @@
-local state = require('opencode.state')
 local session_tabs = require('opencode.state.session_tabs')
 local config = require('opencode.config')
 
 local M = {}
-
-local subscribed_manager = nil
 
 local function request_key(kind, request_id)
   return kind .. ':' .. request_id
@@ -19,11 +16,12 @@ local function session_title(runtime)
 end
 
 local function track(kind, request)
-  if not request or not request.id or not request.sessionID then
+  local session_id = request and (request.sessionID or request.session_id)
+  if not request or not request.id or not session_id then
     return
   end
 
-  local runtime = session_tabs.find_by_session_id(request.sessionID)
+  local runtime = session_tabs.find_by_session_id(session_id)
   if not runtime then
     return
   end
@@ -95,44 +93,46 @@ function M.clear_question(request_id)
   clear('question', request_id)
 end
 
-local function on_permission_updated(permission)
-  M.track_permission(permission)
-end
-
-local function on_question_asked(question)
-  M.track_question(question)
-end
-
-local function on_permission_replied(properties)
-  M.clear_permission(properties and (properties.permissionID or properties.requestID))
-end
-
-local function on_question_replied(properties)
-  M.clear_question(properties and properties.requestID)
-end
-
 function M.setup()
-  local manager = state.event_manager
-  if not manager or manager == subscribed_manager then
-    return
-  end
+  local group = vim.api.nvim_create_augroup('OpencodeSessionTabNotifications', { clear = true })
+  vim.api.nvim_create_autocmd('User', {
+    group = group,
+    pattern = {
+      'OpencodeEvent:permission.updated',
+      'OpencodeEvent:permission.asked',
+      'OpencodeEvent:permission.replied',
+      'OpencodeEvent:question.asked',
+      'OpencodeEvent:question.replied',
+      'OpencodeEvent:question.rejected',
+      'OpencodeEvent:form.created',
+      'OpencodeEvent:form.replied',
+      'OpencodeEvent:form.cancelled',
+    },
+    callback = function(args)
+      local event = args.data and args.data.event
+      if not event then
+        return
+      end
 
-  if subscribed_manager then
-    subscribed_manager:unsubscribe('permission.updated', on_permission_updated)
-    subscribed_manager:unsubscribe('permission.asked', on_permission_updated)
-    subscribed_manager:unsubscribe('permission.replied', on_permission_replied)
-    subscribed_manager:unsubscribe('question.asked', on_question_asked)
-    subscribed_manager:unsubscribe('question.replied', on_question_replied)
-    subscribed_manager:unsubscribe('question.rejected', on_question_replied)
-  end
-
-  manager:subscribe('permission.updated', on_permission_updated)
-  manager:subscribe('permission.asked', on_permission_updated)
-  manager:subscribe('permission.replied', on_permission_replied)
-  manager:subscribe('question.asked', on_question_asked)
-  manager:subscribe('question.replied', on_question_replied)
-  manager:subscribe('question.rejected', on_question_replied)
-  subscribed_manager = manager
+      local properties = event.properties
+      if event.type == 'permission.updated' or event.type == 'permission.asked' then
+        M.track_permission(properties)
+      elseif event.type == 'permission.replied' then
+        M.clear_permission(properties and (properties.permissionID or properties.requestID))
+      elseif event.type == 'question.asked' then
+        M.track_question(properties)
+      elseif event.type == 'form.created' then
+        M.track_question(properties and properties.form)
+      elseif
+        event.type == 'question.replied'
+        or event.type == 'question.rejected'
+        or event.type == 'form.replied'
+        or event.type == 'form.cancelled'
+      then
+        M.clear_question(properties and (properties.requestID or properties.id))
+      end
+    end,
+  })
 end
 
 function M.reset()

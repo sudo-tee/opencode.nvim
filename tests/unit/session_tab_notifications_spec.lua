@@ -4,6 +4,13 @@ local session_tabs = require('opencode.state.session_tabs')
 local notifications = require('opencode.ui.session_tab_notifications')
 local config = require('opencode.config')
 
+local function emit_event(event_type, properties)
+  vim.api.nvim_exec_autocmds('User', {
+    pattern = 'OpencodeEvent:' .. event_type,
+    data = { event = { type = event_type, properties = properties } },
+  })
+end
+
 describe('opencode session tab notifications', function()
   local original_state
   local original_config
@@ -76,5 +83,37 @@ describe('opencode session tab notifications', function()
     assert.equals('session-one', first.active_session.id)
 
     vim.notify = original_notify
+  end)
+
+  it('tracks and clears question markers from V1 and V2 events', function()
+    local first = session_tabs.ensure_current()
+    state.session.set_active({ id = 'session-one', title = 'One' })
+    local second = session_tabs.create({ id = 'session-two', title = 'Second' })
+    config.values.ui.notify_on_background_prompt = false
+    notifications.setup()
+
+    emit_event('question.asked', {
+      id = 'question-v1',
+      sessionID = 'session-two',
+      questions = {},
+    })
+    assert.equals(1, #second.pending_questions)
+    emit_event('question.replied', { sessionID = 'session-two', requestID = 'question-v1' })
+    assert.same({}, second.pending_questions)
+
+    emit_event('form.created', {
+      form = { id = 'question-v2', sessionID = 'session-two', fields = {} },
+    })
+    assert.equals(1, #second.pending_questions)
+    emit_event('form.replied', { id = 'question-v2', sessionID = 'session-two' })
+    assert.same({}, second.pending_questions)
+
+    emit_event('form.created', {
+      form = { id = 'question-v2-cancelled', sessionID = 'session-two', fields = {} },
+    })
+    assert.equals(1, #second.pending_questions)
+    emit_event('form.cancelled', { id = 'question-v2-cancelled', sessionID = 'session-two' })
+    assert.same({}, second.pending_questions)
+    assert.equals('session-one', first.active_session.id)
   end)
 end)

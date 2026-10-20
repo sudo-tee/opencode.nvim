@@ -367,6 +367,9 @@ end
 ---@return Promise<OpencodeV2FileDiff[]>
 function M.diff_session(connection, session_id, from, to, reverse_path_map)
   return json_request(connection, 'V2 diff_session', 'GET', '/api/session/' .. session_id .. '/diff', {
+    -- The server's INT_MAX default can overflow Git's hunk merging. Keep effectively
+    -- full-file context below INT_MAX / 2 so side-by-side reconstruction stays valid.
+    context = 1000000000,
     from = from,
     to = to,
   }):and_then(function(value)

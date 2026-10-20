@@ -387,7 +387,7 @@ describe('opencode.services.session_runtime', function()
       assert.is_true(output_focused)
     end)
 
-    it('creates a new session when no active session and no last session exists', function()
+    it('leaves the tab empty when no active session and no last session exists', function()
       state.ui.set_windows(nil)
       state.session.set_active(nil)
       state.opencode_server.operations.list_sessions_project = function()
@@ -396,8 +396,7 @@ describe('opencode.services.session_runtime', function()
 
       session_runtime.open({ new_session = false, focus = 'input' }):wait()
 
-      assert.truthy(state.active_session)
-      assert.truthy(state.active_session.id)
+      assert.is_nil(state.active_session)
     end)
 
     it('resets is_opening flag when error occurs', function()

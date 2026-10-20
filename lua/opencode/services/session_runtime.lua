@@ -89,7 +89,7 @@ local function observe_active_session()
           end
         end)
         :catch(function(err)
-          log.debug('Failed to restore session model', { session_id = session_id, error = err })
+          log.warn('Failed to restore session model for %s: %s', session_id, tostring(err))
         end)
         :finally(function()
           binding.restoring_model = false
@@ -452,12 +452,15 @@ M.open = Promise.async(function(opts)
     else
       agent_model.ensure_current_mode():await()
       if not state.active_session then
-        if not config.ui.restore_tabs_on_startup then
-          state.session.set_active(last_workspace_session():await())
+        local resumed, recent = pcall(function()
+          return last_workspace_session():await()
+        end)
+        if not resumed then
+          log.warn('Failed to resume the most recent session: ' .. tostring(recent))
+        elseif recent then
+          state.session.set_active(recent)
         end
-        if not state.active_session then
-          state.session.set_active(M.create_new_session():await())
-        end
+        -- No server session here: the first prompt creates one (messaging.send_message).
       elseif not state.display_route and created_windows and ui.is_output_empty() then
         ui.render_output()
       end

@@ -155,12 +155,84 @@ describe('opencode.services.messaging', function()
     format:revert()
   end)
 
-  it('returns false when active session is missing', function()
+  it('creates a session on the first prompt when the tab is a draft', function()
     state.ui.set_windows({ mock = 'windows' })
     state.session.set_active(nil)
+    local tab = session_tabs.ensure_current()
 
+    local submitted
+    local observation = {
+      _state = {
+        session = { id = 'draft-session' },
+        sync = { session = { state = 'unread' } },
+      },
+      read = function(self)
+        return self._state
+      end,
+      watch = function(self, _, changed)
+        self._state.sync.session = { state = 'current' }
+        changed(self)
+        return function() end
+      end,
+      submit = function()
+        submitted = true
+        return successful_submission()
+      end,
+      validate_message_options = function() end,
+      prepare_message = function()
+        return {}, {}
+      end,
+    }
+    local session_runtime = require('opencode.services.session_runtime')
+    local create = stub(session_runtime, 'create_detached_session').returns(Promise.new():resolve({
+      session = { id = 'draft-session' },
+      observation = observation,
+    }))
+
+    local sent = messaging.send_message('hello world')
+    assert.is_true(vim.wait(1000, function()
+      return sent:is_resolved()
+    end))
+    assert.equals('draft-session', state.active_session.id)
+    assert.is_true(submitted)
+    assert.stub(create).was_called(1)
+    create:revert()
+    session_tabs.reset()
+    tab = nil
+  end)
+
+  it('returns false and keeps the prompt when the draft session cannot be created', function()
+    local buf = vim.api.nvim_create_buf(false, true)
+    state.ui.set_windows({ input_buf = buf })
+    state.session.set_active(nil)
+    local tab = session_tabs.ensure_current()
+
+    local session_runtime = require('opencode.services.session_runtime')
+    local create = stub(session_runtime, 'create_detached_session').returns(Promise.new():reject('create failed'))
     local sent = messaging.send_message('hello world'):wait()
     assert.is_false(sent)
+    assert.same({ 'hello world' }, state.input_content)
+    create:revert()
+    session_tabs.reset()
+  end)
+
+  it('returns false without error when the draft tab is closed during creation', function()
+    local buf = vim.api.nvim_create_buf(false, true)
+    state.ui.set_windows({ input_buf = buf })
+    state.session.set_active(nil)
+    local tab = session_tabs.ensure_current()
+
+    local session_runtime = require('opencode.services.session_runtime')
+    local gate = Promise.new()
+    local create = stub(session_runtime, 'create_detached_session').returns(gate)
+    local sent = messaging.send_message('hello world')
+    session_tabs.remove(tab)
+    vim.api.nvim_buf_delete(buf, { force = true })
+    gate:resolve(nil)
+    local result = sent:wait()
+    assert.is_false(result)
+    create:revert()
+    session_tabs.reset()
   end)
 
   it('does not submit before the active session fact is current', function()

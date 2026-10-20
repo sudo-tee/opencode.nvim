@@ -303,7 +303,7 @@ function M.sync_from_server()
       M.apply_server_selection(fact and fact.model)
     end)
     :catch(function(err)
-      log.debug('Failed to sync session model from server', { error = err })
+      log.warn('Failed to sync session model from server: %s', tostring(err))
     end)
 end
 

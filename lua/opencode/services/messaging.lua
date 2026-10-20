@@ -165,7 +165,10 @@ local function submit_message(observation, prompt, tab_id, session_id, prepared,
   optimistic.finish(observation, pending, not ok and (admitted and 'unknown' or 'failed') or nil)
   if not ok then
     local prefix = admitted and 'Prompt result is unknown: ' or 'Error sending message to session: '
-    log.notify(prefix .. tostring(result), admitted and vim.log.levels.WARN or vim.log.levels.ERROR)
+    log.notify(
+      string.format('%s%s (session: %s)', prefix, tostring(result), session_id),
+      admitted and vim.log.levels.WARN or vim.log.levels.ERROR
+    )
     return
   end
   return result

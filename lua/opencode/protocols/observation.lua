@@ -58,7 +58,7 @@ local resource_names = {
 ---@field on_release_resource? fun(observation: OpencodeObservation, resource: OpencodeObservedResource)
 ---@field on_unused? fun(observation: OpencodeObservation)
 ---@field on_stream_error? fun(observation: OpencodeObservation, message: string)
----@field on_close? fun(observation: OpencodeObservation)
+---@field on_close? fun(observation: OpencodeObservation, reason: string)
 
 ---@class OpencodeMessageSelection
 ---@field mode? string
@@ -740,11 +740,13 @@ function M.attach(connection, session, state, runtime)
   }, Observation)
 end
 
-function M.close(connection)
+---@param connection table
+---@param reason string Why the connection is closing; reaches every admission it strands
+function M.close(connection, reason)
   close_stream(connection)
   for _, observation in pairs(connection.observations) do
     if observation._runtime.on_close then
-      observation._runtime.on_close(observation)
+      observation._runtime.on_close(observation, reason)
     end
   end
   connection.observations = {}

@@ -22,7 +22,7 @@ local protocol_connection = require('opencode.protocols.connection')
 ---@field private _stream? {shutdown: fun(self: table)}
 ---@field private _requests table<table, true>
 ---@field private _observe? fun(connection: OpencodeServer, ref: {id: string, location?: OpencodeLocation}): OpencodeObservation
----@field private _close_observations? fun(connection: OpencodeServer)
+---@field private _close_observations? fun(connection: OpencodeServer, reason: string)
 local OpencodeServer = {}
 OpencodeServer.__index = OpencodeServer
 
@@ -38,7 +38,7 @@ local function ensure_vim_leave_autocmd()
     callback = function()
       local state = require('opencode.state')
       if state.opencode_server then
-        state.opencode_server:close()
+        state.opencode_server:close('vim exit')
       end
     end,
   })
@@ -217,8 +217,9 @@ function OpencodeServer:check_health()
   return protocol_connection.check_health(self)
 end
 
+---@param reason string Why the connection is going away; stranded prompts report it
 ---@return Promise<boolean>
-function OpencodeServer:close()
+function OpencodeServer:close(reason)
   if self.shutdown_promise:is_resolved() then
     return self.shutdown_promise
   end
@@ -228,7 +229,7 @@ function OpencodeServer:close()
   local close_observations = self._close_observations
   self._close_observations = nil
   if close_observations then
-    close_observations(self)
+    close_observations(self, reason or 'unspecified')
   end
   local requests = self._requests
   self._requests = {}
@@ -258,9 +259,10 @@ function OpencodeServer:close()
   return self.shutdown_promise
 end
 
+---@param reason? string
 ---@return Promise<boolean>
-function OpencodeServer:shutdown()
-  return self:close()
+function OpencodeServer:shutdown(reason)
+  return self:close(reason)
 end
 
 --- @class OpencodeServerSpawnOpts
@@ -352,7 +354,7 @@ function OpencodeServer:spawn(opts)
     self.job = nil
     self.handle = nil
     safe_call(opts.on_exit, exit_opts)
-    self:close()
+    self:close('server process exited')
   end)
 
   self.handle = self.job and self.job.pid

@@ -289,7 +289,6 @@ local restore_snapshot = Promise.async(function(snapshot, current, cwd, backgrou
   end
   -- Background restores keep the current tab active for the explicit new session.
   if #restored > 0 and not background then
-    -- Replaying the snapshot must not rewrite a file another instance may have changed.
     replaying_restore = true
     if save_timer then
       save_timer:stop()

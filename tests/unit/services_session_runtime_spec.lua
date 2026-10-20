@@ -478,13 +478,44 @@ describe('opencode.services.session_runtime', function()
 
   describe('detached session creation', function()
     local ensure_server
+    local resolve_selection
     local server_job = require('opencode.server_job')
+
+    before_each(function()
+      resolve_selection = stub(agent_model, 'resolve_session_selection').returns(
+        Promise.new():resolve({ mode = 'custom-agent', model = 'provider/model' })
+      )
+    end)
 
     after_each(function()
       if ensure_server then
         ensure_server:revert()
         ensure_server = nil
       end
+      if resolve_selection then
+        resolve_selection:revert()
+        resolve_selection = nil
+      end
+    end)
+
+    it('creates the session with the resolved agent selection', function()
+      local received
+      local connection = {
+        operations = {
+          create_session = function(_, _, _, _, _, selected)
+            received = selected
+            return Promise.new():resolve({ id = 'detached-id' })
+          end,
+        },
+        observe = function()
+          return {}
+        end,
+      }
+      ensure_server = stub(server_job, 'ensure_server').returns(Promise.new():resolve(connection))
+
+      session_runtime.create_detached_session():wait()
+
+      assert.same({ mode = 'custom-agent', model = 'provider/model' }, received)
     end)
 
     for _, case in ipairs({

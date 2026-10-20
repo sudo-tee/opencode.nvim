@@ -525,8 +525,9 @@ end)
 ---@return Promise<OpencodeDetachedSession>
 M.create_detached_session = Promise.async(function(title_or_opts)
   local connection = server_job.ensure_server():await()
+  local selected = agent_model.resolve_session_selection():await()
   local location = current_location()
-  local session = create_session(connection, location, title_or_opts):await()
+  local session = create_session(connection, location, title_or_opts, selected):await()
   if not session then
     error('Failed to create detached session')
   end

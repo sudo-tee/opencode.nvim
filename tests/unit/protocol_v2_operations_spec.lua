@@ -212,9 +212,21 @@ describe('V2 protocol operations', function()
       end)
       :wait()
     assert.equals('/api/session/ses_123/diff', request.path)
-    assert.equals('from=msg_one&to=msg_two', request.query)
+    assert.equals('context=1000000000&from=msg_one&to=msg_two', request.query)
     assert.equals('/host/file.lua', files[1].file)
     assert.equals('@@ -1 +1 @@\n-old\n+new', files[1].patch)
+  end)
+
+  it('requests bounded full-file context even without explicit turn boundaries', function()
+    local request
+    transport.request = function(_, value)
+      request = value
+      return Promise.new():resolve({ status = 200, body = '{"data":[]}' })
+    end
+    assert.same({}, operations.diff_session(ready_connection(), 'ses_123'):wait())
+    assert.equals('GET', request.method)
+    assert.equals('/api/session/ses_123/diff', request.path)
+    assert.equals('context=1000000000', request.query)
   end)
 
   it('uses direct, location/data, and page response contracts from the V2 fixtures', function()

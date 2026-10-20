@@ -332,11 +332,11 @@ describe('opencode.services.session_runtime', function()
       vim.fn.getcwd = original_getcwd
     end)
 
-    it('handles new session properly', function()
+    it('leaves the new-session tab empty until the first prompt', function()
       state.ui.set_windows(nil)
       state.session.set_active({ id = 'old-session' })
       session_runtime.open({ new_session = true, focus = 'input' }):wait()
-      assert.truthy(state.active_session)
+      assert.is_nil(state.active_session)
     end)
 
     it('clears old attachments before loading editor context for a new session', function()
@@ -403,9 +403,9 @@ describe('opencode.services.session_runtime', function()
       state.ui.set_windows(nil)
       store.set('is_opening', false)
 
-      local original_create_new_session = session_runtime.create_new_session
-      session_runtime.create_new_session = function()
-        error('Test error in create_new_session')
+      local original_ensure_current_mode = agent_model.ensure_current_mode
+      agent_model.ensure_current_mode = function()
+        error('Test error in ensure_current_mode')
       end
 
       local notify_stub = stub(vim, 'notify')
@@ -420,7 +420,7 @@ describe('opencode.services.session_runtime', function()
       assert.is_false(state.is_opening)
       assert.stub(notify_stub).was_called()
 
-      session_runtime.create_new_session = original_create_new_session
+      agent_model.ensure_current_mode = original_ensure_current_mode
       notify_stub:revert()
     end)
   end)

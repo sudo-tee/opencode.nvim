@@ -447,8 +447,6 @@ M.open = Promise.async(function(opts)
     if opts.new_session then
       state.session.clear_active()
       agent_model.ensure_current_mode():await()
-      state.session.set_active(M.create_new_session():await())
-      log.debug('Created new session on open', { session = state.active_session.id })
     else
       agent_model.ensure_current_mode():await()
       if not state.active_session then

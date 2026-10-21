@@ -67,7 +67,9 @@ end
 ---@param message table
 ---@return boolean
 local function is_non_conversation_record(message)
-  return message.kind == 'agent-switched' or message.kind == 'model-switched' or message.kind == 'synthetic'
+  return message.kind == 'agent-switched'
+    or message.kind == 'model-switched'
+    or (message.kind == 'synthetic' and not message.background_result)
 end
 
 ---@param message table|nil
@@ -504,7 +506,7 @@ local function read_conversation(ctx, observation)
   local sync = observed.sync or {}
   local synced_session = sync.session and sync.session.state == 'current' and observed.session or nil
   local entries = ordered_entries(observation)
-  ctx.entries = entries
+  ctx:set_entries(entries)
   update_observation_stats(observation)
   return synced_session or { id = state.active_session and state.active_session.id }, entries
 end
@@ -817,7 +819,7 @@ local function grow_window_with_older_page(ctx)
     if #ordered_entries(observation) <= entries_before then
       return
     end
-    ctx.entries = ordered_entries(observation)
+    ctx:set_entries(ordered_entries(observation))
     if not apply_window_growth(ctx, window_before + get_initial_render_count()) then
       -- the window already covered everything cached: drop the window limit
       -- so the merged prefix renders, without pulling more pages
@@ -859,7 +861,7 @@ local function load_complete_history(ctx, scroll_to_top)
       end
       -- grow to the merged total only; the rendering primitive does not
       -- touch the protocol, so this callback cannot re-enter the pull
-      ctx.entries = ordered_entries(observation)
+      ctx:set_entries(ordered_entries(observation))
       apply_window_growth(ctx, math.huge)
       if scroll_to_top and win and vim.api.nvim_win_is_valid(win) then
         pcall(vim.api.nvim_win_set_cursor, win, { 1, 0 })
@@ -951,7 +953,7 @@ function M._render_full_session_data(entries, session, ctx, opts)
   if ctx.observation then
     update_observation_stats(ctx.observation)
   end
-  ctx.entries = entries or {}
+  ctx:set_entries(entries or {})
   session = session or current_session(ctx)
   reference_facts.rebuild(session.id, ctx.entries, session.location)
   local visible_messages, hidden_count = get_visible_session_messages(ctx.entries, session, ctx)

@@ -227,6 +227,10 @@ function M.format_message_header(message, previous_message)
   end
   local output = Output.new()
 
+  if message.background_result then
+    return output
+  end
+
   if message.id == '__opencode_revert_message__' then
     output:add_lines(M.separator)
     return output
@@ -1060,6 +1064,35 @@ local function format_shell_part(output, part)
   return output, false
 end
 
+---@param output Output
+---@param _part table
+---@param message table
+---@param context? FormatterContext
+---@return Output, boolean
+local function format_background_completion(output, _part, message, context)
+  local result = message.background_result
+  if not result then
+    return output, false
+  end
+  local tool = context and context.get_background_tool and context.get_background_tool(result.id)
+  local input = tool and tool.input
+  local label, failed = format_utils.background_outcome(result)
+  local agent = input and (input.agent or input.subagent_type)
+  local name = result.source == 'shell' and 'Shell' or (agent or result.agent or 'Subagent')
+  name = name:gsub('(%a)([%w_]*)', function(first, rest)
+    return first:upper() .. rest
+  end)
+  local title = '↳ ' .. name .. (failed and (' ' .. label) or ' finished')
+  local detail = input and (input.description or input.command) or result.id
+  output:add_line(title .. ' · ' .. detail:gsub('[\r\n]', ' '))
+  output:add_extmark(0, {
+    start_col = 0,
+    end_col = #title,
+    hl_group = failed and 'DiagnosticError' or 'DiagnosticOk',
+  })
+  return output, true
+end
+
 local compaction_statuses = {
   running = { icon = 'running', text = 'Compacting session…', highlight = 'OpencodeCompactionRunning' },
   completed = { icon = 'completed', text = 'Session compacted', highlight = 'OpencodeCompactionCompleted' },
@@ -1136,6 +1169,7 @@ local part_formatters = {
   system = format_system_part,
   skill = format_skill_part,
   shell = format_shell_part,
+  synthetic = format_background_completion,
   compaction = format_compaction_part,
   ['location-switched'] = format_location_part,
 }

@@ -397,27 +397,7 @@
     ],
     [
       17,
-      17,
-      0,
-      {
-        "ns_id": 3,
-        "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodeToolBorder"
-          ]
-        ],
-        "virt_text_hide": false,
-        "virt_text_pos": "win_col",
-        "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -1
-      }
-    ],
-    [
-      18,
-      20,
+      19,
       0,
       {
         "ns_id": 3,
@@ -454,14 +434,34 @@
       }
     ],
     [
-      19,
-      22,
+      18,
+      21,
       0,
       {
         "line_hl_group": "OpencodePermissionTitle",
         "ns_id": 3,
         "priority": 4096,
         "right_gravity": true
+      }
+    ],
+    [
+      19,
+      21,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodePermissionBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -2
       }
     ],
     [
@@ -609,26 +609,6 @@
       29,
       0,
       {
-        "ns_id": 3,
-        "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodePermissionBorder"
-          ]
-        ],
-        "virt_text_hide": false,
-        "virt_text_pos": "win_col",
-        "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -2
-      }
-    ],
-    [
-      28,
-      30,
-      0,
-      {
         "line_hl_group": "OpencodeDialogOptionHover",
         "ns_id": 3,
         "priority": 4096,
@@ -636,8 +616,8 @@
       }
     ],
     [
+      28,
       29,
-      30,
       0,
       {
         "ns_id": 3,
@@ -656,8 +636,8 @@
       }
     ],
     [
-      30,
-      30,
+      29,
+      29,
       2,
       {
         "ns_id": 3,
@@ -675,6 +655,26 @@
       }
     ],
     [
+      30,
+      30,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodePermissionBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -2
+      }
+    ],
+    [
       31,
       31,
       0,
@@ -757,26 +757,6 @@
     [
       35,
       35,
-      0,
-      {
-        "ns_id": 3,
-        "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodePermissionBorder"
-          ]
-        ],
-        "virt_text_hide": false,
-        "virt_text_pos": "win_col",
-        "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -2
-      }
-    ],
-    [
-      36,
-      36,
       0,
       {
         "ns_id": 3,
@@ -812,7 +792,6 @@
     "",
     "`````bash",
     "> git status",
-    "",
     "`````",
     "",
     "----",
@@ -838,11 +817,11 @@
   ],
   "window": {
     "cursor": [
-      38,
+      37,
       0
     ],
-    "effective_bottom": 38,
-    "line_count": 39,
-    "visible_bottom": 39
+    "effective_bottom": 37,
+    "line_count": 38,
+    "visible_bottom": 37
   }
 }

@@ -374,26 +374,6 @@
         "virt_text_repeat_linebreak": true,
         "virt_text_win_col": -1
       }
-    ],
-    [
-      16,
-      17,
-      0,
-      {
-        "ns_id": 3,
-        "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodeToolBorder"
-          ]
-        ],
-        "virt_text_hide": false,
-        "virt_text_pos": "win_col",
-        "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -1
-      }
     ]
   ],
   "lines": [
@@ -411,7 +391,6 @@
     "",
     "`````bash",
     "> git status",
-    "",
     "`````",
     "",
     "> [!ERROR] Error: The user rejected permission to use this specific tool call.",
@@ -421,11 +400,11 @@
   "timestamp": 1770935238,
   "window": {
     "cursor": [
-      19,
+      18,
       0
     ],
-    "effective_bottom": 19,
-    "line_count": 20,
-    "visible_bottom": 20
+    "effective_bottom": 18,
+    "line_count": 19,
+    "visible_bottom": 18
   }
 }

@@ -1,0 +1,75 @@
+[
+  {
+    "properties": {
+      "info": {
+        "agent": "build",
+        "content": [
+          {
+            "id": "call_bg",
+            "name": "shell",
+            "state": {
+              "content": [
+                {
+                  "text": "Command moved to the background (shell ID: sh_bg).\nOutput is streaming to: /tmp/opencode/shell/sh_bg.out",
+                  "type": "text"
+                },
+                {
+                  "text": "You will be notified automatically when the command finishes. DO NOT poll for completion.",
+                  "type": "text"
+                }
+              ],
+              "input": {
+                "background": true,
+                "command": "make build"
+              },
+              "metadata": {
+                "shellID": "sh_bg",
+                "status": "running",
+                "truncated": false
+              },
+              "status": "completed"
+            },
+            "time": {
+              "completed": 1700000001200,
+              "created": 1700000001000,
+              "ran": 1700000001100
+            },
+            "type": "tool"
+          }
+        ],
+        "id": "msg_bg-assistant",
+        "model": {
+          "id": "model",
+          "providerID": "provider"
+        },
+        "sessionID": "ses_v2_formatters",
+        "time": {
+          "created": 1700000001000
+        },
+        "type": "assistant"
+      }
+    },
+    "type": "replay.v2.message"
+  },
+  {
+    "properties": {
+      "info": {
+        "id": "msg_bg-notification",
+        "metadata": {
+          "exit": 2,
+          "shellID": "sh_bg",
+          "source": "shell",
+          "state": "completed",
+          "truncated": false
+        },
+        "sessionID": "ses_v2_formatters",
+        "text": "<shell id=\"sh_bg\" state=\"completed\" command=\"make build\">\nerror: build failed\n\nExited with code 2\n</shell>",
+        "time": {
+          "created": 1700000005000
+        },
+        "type": "synthetic"
+      }
+    },
+    "type": "replay.v2.message"
+  }
+]

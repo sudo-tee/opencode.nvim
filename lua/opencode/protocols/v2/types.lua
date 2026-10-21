@@ -169,6 +169,17 @@
 
 ---@alias OpencodeV2NormalizedToolResult OpencodeV2NormalizedTextToolResult|OpencodeV2NormalizedFileToolResult
 
+---@class OpencodeV2BackgroundResult
+---@field source 'shell'|'subagent'
+---@field agent? string
+---@field id string Shell id or child session id
+---@field state string
+---@field exit? number
+---@field signal? string
+---@field timeout? boolean
+---@field truncated? boolean
+---@field text string
+
 ---@class OpencodeV2Session
 ---@field id string
 ---@field parentID? string

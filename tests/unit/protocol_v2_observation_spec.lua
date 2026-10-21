@@ -87,6 +87,47 @@ describe('V2 protocol Observation interpretation', function()
     observed._start_resource = original_refresh
   end)
 
+  it('refreshes messages when a background completion notification arrives', function()
+    local observed = observation('ses-bg')
+    local original = observed._start_resource
+    local refreshed
+    observed._start_resource = function(_, resource)
+      refreshed = resource
+    end
+
+    assert.is_true(observation_module.ingest_event(
+      observed,
+      event('ses-bg', 'session.synthetic', {
+        text = '<shell id="sh_1" state="completed" command="make build">\nexit 0\n</shell>',
+        metadata = { source = 'shell', shellID = 'sh_1', state = 'completed', exit = 0 },
+      })
+    ))
+    assert.equals('messages', refreshed)
+    assert.equals('stale', observed:read().sync.messages.state)
+
+    observed._start_resource = original
+  end)
+
+  it('ignores synthetic messages that are not background completions', function()
+    local observed = observation('ses-bg')
+    local original = observed._start_resource
+    local refreshed
+    observed._start_resource = function(_, resource)
+      refreshed = resource
+    end
+
+    assert.is_false(observation_module.ingest_event(
+      observed,
+      event('ses-bg', 'session.synthetic', {
+        text = 'embedded context',
+        metadata = { source = 'acp' },
+      })
+    ))
+    assert.is_nil(refreshed)
+
+    observed._start_resource = original
+  end)
+
   it('validates a complete snapshot before replacing existing entries', function()
     local observed = observation('ses-target')
     local message = assistant('msg-assistant')

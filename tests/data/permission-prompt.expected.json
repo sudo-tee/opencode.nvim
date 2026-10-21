@@ -160,27 +160,7 @@
     ],
     [
       8,
-      10,
-      0,
-      {
-        "ns_id": 3,
-        "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodeToolBorder"
-          ]
-        ],
-        "virt_text_hide": false,
-        "virt_text_pos": "win_col",
-        "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -1
-      }
-    ],
-    [
-      9,
-      13,
+      12,
       0,
       {
         "ns_id": 3,
@@ -217,14 +197,34 @@
       }
     ],
     [
-      10,
-      15,
+      9,
+      14,
       0,
       {
         "line_hl_group": "OpencodePermissionTitle",
         "ns_id": 3,
         "priority": 4096,
         "right_gravity": true
+      }
+    ],
+    [
+      10,
+      14,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodePermissionBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -2
       }
     ],
     [
@@ -372,26 +372,6 @@
       22,
       0,
       {
-        "ns_id": 3,
-        "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodePermissionBorder"
-          ]
-        ],
-        "virt_text_hide": false,
-        "virt_text_pos": "win_col",
-        "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -2
-      }
-    ],
-    [
-      19,
-      23,
-      0,
-      {
         "line_hl_group": "OpencodeDialogOptionHover",
         "ns_id": 3,
         "priority": 4096,
@@ -399,8 +379,8 @@
       }
     ],
     [
-      20,
-      23,
+      19,
+      22,
       0,
       {
         "ns_id": 3,
@@ -419,8 +399,8 @@
       }
     ],
     [
-      21,
-      23,
+      20,
+      22,
       2,
       {
         "ns_id": 3,
@@ -435,6 +415,26 @@
         "virt_text_hide": false,
         "virt_text_pos": "overlay",
         "virt_text_repeat_linebreak": false
+      }
+    ],
+    [
+      21,
+      23,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodePermissionBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -2
       }
     ],
     [
@@ -536,26 +536,6 @@
         "virt_text_repeat_linebreak": true,
         "virt_text_win_col": -2
       }
-    ],
-    [
-      27,
-      29,
-      0,
-      {
-        "ns_id": 3,
-        "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodePermissionBorder"
-          ]
-        ],
-        "virt_text_hide": false,
-        "virt_text_pos": "win_col",
-        "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -2
-      }
     ]
   ],
   "lines": [
@@ -568,7 +548,6 @@
     "",
     "`````bash",
     "> rg \"nvim_buf_get_extmarks|ns_id\" /Users/cam/Dev/neovim-dev/opencode.nvim/lua/opencode/ui/output_window.lua -B 2 -A 2",
-    "",
     "`````",
     "",
     "----",
@@ -595,11 +574,11 @@
   "timestamp": 1779709441,
   "window": {
     "cursor": [
-      31,
+      30,
       0
     ],
-    "effective_bottom": 31,
-    "line_count": 32,
-    "visible_bottom": 32
+    "effective_bottom": 30,
+    "line_count": 31,
+    "visible_bottom": 30
   }
 }

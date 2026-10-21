@@ -2,6 +2,7 @@ local state = require('opencode.state')
 local config = require('opencode.config')
 local window_options = require('opencode.ui.window_options')
 local float_layout = require('opencode.ui.float_layout')
+local output_spinner = require('opencode.ui.output_spinner')
 
 ---@class OutputWindowWithWin: OpencodeWindowState
 ---@field output_win integer
@@ -747,6 +748,9 @@ function M.clear_extmarks(start_line, end_line, clear_all)
   end_line = end_line or -1
 
   pcall(vim.api.nvim_buf_clear_namespace, windows.output_buf, clear_all and -1 or M.namespace, start_line, end_line)
+  if not clear_all then
+    pcall(vim.api.nvim_buf_clear_namespace, windows.output_buf, output_spinner.namespace, start_line, end_line)
+  end
 end
 
 ---Apply extmarks to any buffer (reusable for preview buffers)
@@ -778,19 +782,25 @@ function M.apply_extmarks(bufnr, extmarks, line_offset)
       local m = type(mark) == 'function' and mark() or mark
       local target_line = line_offset + line_idx --[[@as integer]]
       local start_col = m.start_col
-      -- Only deepcopy when we need to mutate: start_col must be removed from the
-      -- opts table, and end_row must be offset when line_offset is non-zero.
-      -- The vast majority of extmarks (border virt_text) have neither field, so
+      local spinner_chunk = m.spinner_chunk
+      -- Only deepcopy when we need to mutate: start_col/spinner_chunk must be removed
+      -- from the opts table, and end_row must be offset when line_offset is non-zero.
+      -- The vast majority of extmarks (border virt_text) have none of these, so
       -- we avoid 100k+ deepcopy calls during a full session render.
-      if start_col ~= nil or (m.end_row ~= nil and line_offset ~= 0) then
+      if start_col ~= nil or spinner_chunk ~= nil or (m.end_row ~= nil and line_offset ~= 0) then
         m = vim.deepcopy(m)
         m.start_col = nil
+        m.spinner_chunk = nil
         if m.end_row then
           m.end_row = m.end_row + line_offset
         end
       end
       ---@cast m vim.api.keyset.set_extmark
-      pcall(vim.api.nvim_buf_set_extmark, bufnr, M.namespace, target_line, start_col or 0, m)
+      if spinner_chunk then
+        output_spinner.place(bufnr, target_line, start_col or 0, m, spinner_chunk)
+      else
+        pcall(vim.api.nvim_buf_set_extmark, bufnr, M.namespace, target_line, start_col or 0, m)
+      end
     end
   end
 end

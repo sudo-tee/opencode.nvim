@@ -380,7 +380,7 @@
 ---@class OpencodeCommandHookRegisterOptions
 ---@field command? OpencodeCommandHookScope
 
----@alias OpencodeBarSegment { [1]: string, [2]?: string, align?: 'left'|'right' }
+---@alias OpencodeBarSegment { [1]: string, [2]?: string, align?: 'left'|'right', spinner?: boolean }
 ---@alias OpencodeBarSegmentsHook fun(segments: OpencodeBarSegment[]): OpencodeBarSegment[]|nil
 ---@class OpencodeHooks
 ---@field on_topbar_render? OpencodeBarSegmentsHook
@@ -516,6 +516,8 @@
 ---@field interactive boolean
 ---@field resolve_symbol_targets? boolean
 ---@field get_child_parts? fun(session_id: string): table[]?
+---@field get_background_result? fun(id: string): OpencodeV2BackgroundResult?
+---@field get_background_tool? fun(id: string): table?
 ---@field current_refs? CodeReference[]
 ---@field current_files? string[]
 ---@field symbol_cycle? SymbolSnapshotCycle
@@ -538,7 +540,7 @@
 ---@field part_id string
 ---@field message_id string
 
----@alias OutputExtmarkType vim.api.keyset.set_extmark & {start_col:0}
+---@alias OutputExtmarkType vim.api.keyset.set_extmark & {start_col:0, spinner_chunk?: integer}
 ---@alias OutputExtmark OutputExtmarkType|fun():OutputExtmarkType
 
 ---@class RestorePoint

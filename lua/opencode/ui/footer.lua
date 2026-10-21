@@ -3,8 +3,15 @@ local config = require('opencode.config')
 local icons = require('opencode.ui.icons')
 local snapshot = require('opencode.snapshot')
 local loading_animation = require('opencode.ui.loading_animation')
+local output_spinner = require('opencode.ui.output_spinner')
+local background_tasks = require('opencode.services.background_tasks')
 
 local M = {}
+
+---@type fun()|nil
+local background_watch
+---@type string|nil
+local background_signature
 
 local function utf8_len(str)
   return vim.fn.strchars(str)
@@ -17,6 +24,18 @@ local function get_mode_highlight()
     plan = 'OpencodeAgentPlan',
   }
   return highlights[mode] or 'OpencodeAgentCustom'
+end
+
+---@param counts OpencodeBackgroundTaskCounts
+---@return string
+local function background_task_label(counts)
+  if counts.shells > 0 and counts.subagents == 0 then
+    return string.format('%d shell%s', counts.shells, counts.shells == 1 and '' or 's')
+  end
+  if counts.subagents > 0 and counts.shells == 0 then
+    return string.format('%d agent%s', counts.subagents, counts.subagents == 1 and '' or 's')
+  end
+  return string.format('%d task%s', counts.total, counts.total == 1 and '' or 's')
 end
 
 local function build_left_segments()
@@ -48,6 +67,13 @@ local function build_right_segments()
       table.insert(segments, { state.current_variant, 'OpencodeVariant' })
     end
     table.insert(segments, { ' ' })
+  end
+
+  local background_counts = background_tasks.count_observed(state.session.active_observation())
+  if background_counts.total > 0 then
+    table.insert(segments, { ' ' .. background_task_label(background_counts) .. ' ', 'OpencodeBackgroundBadge' })
+    table.insert(segments, { ' ', 'OpencodeBackgroundBadge', spinner = true })
+    table.insert(segments, { ' ', 'OpencodeBackgroundBadge' })
   end
 
   table.insert(segments, {
@@ -91,13 +117,24 @@ local function split_segments(segments)
   return left_segments, right_segments
 end
 
-local function add_segments(segments, parts, highlights, col)
+---@param segments OpencodeBarSegment[]
+---@param parts string[]
+---@param highlights table[]
+---@param col integer
+---@param spinner { col: integer|nil, hl: string|nil }
+---@return integer
+local function add_segments(segments, parts, highlights, col, spinner)
   for _, segment in ipairs(segments) do
     local text = segment[1]
     table.insert(parts, text)
 
     if segment[2] then
       table.insert(highlights, { group = segment[2], start_col = col, end_col = col + #text })
+    end
+
+    if segment.spinner then
+      spinner.col = col + #text - 1
+      spinner.hl = segment[2]
     end
 
     col = col + #text
@@ -109,8 +146,10 @@ local function build_footer_from_segments(left_segments, right_segments, win_wid
   local footer_parts = {}
   local highlights = {}
   local current_col = 0
+  ---@type { col: integer|nil, hl: string|nil }
+  local spinner = { col = nil, hl = nil }
 
-  current_col = add_segments(left_segments, footer_parts, highlights, current_col)
+  current_col = add_segments(left_segments, footer_parts, highlights, current_col, spinner)
 
   local left_text = table.concat(footer_parts, '')
   local left_len = utf8_len(left_text)
@@ -125,10 +164,10 @@ local function build_footer_from_segments(left_segments, right_segments, win_wid
   table.insert(footer_parts, padding)
   current_col = current_col + padding_len
 
-  current_col = add_segments(right_segments, footer_parts, highlights, current_col)
+  current_col = add_segments(right_segments, footer_parts, highlights, current_col, spinner)
 
   local footer_text = table.concat(footer_parts, '')
-  return footer_text, highlights
+  return footer_text, highlights, spinner.col, spinner.hl
 end
 
 function M.render()
@@ -160,9 +199,18 @@ function M.render()
   local left_segments, right_segments = split_segments(transformed_segments)
   local win_width = vim.api.nvim_win_get_width(state.windows.output_win --[[@as integer]])
 
-  local footer_text, highlights = build_footer_from_segments(left_segments, right_segments, win_width)
+  local footer_text, highlights, spinner_col, spinner_hl =
+    build_footer_from_segments(left_segments, right_segments, win_width)
 
   M.set_content({ footer_text }, highlights)
+
+  if spinner_col then
+    output_spinner.place(state.windows.footer_buf --[[@as integer]], 0, spinner_col, {
+      virt_text = { { output_spinner.frame(), spinner_hl } },
+      virt_text_pos = 'overlay',
+      hl_mode = 'replace',
+    }, 1)
+  end
 end
 
 ---@param output_win integer
@@ -192,6 +240,37 @@ local function on_job_count_changed(_, new, old)
   end
 end
 
+local function reset_background_watch()
+  if background_watch then
+    background_watch()
+    background_watch = nil
+  end
+  background_signature = nil
+end
+
+local function on_background_messages()
+  local counts = background_tasks.count_observed(state.session.active_observation())
+  local signature = string.format('%d:%d', counts.shells, counts.subagents)
+  if signature == background_signature then
+    return
+  end
+  background_signature = signature
+  M.render()
+end
+
+local function watch_background_tasks()
+  reset_background_watch()
+  local observation = state.session.active_observation()
+  if observation then
+    background_watch = observation:watch({ 'messages' }, on_background_messages)
+  end
+end
+
+local function on_active_session_changed()
+  watch_background_tasks()
+  M.render()
+end
+
 ---@param windows table Windows table to set up footer in
 function M.setup(windows)
   if not windows.output_win then
@@ -205,7 +284,7 @@ function M.setup(windows)
   state.store.subscribe('current_model', on_change)
   state.store.subscribe('current_mode', on_change)
   state.store.subscribe('current_variant', on_change)
-  state.store.subscribe('active_session', on_change)
+  state.store.subscribe('active_session', on_active_session_changed)
   -- to show C-c message
   state.store.subscribe('job_count', on_job_count_changed)
   state.store.subscribe('restore_points', on_change)
@@ -217,6 +296,7 @@ function M.setup(windows)
     end,
   })
 
+  watch_background_tasks()
   loading_animation.setup(on_change)
 end
 
@@ -234,9 +314,14 @@ function M.close(preserve_buffer)
   state.store.unsubscribe('current_model', on_change)
   state.store.unsubscribe('current_mode', on_change)
   state.store.unsubscribe('current_variant', on_change)
-  state.store.unsubscribe('active_session', on_change)
+  state.store.unsubscribe('active_session', on_active_session_changed)
   state.store.unsubscribe('job_count', on_job_count_changed)
   state.store.unsubscribe('restore_points', on_change)
+
+  reset_background_watch()
+  if windows and windows.footer_buf and vim.api.nvim_buf_is_valid(windows.footer_buf) then
+    vim.api.nvim_buf_clear_namespace(windows.footer_buf, output_spinner.namespace, 0, -1)
+  end
 
   loading_animation.teardown()
 end
@@ -286,6 +371,7 @@ function M.set_content(lines, highlights)
   local buf = state.windows.footer_buf --[[@as integer]]
   local ns_id = vim.api.nvim_create_namespace('opencode_footer')
 
+  vim.api.nvim_buf_clear_namespace(buf, output_spinner.namespace, 0, -1)
   vim.api.nvim_set_option_value('modifiable', true, { buf = buf })
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines or {})
   vim.api.nvim_buf_clear_namespace(buf, ns_id, 0, -1)

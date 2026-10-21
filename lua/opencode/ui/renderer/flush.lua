@@ -274,6 +274,12 @@ local function new_formatter_context(ctx, opts)
     interactive = true,
     resolve_symbol_targets = not ctx.bulk_mode or (opts ~= nil and opts.resolve_symbol_targets == true),
     get_child_parts = ctx.get_child_parts,
+    get_background_result = function(id)
+      return ctx.background_results[id]
+    end,
+    get_background_tool = function(id)
+      return ctx.background_tools[id]
+    end,
     current_refs = reference_facts.current_refs(),
     current_files = reference_facts.available_files(),
     symbol_cycle = ctx.symbol_refresh_cycle or symbol_snapshot.new_cycle(),

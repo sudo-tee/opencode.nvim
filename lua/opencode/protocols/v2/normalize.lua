@@ -402,7 +402,19 @@ local tool_metadata_shape = v.object({
   diff = v.optional('string'),
   files = v.optional(v.array(tool_file_change_shape)),
 })
-local subagent_metadata_shape = v.object({ sessionID = v.optional('string') })
+local subagent_metadata_shape = v.object({ sessionID = v.optional('string'), status = v.optional('string') })
+local shell_metadata_shape = v.object({ shellID = v.optional('string'), status = v.optional('string') })
+local background_notification_shape = v.object({
+  source = v.enum({ 'shell', 'subagent' }),
+  agent = v.optional('string'),
+  shellID = v.optional('string'),
+  childID = v.optional('string'),
+  state = 'string',
+  exit = v.optional('number'),
+  signal = v.optional('string'),
+  timeout = v.optional('boolean'),
+  truncated = v.optional('boolean'),
+})
 
 ---@class OpencodeV2ToolChange
 ---@field path string
@@ -538,11 +550,27 @@ local function apply_patch_metadata(result, metadata)
   end
 end
 
+-- Backgrounded jobs complete the tool with metadata status still running.
+---@param result table
+---@param id string?
+---@param status string?
+local function apply_background(result, id, status)
+  if id and result.state == 'completed' and status == 'running' then
+    result.background = { id = id }
+  end
+end
+
 local function apply_subagent_metadata(result, metadata)
   local parsed = subagent_metadata_shape:parse(metadata, 'V2 observation: invalid subagent metadata')
   if parsed.sessionID then
     result.child_session = { id = parsed.sessionID }
   end
+  apply_background(result, parsed.sessionID, parsed.status)
+end
+
+local function apply_shell_metadata(result, metadata)
+  local parsed = shell_metadata_shape:parse(metadata, 'V2 observation: invalid shell metadata')
+  apply_background(result, parsed.shellID, parsed.status)
 end
 
 local function apply_search_metadata(result, metadata)
@@ -560,6 +588,8 @@ local tool_metadata_appliers = {
   patch = apply_patch_metadata,
   apply_patch = apply_patch_metadata,
   subagent = apply_subagent_metadata,
+  shell = apply_shell_metadata,
+  bash = apply_shell_metadata,
   grep = apply_search_metadata,
   glob = apply_search_metadata,
 }
@@ -759,10 +789,44 @@ local function mapped_assistant(entry, info)
   return entry
 end
 
+---@param metadata any
+---@return boolean
+local function is_background_notification(metadata)
+  return type(metadata) == 'table' and (metadata.source == 'shell' or metadata.source == 'subagent')
+end
+
+---@param metadata table
+---@param text string
+---@return OpencodeV2BackgroundResult
+local function mapped_background_result(metadata, text)
+  local parsed = background_notification_shape:parse(metadata, 'V2 observation: invalid background notification')
+  ---@cast parsed {source: 'shell'|'subagent', agent?: string, shellID?: string, childID?: string, state: string, exit?: number, signal?: string, timeout?: boolean, truncated?: boolean}
+  local id = parsed.source == 'shell' and parsed.shellID or parsed.childID
+  v.expect(id ~= nil, 'V2 observation: background notification is missing its job id')
+  ---@cast id string
+  -- Commands may contain redirects, so a bare '>' is not the end of the envelope.
+  local body = text:match('^<%a+.->\r?\n(.-)\r?\n?</%a+>%s*$')
+  return {
+    source = parsed.source,
+    agent = parsed.agent,
+    id = id,
+    state = parsed.state,
+    exit = parsed.exit,
+    signal = parsed.signal,
+    timeout = parsed.timeout,
+    truncated = parsed.truncated,
+    -- The model-facing envelope wraps the output in <shell ...>/<subagent ...> tags.
+    text = body or text,
+  }
+end
+
 local function mapped_text_message(entry, info)
   v.string():parse(info.text, 'V2 observation: invalid ' .. info.type .. ' message')
   entry.description = info.description
   entry.content[1] = { kind = 'text', text = info.text }
+  if info.type == 'synthetic' and is_background_notification(info.metadata) then
+    entry.background_result = mapped_background_result(info.metadata, info.text)
+  end
   return entry
 end
 

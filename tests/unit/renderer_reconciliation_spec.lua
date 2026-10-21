@@ -119,6 +119,65 @@ describe('renderer incremental reconciliation', function()
     end
   end)
 
+  it('replaces a running background spinner with its outcome and appends a completion notice', function()
+    writes:revert()
+    writes = spy.on(output_window, 'set_lines')
+    local normalize = require('opencode.protocols.v2.normalize')
+    local output_spinner = require('opencode.ui.output_spinner')
+    local tool = normalize.mapped_message(observed.session.id, {
+      id = 'msg_bg',
+      type = 'assistant',
+      agent = 'build',
+      time = { created = 1 },
+      content = {
+        {
+          id = 'call_bg',
+          type = 'tool',
+          name = 'shell',
+          time = { created = 1, completed = 2 },
+          state = {
+            status = 'completed',
+            input = { command = 'make check', background = true },
+            metadata = { shellID = 'sh_1', status = 'running' },
+            content = {},
+          },
+        },
+      },
+    })
+    observed.entries_by_id.msg_bg = tool
+    observed.entry_order[#observed.entry_order + 1] = tool.id
+    notify('messages')
+    local buf = state.windows.output_buf
+    assert.equals(1, #vim.api.nvim_buf_get_extmarks(buf, output_spinner.namespace, 0, -1, {}))
+
+    local note = normalize.mapped_message(observed.session.id, {
+      id = 'msg_done',
+      type = 'synthetic',
+      time = { created = 3 },
+      metadata = { source = 'shell', shellID = 'sh_1', state = 'completed', exit = 0 },
+      text = '<shell id="sh_1" state="completed" command="make check">\nok\n</shell>',
+    })
+    observed.entries_by_id.msg_done = note
+    observed.entry_order[#observed.entry_order + 1] = note.id
+    notify('messages')
+    assert.equals(0, #vim.api.nvim_buf_get_extmarks(buf, output_spinner.namespace, 0, -1, {}))
+    local text = table.concat(vim.api.nvim_buf_get_lines(buf, 0, -1, false), '\n')
+    assert.is_truthy(text:find('↳ Shell finished · make check', 1, true))
+    local found = false
+    for _, mark in ipairs(vim.api.nvim_buf_get_extmarks(buf, output_window.namespace, 0, -1, { details = true })) do
+      for _, chunk in ipairs(mark[4].virt_text or {}) do
+        found = found or chunk[1]:find('Background · done', 1, true) ~= nil
+      end
+    end
+    assert.is_true(found)
+
+    tool.content[1].input.command = 'make test'
+    notify('messages')
+    text = table.concat(vim.api.nvim_buf_get_lines(buf, 0, -1, false), '\n')
+    assert.is_truthy(text:find('↳ Shell finished · make test', 1, true))
+    assert.is_nil(text:find('↳ Shell finished · make check', 1, true))
+  end)
+
   it('keeps an echoed prompt suppressed after observed history is replaced', function()
     writes:revert()
     writes = spy.on(output_window, 'set_lines')

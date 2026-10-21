@@ -109,6 +109,7 @@
         "opencode.ui.input_window",        // input buffer management
         "opencode.ui.output_window",       // output buffer management
         "opencode.ui.output",              // output composition
+        "opencode.ui.output_spinner",      // in-place spinner extmark animation
         "opencode.ui.renderer",            // render pipeline
         "opencode.ui.renderer.*",
         "opencode.ui.render_state",        // render state tracking

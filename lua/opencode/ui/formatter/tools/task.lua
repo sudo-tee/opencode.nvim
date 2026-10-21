@@ -45,7 +45,18 @@ function M.format(output, part, context, tool_formatters)
   local utils = require('opencode.ui.formatter.utils')
   local config = require('opencode.config')
 
-  utils.format_action(output, icons.get('task'), part.name, description, utils.get_duration_text(part))
+  local background = part.background
+  utils.format_action(
+    output,
+    icons.get('task'),
+    part.name,
+    description,
+    not background and utils.get_duration_text(part) or nil
+  )
+  if background then
+    local result = utils.format_background_badge(output, output:get_line_count(), part, context)
+    tool_output = result and result.text or ''
+  end
 
   local output_start_line = output:get_line_count() + 1
   if config.ui.output.tools.show_output or config.ui.output.tools.use_folds then

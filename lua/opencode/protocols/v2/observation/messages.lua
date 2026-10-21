@@ -397,6 +397,20 @@ end
 handlers['session.revert.committed'] = invalidate_messages
 handlers['session.compaction.ended'] = invalidate_messages
 
+---Background completions arrive as synthetic messages without a message id, so the
+---projected snapshot is the only source of the entry that carries the job outcome.
+---@param observation OpencodeV2Observation
+---@param event OpencodeV2Event
+---@param data table
+---@return string|boolean
+handlers['session.synthetic'] = function(observation, event, data)
+  local metadata = data.metadata
+  if type(metadata) ~= 'table' or (metadata.source ~= 'shell' and metadata.source ~= 'subagent') then
+    return false
+  end
+  return invalidate_messages()
+end
+
 -- Upstream adds and renames session event families independently of this plugin;
 -- record each unknown type once so a new gap is discoverable without flooding the log.
 local unknown_session_events = {}

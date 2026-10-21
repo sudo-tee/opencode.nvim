@@ -17,8 +17,10 @@ describe('loading_animation', function()
     local watcher
     local releases = 0
     observation.watch = function(_, resources, changed)
-      assert.same({ 'execution', 'messages' }, resources)
-      watcher = changed
+      if resources[1] == 'execution' then
+        assert.same({ 'execution', 'messages' }, resources)
+        watcher = changed
+      end
       local active = true
       return function()
         if active then

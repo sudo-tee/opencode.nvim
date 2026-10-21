@@ -135,6 +135,9 @@ local function write(snapshot, reason)
   local ok, err = pcall(function()
     vim.fn.mkdir(vim.fs.dirname(path), 'p')
     assert(vim.fn.writefile({ encoded }, temporary) == 0, 'Failed to write session tabs')
+    if vim.fn.has('win32') == 1 then
+      os.remove(path)
+    end
     assert(os.rename(temporary, path))
   end)
   if not ok then

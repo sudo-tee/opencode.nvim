@@ -112,6 +112,35 @@ describe('formatter', function()
     assert.equals(2, #output.lines)
   end)
 
+  it('renders system messages through their transcript description, not the payload', function()
+    local text =
+      'The available MCP server instructions have changed. This list supersedes the previous one.\n\n<mcp_instructions>\n  <server name="context7" />\n</mcp_instructions>'
+    local message = { kind = 'system', description = 'Instructions updated: core/codemode, core/mcp-guidance' }
+    local output = formatter.format_part({ kind = 'text', text = text }, message)
+
+    -- callout line + the trailing blank line format_part appends
+    assert.equals(2, #output.lines)
+    assert.truthy(output.lines[1]:find('Instructions updated: core/codemode, core/mcp%-guidance', 1))
+    assert.falsy(output.lines[1]:find('mcp_instructions', 1, true))
+    assert.equals('', output.lines[2])
+  end)
+
+  it('renders synthetic notices through their transcript description', function()
+    local message = { kind = 'synthetic', description = 'Continuing after restart' }
+    local output =
+      formatter.format_part({ kind = 'text', text = 'The server restarted while you were working.' }, message)
+
+    assert.equals(2, #output.lines)
+    assert.truthy(output.lines[1]:find('Continuing after restart', 1, true))
+  end)
+
+  it('falls back to raw text when a system message has no description', function()
+    local output = formatter.format_part({ kind = 'text', text = 'Short notice' }, { kind = 'system' })
+
+    assert.equals('Short notice', output.lines[1])
+    assert.same({}, output.fold_ranges)
+  end)
+
   it('keeps final assistant errors when its part kind is unsupported', function()
     local message = assistant({}, { error = { message = 'Request failed' } })
     local output = formatter.format_part({ kind = 'unknown' }, message, true)

@@ -67,9 +67,12 @@ end
 ---@param message table
 ---@return boolean
 local function is_non_conversation_record(message)
+  -- A synthetic message is transcript-visible through its `description` (the
+  -- schema's summary field) or a background result; otherwise its text is
+  -- model-facing payload.
   return message.kind == 'agent-switched'
     or message.kind == 'model-switched'
-    or (message.kind == 'synthetic' and not message.background_result)
+    or (message.kind == 'synthetic' and not message.description and not message.background_result)
 end
 
 ---@param message table|nil

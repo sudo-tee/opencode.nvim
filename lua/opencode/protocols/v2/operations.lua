@@ -17,6 +17,12 @@ local json_request = http.json_request
 local map_paths = http.map_paths
 local require_table = http.require_table
 
+-- Git doubles the context when deciding whether to merge hunks. Use the largest
+-- context whose doubled value fits a signed 32-bit integer, rather than the
+-- server's INT_MAX default. This still includes effectively the whole file for
+-- side-by-side reconstruction.
+local FULL_FILE_CONTEXT = math.floor((2 ^ 31 - 1) / 2)
+
 ---@param connection OpencodeV2Connection
 ---@param attachments boolean
 ---@return Promise<boolean>
@@ -367,9 +373,7 @@ end
 ---@return Promise<OpencodeV2FileDiff[]>
 function M.diff_session(connection, session_id, from, to, reverse_path_map)
   return json_request(connection, 'V2 diff_session', 'GET', '/api/session/' .. session_id .. '/diff', {
-    -- The server's INT_MAX default can overflow Git's hunk merging. Keep effectively
-    -- full-file context below INT_MAX / 2 so side-by-side reconstruction stays valid.
-    context = 1000000000,
+    context = FULL_FILE_CONTEXT,
     from = from,
     to = to,
   }):and_then(function(value)

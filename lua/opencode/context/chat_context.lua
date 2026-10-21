@@ -22,6 +22,7 @@ local set_file_sent_timestamps
 local next_review_id = 0
 
 ---@param comment OpencodeContextReviewComment
+---@return OpencodeContextReviewComment
 function M.add_review_comment(comment)
   next_review_id = next_review_id + 1
   comment.id = next_review_id
@@ -108,7 +109,35 @@ function M.clear_review_comments()
   state.context.set_context_updated_at(vim.uv.now())
 end
 
+---@param comment_id integer
+---@return string
+function M.review_comment_reference(comment_id)
+  return ('@review-comment-%d'):format(comment_id)
+end
+
+---@param prompt string
+---@param reference string
+---@return boolean
+local function prompt_has_reference(prompt, reference)
+  local search_from = 1
+  while true do
+    local start_pos, end_pos = prompt:find(reference, search_from, true)
+    if not start_pos then
+      return false
+    end
+    ---@cast end_pos integer
+
+    local preceding = start_pos > 1 and prompt:sub(start_pos - 1, start_pos - 1) or ''
+    local following = prompt:sub(end_pos + 1, end_pos + 1)
+    if not preceding:match('[%w_%-]') and not following:match('[%w_%-]') then
+      return true
+    end
+    search_from = start_pos + 1
+  end
+end
+
 ---@param comment OpencodeContextReviewComment
+---@param hint? OpencodeReviewCommentResolution
 local function capture_review_comment(comment, hint)
   local resolution = require('opencode.review_anchor').current(comment, hint)
   comment.resolution = resolution
@@ -120,6 +149,7 @@ local function capture_review_comment(comment, hint)
       }
     or nil
   return {
+    reference = M.review_comment_reference(comment.id),
     comment = comment.comment,
     side = comment.side,
     lines = comment.start_line .. '-' .. comment.end_line,
@@ -691,55 +721,65 @@ M.format_message = Promise.async(function(prompt, opts)
     captured.agents[#captured.agents + 1] = capture_agent(agent, prompt)
   end
 
-  if base_context.is_context_enabled('review_comments', context_config) then
-    local by_file, order, diffs_by_range = {}, {}, {}
-    for _, comment in ipairs(M.get_review_comments()) do
-      if not state.active_session or comment.session_id == state.active_session.id then
-        local hint
-        local connection = state.opencode_server
-        local end_message = comment.to or comment.from
-        if
-          end_message
-          and connection
-          and connection.protocol == 'v2'
-          and state.active_session
-          and state.active_session.id == comment.session_id
-        then
-          if diffs_by_range[end_message] == nil then
-            local ok, files = pcall(function()
-              return connection.operations
-                .diff_session(connection, comment.session_id, end_message, nil, util.apply_reverse_path_map)
-                :await()
-            end)
-            diffs_by_range[end_message] = ok and files or false
-          end
-          for _, file in ipairs(diffs_by_range[end_message] or {}) do
-            if file.file == comment.file then
-              hint = require('opencode.review_anchor').translate(comment.anchor_side_line, file.patch)
-              break
-            end
+  ---@type table<string, boolean>
+  local review_comment_files = {}
+  local auto_review_comments = base_context.is_context_enabled('review_comments', context_config)
+  ---@type table<string, { context_type: string, file: string, comments: table[], note: string }>
+  local by_file = {}
+  ---@type string[]
+  local order = {}
+  local diffs_by_range = {}
+  for _, comment in ipairs(M.get_review_comments()) do
+    local reference = M.review_comment_reference(comment.id)
+    local is_current_session = not state.active_session or comment.session_id == state.active_session.id
+    if is_current_session and (auto_review_comments or prompt_has_reference(prompt, reference)) then
+      local hint
+      local connection = state.opencode_server
+      local end_message = comment.to or comment.from
+      if
+        end_message
+        and connection
+        and connection.protocol == 'v2'
+        and state.active_session
+        and state.active_session.id == comment.session_id
+      then
+        if diffs_by_range[end_message] == nil then
+          local ok, files = pcall(function()
+            return connection.operations
+              .diff_session(connection, comment.session_id, end_message, nil, util.apply_reverse_path_map)
+              :await()
+          end)
+          diffs_by_range[end_message] = ok and files or false
+        end
+        for _, file in ipairs(diffs_by_range[end_message] or {}) do
+          if file.file == comment.file then
+            hint = require('opencode.review_anchor').translate(comment.anchor_side_line, file.patch)
+            break
           end
         end
-        local rel_path = vim.fn.fnamemodify(comment.file, ':~:.')
-        if not by_file[rel_path] then
-          by_file[rel_path] = {
-            context_type = 'review-comment',
-            file = rel_path,
-            comments = {},
-            note = 'Session diff snapshot: locate code by content, not line number. Check changed code before acting.',
-          }
-          order[#order + 1] = rel_path
-        end
-        local group = by_file[rel_path]
-        group.comments[#group.comments + 1] = capture_review_comment(comment, hint)
       end
+      local rel_path = vim.fn.fnamemodify(comment.file, ':~:.')
+      local group = by_file[rel_path]
+      if not group then
+        group = {
+          context_type = 'review-comment',
+          file = rel_path,
+          comments = {},
+          note = 'Session diff snapshot: locate code by content, not line number. '
+            .. 'Prompt references map to the matching comment reference. Check changed code before acting.',
+        }
+        by_file[rel_path] = group
+        order[#order + 1] = rel_path
+      end
+      group.comments[#group.comments + 1] = capture_review_comment(comment, hint)
+      review_comment_files[vim.fn.resolve(vim.fn.fnamemodify(comment.file, ':p'))] = true
     end
-    for _, file in ipairs(order) do
-      captured.context[#captured.context + 1] = {
-        text = vim.json.encode(by_file[file]),
-        source = { kind = 'review_comment', file_name = file },
-      }
-    end
+  end
+  for _, file in ipairs(order) do
+    captured.context[#captured.context + 1] = {
+      text = vim.json.encode(by_file[file]),
+      source = { kind = 'review_comment', file_name = file },
+    }
   end
 
   if not buf then
@@ -778,8 +818,7 @@ M.format_message = Promise.async(function(prompt, opts)
   end
 
   local current_file_selected = M.context.current_file
-      and base_context.is_context_enabled('review_comments', context_config)
-      and M.has_review_comment_for_file(M.context.current_file.path)
+      and review_comment_files[vim.fn.resolve(vim.fn.fnamemodify(M.context.current_file.path, ':p'))]
     or false
   for _, selection in ipairs(selections) do
     if M.context.current_file and selection.file and selection.file.path == M.context.current_file.path then

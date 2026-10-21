@@ -405,7 +405,7 @@ function M._format_user_prompt(output, text, message)
     end
   end
 
-  if #mentions > 0 then
+  if #mentions > 0 or text:find('@review-comment-', 1, true) then
     mention.highlight_mentions_in_output(output, text, mentions, start_line)
   end
 

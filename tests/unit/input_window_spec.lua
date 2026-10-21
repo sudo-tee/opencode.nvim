@@ -399,7 +399,7 @@ describe('input_window', function()
       pcall(vim.api.nvim_buf_delete, input_buf, { force = true })
       pcall(vim.api.nvim_buf_delete, output_buf, { force = true })
       state.ui.clear_windows()
-      state.ui.set_input_content(nil)
+      state.ui.set_input_content({})
     end)
 
     it('clears input buffer and state.input_content after submitting', function()
@@ -487,7 +487,7 @@ describe('input_window', function()
       pcall(vim.api.nvim_buf_delete, input_buf, { force = true })
       pcall(vim.api.nvim_buf_delete, output_buf, { force = true })
       state.ui.clear_windows()
-      state.ui.set_input_content(nil)
+      state.ui.set_input_content({})
       state.ui.clear_display_route()
       input_window._hidden = false
     end)
@@ -714,6 +714,34 @@ describe('input_window', function()
       input_window._hide()
 
       assert.are.equal(output_win, vim.api.nvim_get_current_win())
+    end)
+  end)
+
+  describe('append_mention', function()
+    local saved_windows
+    local saved_input_content
+    local saved_input_cursor
+
+    before_each(function()
+      saved_windows = state.windows
+      saved_input_content = vim.deepcopy(state.input_content)
+      saved_input_cursor = state.last_input_window_position
+      state.ui.clear_windows()
+      state.ui.set_input_content({ 'Fix this' })
+    end)
+
+    after_each(function()
+      state.ui.set_windows(saved_windows)
+      state.ui.set_input_content(saved_input_content)
+      state.ui.set_cursor_position('input', saved_input_cursor)
+    end)
+
+    it('adds a reference to the stored draft when input buffer is not mounted', function()
+      input_window.append_mention('@review-comment-42')
+      input_window.append_mention('@review-comment-42')
+
+      assert.same({ 'Fix this @review-comment-42 ' }, state.input_content)
+      assert.same({ 1, #'Fix this @review-comment-42 ' }, state.last_input_window_position)
     end)
   end)
 

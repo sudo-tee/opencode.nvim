@@ -8,7 +8,7 @@ local renderer_context = require('opencode.ui.renderer.ctx')
 ---@field active_session OpencodeSession|nil
 ---@field windows OpencodeWindowState|nil Buffers and the currently mounted panel windows
 ---@field is_opening boolean
----@field input_content table
+---@field input_content string[]
 ---@field is_opencode_focused boolean
 ---@field last_focused_opencode_window string|nil
 ---@field last_input_window_position integer[]|nil

@@ -167,6 +167,45 @@ M._append_to_input = function(text)
   vim.api.nvim_win_set_cursor(state.windows.input_win, { line_count, 0 })
 end
 
+---@param mention string
+function M.append_mention(mention)
+  -- Review lives in another tab; update the draft without opening or focusing the panel.
+  local windows = state.windows
+  local input_buf = windows and windows.input_buf
+  local lines = vim.deepcopy(state.input_content)
+  ---@cast lines string[]
+  if input_buf and vim.api.nvim_buf_is_valid(input_buf) then
+    lines = vim.api.nvim_buf_get_lines(input_buf, 0, -1, false)
+  end
+  if #lines == 0 then
+    lines[1] = ''
+  end
+
+  if table.concat(lines, '\n'):find(mention, 1, true) then
+    return
+  end
+
+  local row = #lines
+  local line = lines[row]
+  ---@cast line string
+  local separator = line ~= '' and not line:match('%s$') and ' ' or ''
+  lines[row] = line .. separator .. mention .. ' '
+
+  if input_buf and vim.api.nvim_buf_is_valid(input_buf) then
+    vim.api.nvim_buf_set_lines(input_buf, row - 1, row, false, { lines[row] })
+    M.refresh_placeholder(windows, lines)
+    M.schedule_resize(windows)
+    require('opencode.ui.mention').highlight_all_mentions(input_buf)
+  end
+
+  state.ui.set_input_content(lines)
+  local cursor = { row, #lines[row] }
+  state.ui.set_cursor_position('input', cursor)
+  if windows and windows.input_win and vim.api.nvim_win_is_valid(windows.input_win) then
+    pcall(vim.api.nvim_win_set_cursor, windows.input_win, cursor)
+  end
+end
+
 function M.setup(windows)
   if config.ui.input.text.wrap then
     window_options.set_window_option('wrap', true, windows.input_win)

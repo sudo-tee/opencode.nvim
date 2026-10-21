@@ -541,7 +541,7 @@ function M.add_comment()
           context.update_review_comment(existing.id, text)
         end
       elseif text ~= '' then
-        context.add_review_comment({
+        local comment = context.add_review_comment({
           id = 0,
           file = file.file,
           side = side,
@@ -556,6 +556,7 @@ function M.add_comment()
           context_after = following,
           anchor_side_line = anchor or start_line,
         })
+        require('opencode.ui.input_window').append_mention(context.review_comment_reference(comment.id))
       end
       refresh_comments()
     end,

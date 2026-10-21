@@ -54,6 +54,12 @@ Press `q` in the list or preview to close the review. If you left comments,
 the prompt opens with them attached. Write the follow-up, for example "Fix
 these, keep the public API the same", and send it.
 
+Each saved comment immediately inserts a `@review-comment-<id>` mention into
+the input draft. Its attached context carries the same reference, so the agent
+can match your prompt to that comment. Comments still attach automatically by
+default; a mentioned comment is included even when automatic review-comment
+context is disabled.
+
 The context bar shows how many comments are attached. Use `#` to detach all of
 them or remove one. To never attach them automatically, set
 `context.review_comments.enabled = false`.

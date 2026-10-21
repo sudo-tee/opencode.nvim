@@ -68,7 +68,7 @@ describe('review comment context', function()
   it('sends only the reviewed snippet when no code buffer exists', function()
     local base = require('opencode.context.base_context')
     local original = base.get_current_buf
-    context.add_review_comment({
+    local comment = context.add_review_comment({
       id = 0,
       file = '/nonexistent/review.lua',
       side = 'before',
@@ -93,12 +93,60 @@ describe('review comment context', function()
     assert.equals('missing_file', payload.comments[1].current.status)
     assert.equals('removed', payload.comments[1].code)
     assert.equals('before', payload.comments[1].side)
+    assert.equals(context.review_comment_reference(comment.id), payload.comments[1].reference)
     assert.equals('3-3', payload.comments[1].lines)
     assert.is_nil(payload.snapshot)
     assert.is_nil(payload.diff)
     assert.is_nil(payload.context_before)
     assert.is_true(#captured.context[1].text < 400)
     assert.equals('turn', context.get_review_comments()[1].from)
+  end)
+
+  it('includes only explicitly mentioned comments when automatic review context is disabled', function()
+    state.session.set_active({ id = 'session' })
+    local first = context.add_review_comment({
+      id = 0,
+      file = '/nonexistent/review.lua',
+      side = 'after',
+      start_line = 1,
+      end_line = 1,
+      code = 'first line',
+      comment = 'First comment',
+      session_id = 'session',
+      context_before = {},
+      context_after = {},
+      anchor_side_line = 1,
+    })
+    context.add_review_comment({
+      id = 0,
+      file = '/nonexistent/review.lua',
+      side = 'after',
+      start_line = 2,
+      end_line = 2,
+      code = 'second line',
+      comment = 'Second comment',
+      session_id = 'session',
+      context_before = {},
+      context_after = {},
+      anchor_side_line = 2,
+    })
+
+    local base = require('opencode.context.base_context')
+    local original = base.get_current_buf
+    base.get_current_buf = function()
+      return nil, nil
+    end
+    local config = { review_comments = { enabled = false } }
+    local mentioned = context.format_message(context.review_comment_reference(first.id), config):wait()
+    local partial = context.format_message(context.review_comment_reference(first.id) .. '0', config):wait()
+    base.get_current_buf = original
+
+    assert.equals(1, #mentioned.context)
+    local payload = vim.json.decode(mentioned.context[1].text)
+    assert.equals(1, #payload.comments)
+    assert.equals('First comment', payload.comments[1].comment)
+    assert.equals(context.review_comment_reference(first.id), payload.comments[1].reference)
+    assert.same({}, partial.context)
   end)
 
   it('omits redundant current code and status when reviewed code is unchanged', function()

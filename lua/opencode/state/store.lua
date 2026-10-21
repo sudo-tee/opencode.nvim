@@ -4,7 +4,7 @@ local M = {}
 ---@class OpencodeStateData
 ---@field windows OpencodeWindowState|nil
 ---@field is_opening boolean
----@field input_content table
+---@field input_content string[]
 ---@field is_opencode_focused boolean
 ---@field last_focused_opencode_window string|nil
 ---@field last_input_window_position integer[]|nil

@@ -306,9 +306,17 @@ describe('session diff', function()
 
   it('adds and edits snapshot comments on either side, then redraws markers', function()
     local context = require('opencode.context')
+    local state = require('opencode.state')
     local comment_input = require('opencode.ui.session_diff.comment_input')
     local original_open = comment_input.open
     local saved = context.snapshot()
+    local saved_windows = state.windows
+    local saved_input_content = vim.deepcopy(state.input_content)
+    local saved_input_cursor = state.last_input_window_position
+    local input_buf = vim.api.nvim_create_buf(false, true)
+    state.ui.set_windows({ input_buf = input_buf })
+    vim.api.nvim_buf_set_lines(input_buf, 0, -1, false, { 'Please check' })
+    state.ui.set_input_content({ 'Please check' })
     context.clear_review_comments()
     local path = vim.fn.getcwd() .. '/review-snapshot.lua'
     local content = '@@ -1,2 +1,2 @@\n unchanged\n-old\n+new'
@@ -351,6 +359,8 @@ describe('session diff', function()
     assert.equals(2, entry.start_line)
     assert.equals('new', entry.code)
     assert.equals('turn', entry.from)
+    local first_reference = context.review_comment_reference(entry.id)
+    assert.equals('Please check ' .. first_reference .. ' ', vim.api.nvim_buf_get_lines(input_buf, 0, -1, false)[1])
     local ns = vim.api.nvim_get_namespaces().OpencodeSessionDiffComments
     local marks = vim.api.nvim_buf_get_extmarks(vim.api.nvim_win_get_buf(after), ns, 0, -1, { details = true })
     assert.is_true(vim.tbl_contains(
@@ -364,11 +374,20 @@ describe('session diff', function()
     diff.add_comment()
     assert.equals('before', context.get_review_comments(path)[2].side)
     assert.equals('old', context.get_review_comments(path)[2].code)
+    local second_reference = context.review_comment_reference(context.get_review_comments(path)[2].id)
+    assert.equals(
+      'Please check ' .. first_reference .. ' ' .. second_reference .. ' ',
+      vim.api.nvim_buf_get_lines(input_buf, 0, -1, false)[1]
+    )
     diff.delete_comment()
     assert.equals(1, #context.get_review_comments(path))
     diff.close()
     comment_input.open = original_open
     context.restore(saved)
+    state.ui.set_windows(saved_windows)
+    state.ui.set_input_content(saved_input_content)
+    state.ui.set_cursor_position('input', saved_input_cursor)
+    vim.api.nvim_buf_delete(input_buf, { force = true })
   end)
 
   it('anchors unified deleted and added rows to their respective sides', function()

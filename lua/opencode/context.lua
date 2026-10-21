@@ -152,6 +152,7 @@ M.remove_review_comment = ChatContext.remove_review_comment
 M.clear_review_comments = ChatContext.clear_review_comments
 M.get_review_comments = ChatContext.get_review_comments
 M.has_review_comment_for_file = ChatContext.has_review_comment_for_file
+M.review_comment_reference = ChatContext.review_comment_reference
 
 --- Captures the current visual selection and adds it to the context.
 --- This can be called from any buffer at any time, even when the panel is already open.

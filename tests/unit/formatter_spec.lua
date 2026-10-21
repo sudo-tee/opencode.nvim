@@ -61,6 +61,27 @@ describe('formatter', function()
     assert.same({}, formatter.format_part({ kind = 'text', text = 'hidden' }, nil).lines)
   end)
 
+  it('highlights automatically inserted review-comment references in user prompts', function()
+    local prompt = '@review-comment-1 just testing'
+    local message = {
+      id = 'msg_review_comment',
+      kind = 'user',
+      content = { { kind = 'text', text = prompt } },
+    }
+    local output = formatter.format_part(message.content[1], message, true)
+    local mention_mark
+    for _, mark in ipairs(output.extmarks[0] or {}) do
+      if mark.hl_group == 'OpencodeMention' then
+        mention_mark = mark
+        break
+      end
+    end
+
+    assert.is_not_nil(mention_mark)
+    assert.equals(0, mention_mark.start_col)
+    assert.equals(#'@review-comment-1', mention_mark.end_col)
+  end)
+
   it('preserves replacement output and actions for system display parts', function()
     local output = formatter.format_part({ kind = 'hidden_messages_display', hidden_count = 2 }, { kind = 'system' })
     assert.equals('> 2 older messages are not displayed.', output.lines[1])

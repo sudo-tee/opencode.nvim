@@ -1,6 +1,7 @@
 local M = {}
 
 local mentions_namespace = vim.api.nvim_create_namespace('OpencodeMentions')
+local review_comment_reference_pattern = '@review%-comment%-%d+'
 
 function M.highlight_all_mentions(buf, callback)
   -- Pattern for mentions
@@ -92,6 +93,29 @@ function M.highlight_mentions_in_output(output, text, mentions, start_line)
       end
     end
     ::continue::
+  end
+
+  for line_index, line in ipairs(vim.split(text, '\n')) do
+    local search_from = 1
+    while true do
+      local start_pos, end_pos = line:find(review_comment_reference_pattern, search_from)
+      if not start_pos then
+        break
+      end
+      ---@cast end_pos integer
+
+      local preceding = start_pos > 1 and line:sub(start_pos - 1, start_pos - 1) or ''
+      local following = line:sub(end_pos + 1, end_pos + 1)
+      if not preceding:match('[%w_%-]') and not following:match('[%w_%-]') then
+        output:add_extmark(start_line + line_index - 1, {
+          start_col = start_pos - 1,
+          end_col = end_pos,
+          hl_group = 'OpencodeMention',
+          priority = 1000,
+        })
+      end
+      search_from = end_pos + 1
+    end
   end
 end
 

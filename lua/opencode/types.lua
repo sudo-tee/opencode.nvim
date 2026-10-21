@@ -506,7 +506,7 @@
 ---@field path string
 ---@field line? integer
 ---@field col? integer
----@field source_kind 'assistant_text'|'tool_file_path'
+---@field source_kind 'assistant_text'|'tool_file_path'|'user_file_part'|'editor_context_selection'
 ---@field raw_range? CodeReferenceTextRange Required for assistant_text references
 ---@field order integer Smaller values appear earlier in the session message/part/text order.
 

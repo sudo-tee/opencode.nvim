@@ -114,6 +114,34 @@ describe('opencode.ui.reference_facts', function()
     assert.are.same({ '/repo/src/ok.lua' }, reference_facts.current_files())
   end)
 
+  it('collects editor selection parts as reference facts', function()
+    rebuild({
+      {
+        id = 'user_1',
+        kind = 'user',
+        session_id = 'ses_1',
+        content = {
+          { kind = 'text', text = 'look' },
+          {
+            id = 'user_1:file:1',
+            kind = 'editor_context',
+            synthetic = true,
+            source = { kind = 'selection', file_name = 'src/ok.lua', range = '4-9' },
+            text = 'selected code',
+          },
+        },
+      },
+    })
+
+    local refs = reference_facts.current_refs()
+
+    assert.equal(1, #refs)
+    assert.equal('src/ok.lua', refs[1].path)
+    assert.equal(4, refs[1].line)
+    assert.equal('editor_context_selection', refs[1].source_kind)
+    assert.equal('user_1:file:1', refs[1].part_id)
+  end)
+
   it('keeps unreadable user file parts as refs but excludes them from current_files', function()
     rebuild({
       {

@@ -49,6 +49,41 @@ describe('V2 native message rendering', function()
     assert.is_truthy(text:find('Review changes\nCheck tests', 1, true))
   end)
 
+  it('renders an editor selection reference as a single line', function()
+    local payload = vim.base64.encode(vim.json.encode({
+      context_type = 'selection',
+      file = { name = 'test.py' },
+      content = 'LINE1\nLINE2\nLINE3',
+      lines = '1-2',
+    }))
+    local info = {
+      type = 'user',
+      text = 'review this',
+      files = {
+        {
+          data = payload,
+          mime = 'text/plain',
+          source = { type = 'inline' },
+          name = 'editor-context:selection:test.py:1-2',
+        },
+      },
+    }
+    local entry = normalize.mapped_message(
+      'ses_native',
+      vim.tbl_extend('force', { id = 'msg_native', time = { created = 1 } }, info)
+    )
+    local context_part
+    for _, part in ipairs(entry.content) do
+      if part.kind == 'editor_context' then
+        context_part = part
+      end
+    end
+    assert.is_truthy(context_part)
+    local text = table.concat(formatter.format_part(context_part, entry, true).lines, '\n')
+    assert.is_truthy(text:find('`test%.py:1%-2`', 1, false))
+    assert.is_nil(text:find('LINE1', 1, true))
+  end)
+
   it('renders structured shell output without exposing its envelope', function()
     local text = render({
       type = 'shell',

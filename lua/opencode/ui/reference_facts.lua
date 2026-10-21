@@ -47,21 +47,45 @@ local function is_current_session_user_message(session_id, message)
 end
 
 local function collect_part_refs(session_id, message, part, message_order, part_order)
-  if is_current_session_user_message(session_id, message) and part.kind == 'file' then
-    local path = part.source and part.source.path or part.name
-    if not path or path == '' then
-      return {}
+  if is_current_session_user_message(session_id, message) then
+    if part.kind == 'file' then
+      local path = part.source and part.source.path or part.name
+      if not path or path == '' then
+        return {}
+      end
+      return {
+        {
+          session_id = session_id,
+          message_id = message.id,
+          part_id = part.id,
+          path = relative_path(path),
+          source_kind = 'user_file_part',
+          order = message_order * 1000000 + part_order * 1000 + 1,
+        },
+      }
     end
-    return {
-      {
-        session_id = session_id,
-        message_id = message.id,
-        part_id = part.id,
-        path = relative_path(path),
-        source_kind = 'user_file_part',
-        order = message_order * 1000000 + part_order * 1000 + 1,
-      },
-    }
+
+    -- Selection references carry the location structurally; no need to parse it
+    -- back out of rendered text.
+    if part.kind == 'editor_context' and part.source and part.source.kind == 'selection' then
+      local path = part.source.file_name
+      if not path or path == '' then
+        return {}
+      end
+      return {
+        {
+          session_id = session_id,
+          message_id = message.id,
+          part_id = part.id,
+          path = relative_path(path),
+          line = tonumber(part.source.range and part.source.range:match('^(%d+)')),
+          source_kind = 'editor_context_selection',
+          order = message_order * 1000000 + part_order * 1000 + 1,
+        },
+      }
+    end
+
+    return {}
   end
 
   if not is_current_session_assistant_message(session_id, message) or part.synthetic then

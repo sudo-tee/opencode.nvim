@@ -428,13 +428,12 @@ function M._format_selection_context(output, part)
   if part.kind ~= 'editor_context' or not part.source or part.source.kind ~= 'selection' then
     return
   end
-  local start_line = output:get_line_count() + 1
-  output:add_lines(vim.split(part.text or '', '\n'))
-  output:add_empty_line()
-
-  local end_line = output:get_line_count()
-
-  M.add_vertical_border(output, start_line, end_line, 'OpencodeMessageRoleUser', -3)
+  -- The selection payload can be long; render one reference-style line. The
+  -- full text stays on the part for preview and jump.
+  local file_name = part.source.file_name or ''
+  local label = part.source.range and (file_name .. ':' .. part.source.range) or file_name
+  local line = output:add_line(string.format('[`%s`](%s)', label, file_name))
+  M.add_vertical_border(output, line, line, 'OpencodeMessageRoleUser', -3)
 end
 
 ---@param output Output

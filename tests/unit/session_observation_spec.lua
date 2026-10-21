@@ -261,30 +261,16 @@ describe('active session observation', function()
     assert.equals('one', state.active_session.title)
   end)
 
-  it('reacquires an observation released while rebinding the same session to another tab', function()
+  it('keeps the observation bound when the same session is asked for again', function()
     local source = observation('one')
-    local watch = source.watch
-    function source:watch(resources, callback)
-      local release = watch(self, resources, callback)
-      return function()
-        release()
-        connection.observations.one = nil
-      end
-    end
-    function connection:observe(ref)
-      return self.observations[ref.id] or observation(ref.id)
-    end
     activate('one')
-    local second_tab = tabs.create({ id = 'one' })
-    tabs.activate(second_tab)
+    local again = tabs.create({ id = 'one' })
+    tabs.activate(again)
     settle()
-    assert.equals(1, source.releases)
-    local current = connection.observations.one
-    assert.is_not_nil(current)
-    assert.is_not_equal(source, current)
-    assert.equals(1, current.subscriptions)
-    current.facts.session.title = 'Current title'
-    current.changed('session')
-    assert.equals('Current title', second_tab.active_session.title)
+    assert.equals(0, source.releases)
+    assert.equals(1, source.subscriptions)
+    source.facts.session.title = 'Current title'
+    source.changed('session')
+    assert.equals('Current title', again.active_session.title)
   end)
 end)

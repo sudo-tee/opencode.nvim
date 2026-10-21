@@ -17,6 +17,14 @@ describe('opencode session panel tabs', function()
     vim.wait(50)
     require('opencode.ui.autocmds').setup_subscriptions(false)
     session_tabs.reset()
+    -- Restoring only the captured keys leaves anything a test added behind;
+    -- a leaked active_session makes the next test's tab inherit it.
+    local added = vim.tbl_filter(function(key)
+      return original_state[key] == nil
+    end, vim.tbl_keys(store.state()))
+    for _, key in ipairs(added) do
+      store.set(key, nil)
+    end
     for key, value in pairs(original_state) do
       store.set(key, value)
     end
@@ -82,6 +90,26 @@ describe('opencode session panel tabs', function()
     assert.is_nil(runtime.windows)
     assert.same({}, runtime.input_content)
     assert.equals('old input', state.input_content[1])
+  end)
+
+  it('reuses the tab that already holds the session instead of creating a second one', function()
+    local first = session_tabs.create({ id = 'same-session' })
+
+    local second = session_tabs.create({ id = 'same-session' })
+
+    assert.equals(first.id, second.id)
+    assert.equals(1, #session_tabs.list())
+  end)
+
+  it('does not create a second tab when the active tab pointer is stale', function()
+    local first = session_tabs.create({ id = 'session-one' })
+    session_tabs.activate(first)
+    store.set('active_session_tab', 'gone')
+
+    local current = session_tabs.ensure_current()
+
+    assert.equals(first.id, current.id)
+    assert.equals(1, #session_tabs.list())
   end)
 
   it('normalizes V1 session directories before activating a tab', function()
@@ -263,5 +291,17 @@ describe('opencode session panel tabs', function()
     ensure_mode_stub:revert()
     sync_model_stub:revert()
     render_stub:revert()
+  end)
+
+  it('activates the tab that owns a session instead of binding it to the current tab', function()
+    local first = session_tabs.ensure_current()
+    local second = session_tabs.create({ id = 'session-two' })
+    session_tabs.activate(first)
+
+    state.session.set_active({ id = 'session-two' })
+
+    assert.equals(second.id, session_tabs.active_id())
+    assert.is_nil(first.active_session)
+    assert.equals('session-two', state.active_session.id)
   end)
 end)

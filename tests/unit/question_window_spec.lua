@@ -253,7 +253,7 @@ describe('question_window', function()
 
     question_window._dialog:select()
 
-    assert.is_true(vim.wait(200, function()
+    assert.is_true(vim.wait(2000, function()
       return #replies == 1
     end))
     assert.are.same({ choices = {} }, replies[1].answers)

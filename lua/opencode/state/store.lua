@@ -266,14 +266,17 @@ function M.emit(key, new_val, old_val)
       for _, cb in ipairs(_listeners[key]) do
         local ok, err = pcall(cb, key, new_val, old_val)
         if not ok then
-          vim.notify(err --[[@as string]])
+          vim.notify(tostring(err))
         end
       end
     end
 
     if _listeners['*'] then
       for _, cb in ipairs(_listeners['*']) do
-        pcall(cb, key, new_val, old_val)
+        local ok, err = pcall(cb, key, new_val, old_val)
+        if not ok then
+          vim.notify(tostring(err))
+        end
       end
     end
   end)

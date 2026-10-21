@@ -981,8 +981,9 @@ local function track_submission(observation, result)
 end
 
 ---@param connection table
-function M.close(connection)
-  lifecycle.close(connection)
+---@param reason string
+function M.close(connection, reason)
+  lifecycle.close(connection, reason)
 end
 
 local function clear_unresolved_mentions(observation)
@@ -1023,8 +1024,8 @@ function M.new(connection, ref)
     on_stream_error = function(current, message)
       fail_submissions(current, 'V1 reply completion is unknown: ' .. message)
     end,
-    on_close = function(current)
-      fail_submissions(current, 'connection closed')
+    on_close = function(current, reason)
+      fail_submissions(current, 'connection closed (' .. tostring(reason) .. ')')
       clear_unresolved_mentions(current)
     end,
   })

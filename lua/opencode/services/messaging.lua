@@ -12,6 +12,13 @@ local optimistic = require('opencode.state.optimistic')
 
 local M = {}
 
+---@type table<string, {token: string, release: fun()}>
+local draft_creations = {}
+local next_draft_token = 0
+---changedtick covers native completion, which does not fire TextChangedI while the popup is visible.
+---@type table<string, number>
+local input_ticks = {}
+
 ---@param tab_id? string
 ---@param submission_context OpencodeContext
 local function consume_sent_attachments(tab_id, submission_context)
@@ -36,33 +43,56 @@ end
 ---@field selected_model {mode?: string, model?: string, variant?: string}
 ---@field model_update OpencodeSessionTabModelUpdate
 
+---@class SubmissionSnapshot
+---@field mode string|nil
+---@field model string|nil
+---@field variant string|nil
+---@field context_config OpencodeContextConfig|nil
+---@field context OpencodeContext
+---@field last_sent_context OpencodeContext|nil
+---@field session_id string|nil
+
 ---@param observation OpencodeObservation
 ---@param prompt string
 ---@param opts SendMessageOpts
+---@param snapshot? SubmissionSnapshot
 ---@return PreparedMessage
-local function prepare_message(observation, prompt, opts)
-  local selected_model = {
-    mode = state.current_mode or config.default_mode,
-    model = state.current_model,
-    variant = state.current_variant,
-  }
+local function prepare_message(observation, prompt, opts, snapshot)
+  -- Replace wholesale: per-field fallbacks would adopt values another tab changed during the wait.
+  local selected_model = snapshot
+      and {
+        mode = snapshot.mode or config.default_mode,
+        model = snapshot.model,
+        variant = snapshot.variant,
+      }
+    or {
+      mode = state.current_mode or config.default_mode,
+      model = state.current_model,
+      variant = state.current_variant,
+    }
   observation:validate_message_options(opts, config.default_system_prompt)
 
-  opts.context = vim.tbl_deep_extend('force', {}, state.current_context_config or {}, opts.context or {})
-  state.context.set_current_context_config(opts.context)
-  context.load()
+  local base_config = snapshot and snapshot.context_config or (not snapshot and state.current_context_config or nil)
+  opts.context = vim.tbl_deep_extend('force', {}, base_config or {}, opts.context or {})
+  if not snapshot then
+    state.context.set_current_context_config(opts.context)
+    context.load()
+  end
 
-  local submission_context = vim.deepcopy(context.get_context())
+  local submission_context = vim.deepcopy(snapshot and snapshot.context or context.get_context())
+  local session_id = snapshot and snapshot.session_id
+    or (not snapshot and state.active_session and state.active_session.id or nil)
   submission_context.review_comments = vim.tbl_filter(function(comment)
-    return comment.session_id == state.active_session.id
+    return comment.session_id == session_id
   end, submission_context.review_comments or {})
   submission_context.automatic_context = {}
-  local previous_context = state.last_sent_context and vim.deepcopy(state.last_sent_context)
+  local previous_source = snapshot and snapshot.last_sent_context or (not snapshot and state.last_sent_context or nil)
+  local previous_context = previous_source and vim.deepcopy(previous_source)
   ---@type OpencodeMessageSelection
   local selected = {
-    mode = state.current_mode,
-    model = state.current_model,
-    variant = state.current_variant,
+    mode = snapshot and snapshot.mode or (not snapshot and state.current_mode or nil),
+    model = snapshot and snapshot.model or (not snapshot and state.current_model or nil),
+    variant = snapshot and snapshot.variant or (not snapshot and state.current_variant or nil),
     default_mode = config.default_mode,
   }
   if observation.needs_message_defaults then
@@ -135,10 +165,110 @@ local function submit_message(observation, prompt, tab_id, session_id, prepared,
   optimistic.finish(observation, pending, not ok and (admitted and 'unknown' or 'failed') or nil)
   if not ok then
     local prefix = admitted and 'Prompt result is unknown: ' or 'Error sending message to session: '
-    log.notify(prefix .. tostring(result), admitted and vim.log.levels.WARN or vim.log.levels.ERROR)
+    log.notify(
+      string.format('%s%s (session: %s)', prefix, tostring(result), session_id),
+      admitted and vim.log.levels.WARN or vim.log.levels.ERROR
+    )
     return
   end
   return result
+end
+
+---Releasing the subscription early restores the session resource to unread, and the submit that follows is rejected.
+---@param tab_id string
+---@param token string Identifies this attempt; a newer attempt on the same tab invalidates it
+---@return OpencodeObservation|nil, SubmissionSnapshot|nil, fun()|nil
+local function materialize_draft_session(tab_id, token)
+  local runtime = session_tabs.get(tab_id)
+  if not runtime or runtime.active_session then
+    return nil, nil, nil
+  end
+  session_tabs.sync(tab_id)
+  local snapshot = {
+    mode = runtime.current_mode,
+    model = runtime.current_model,
+    variant = runtime.current_variant,
+    context_config = vim.deepcopy(runtime.current_context_config),
+    context = vim.deepcopy(runtime.context_data or context.get_context()),
+    last_sent_context = runtime.last_sent_context and vim.deepcopy(runtime.last_sent_context),
+    session_id = nil,
+  }
+
+  local ready = Promise.new()
+  local unsubscribe
+  local cancelled = false
+  local function release()
+    cancelled = true
+    if unsubscribe then
+      unsubscribe()
+    end
+    ready:resolve(false)
+  end
+  draft_creations[tab_id] = { token = token, release = release }
+  runtime._draft_release = release
+
+  local creation = session_runtime.create_detached_session():catch(function(err)
+    log.warn('draft session creation failed: %s', tostring(err))
+    return nil
+  end)
+  local gate = Promise.new()
+  creation:and_then(function(value)
+    gate:resolve(value)
+  end)
+  ready:and_then(function()
+    gate:resolve(nil)
+  end)
+  local detached = gate:await()
+  local entry = draft_creations[tab_id]
+  local owner = session_tabs.get(tab_id)
+  if cancelled or not detached or not owner or owner.active_session or not entry or entry.token ~= token then
+    release()
+    return nil, nil, nil
+  end
+  local observation = detached.observation
+  unsubscribe = observation:watch({ 'session' }, function(observed)
+    local state_now = observed:read()
+    local sync = state_now.sync and state_now.sync.session
+    if sync and (sync.state == 'current' or sync.state == 'error') then
+      ready:resolve(sync.state == 'current')
+    end
+  end)
+  local became_ready = ready:await()
+  entry = draft_creations[tab_id]
+  if not became_ready or not entry or entry.token ~= token then
+    release()
+    return nil, nil, nil
+  end
+  owner = session_tabs.get(tab_id)
+  if not owner or owner.active_session then
+    release()
+    return nil, nil, nil
+  end
+
+  local session = detached.session
+  snapshot.session_id = session.id
+  if session_tabs.active_id() == tab_id then
+    state.session.set_active(session)
+  else
+    session_tabs.set_session(owner, session)
+  end
+  return observation, snapshot, release
+end
+
+---The active tab's buffer and store are the authority; writing the parked runtime alone is overwritten by the next sync.
+---@param tab_id string
+---@param prompt string
+local function restore_prompt(tab_id, prompt)
+  local lines = vim.split(prompt, '\n', { plain = true })
+  if session_tabs.active_id() == tab_id then
+    state.ui.set_input_content(lines)
+    require('opencode.ui.input_window').set_content(lines)
+    return
+  end
+  local runtime = session_tabs.get(tab_id)
+  if runtime then
+    runtime.input_content = lines
+  end
 end
 
 --- Sends a message to the active session.
@@ -147,19 +277,59 @@ end
 M.send_message = Promise.async(function(prompt, opts)
   local tab_id = state.active_session_tab
   local observation = state.session.active_observation()
+  local snapshot
+  local release_draft
   if not observation then
+    if not tab_id then
+      return false
+    end
+    local previous = draft_creations[tab_id]
+    if previous then
+      previous.release()
+    end
+    next_draft_token = next_draft_token + 1
+    local token = 'draft-' .. next_draft_token
+    local windows = state.windows
+    local tick = windows and windows.input_buf and vim.api.nvim_buf_get_changedtick(windows.input_buf)
+    input_ticks[tab_id] = tick
+    observation, snapshot, release_draft = materialize_draft_session(tab_id, token)
+    local entry = draft_creations[tab_id]
+    if entry and entry.token == token then
+      draft_creations[tab_id] = nil
+    end
+    local runtime = session_tabs.get(tab_id)
+    if runtime and runtime._draft_release == release_draft then
+      runtime._draft_release = nil
+    end
+    if not observation then
+      local buf = windows and windows.input_buf
+      local buf_alive = buf and vim.api.nvim_buf_is_valid(buf)
+      local current_tick = buf_alive and vim.api.nvim_buf_get_changedtick(buf)
+      if entry and entry.token == token and buf_alive and current_tick == input_ticks[tab_id] then
+        restore_prompt(tab_id, prompt)
+      end
+      return false
+    end
+  end
+
+  local function abandon(reason)
+    if release_draft then
+      release_draft()
+    end
+    if reason then
+      log.notify(reason, vim.log.levels.WARN)
+    end
     return false
   end
 
   local observed = observation:read()
   local session_fact = observed.session
   if not session_fact or not observed.sync or not observed.sync.session or observed.sync.session.state ~= 'current' then
-    log.notify('Session metadata is not ready', vim.log.levels.WARN)
-    return false
+    return abandon('Session metadata is not ready')
   end
 
   if session_fact.parentID and config.child_readonly then
-    return false
+    return abandon()
   end
 
   local mentioned_files = context.get_context().mentioned_files or {}
@@ -167,22 +337,29 @@ M.send_message = Promise.async(function(prompt, opts)
 
   if not allowed then
     log.notify(err_msg or 'Prompt denied by prompt_guard', vim.log.levels.ERROR)
-    return
+    return abandon()
   end
 
   local server = state.opencode_server
   if not server then
     log.notify('Not connected to OpenCode server', vim.log.levels.ERROR)
-    return false
+    return abandon()
   end
 
   local pending = optimistic.begin(observation, prompt)
-  local prepared_ok, prepared = pcall(prepare_message, observation, prompt, vim.deepcopy(opts or {}))
+  local prepared_ok, prepared = pcall(prepare_message, observation, prompt, vim.deepcopy(opts or {}), snapshot)
   if not prepared_ok then
     optimistic.finish(observation, pending, 'failed')
+    if release_draft then
+      release_draft()
+    end
     error(prepared, 0)
   end
-  return submit_message(observation, prompt, tab_id, session_fact.id, prepared, pending)
+  local result = submit_message(observation, prompt, tab_id, session_fact.id, prepared, pending)
+  if release_draft then
+    release_draft()
+  end
+  return result
 end)
 
 ---@param name string Skill name from the server catalog

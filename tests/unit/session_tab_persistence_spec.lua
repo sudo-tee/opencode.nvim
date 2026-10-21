@@ -4,6 +4,7 @@ local config = require('opencode.config')
 local server_job = require('opencode.server_job')
 local service = require('opencode.services.session_tab_persistence')
 local Promise = require('opencode.promise')
+local log = require('opencode.log')
 local stub = require('luassert.stub')
 
 describe('session tab persistence', function()
@@ -114,6 +115,21 @@ describe('session tab persistence', function()
     assert.is_nil(state.windows)
   end)
 
+  it('collapses a snapshot that lists the same session twice', function()
+    save_tabs()
+    local path = snapshot_path()
+    local saved = vim.json.decode(table.concat(vim.fn.readfile(path), '\n'))
+    table.insert(saved.tabs, vim.deepcopy(saved.tabs[1]))
+    saved.active_index = #saved.tabs
+    vim.fn.writefile({ vim.json.encode(saved) }, path)
+    restart()
+    restore()
+    local restored = tabs.list()
+    assert.equals(2, #restored)
+    assert.equals('first', restored[1].active_session.id)
+    assert.equals('second', restored[2].active_session.id)
+  end)
+
   it('restores on first open only, not on setup or subsequent calls', function()
     save_tabs()
     restart()
@@ -144,6 +160,20 @@ describe('session tab persistence', function()
     assert.same(saved, vim.fn.readfile(snapshot_path()))
   end)
 
+  it('persists a session switch without waiting for exit', function()
+    save_tabs()
+    restart()
+    restore()
+    local before = vim.fn.readfile(snapshot_path())
+    state.session.set_active({ id = 'third', title = 'Third' })
+    local persisted = vim.wait(1000, function()
+      local saved = vim.json.decode(table.concat(vim.fn.readfile(snapshot_path()), '\n'))
+      return saved.tabs[#saved.tabs].session_id == 'third'
+    end)
+    assert.is_true(persisted)
+    assert.are_not.same(before, vim.fn.readfile(snapshot_path()))
+  end)
+
   it('shares an in-flight restore and does not overwrite its snapshot on exit', function()
     save_tabs()
     local saved = vim.fn.readfile(snapshot_path())
@@ -161,6 +191,30 @@ describe('session tab persistence', function()
     lookup:resolve({ id = 'first' })
     first:wait()
     assert.is_nil(service.restore(false))
+  end)
+
+  it('does not overwrite the snapshot while a restore with a live session is in flight', function()
+    save_tabs()
+    local saved = vim.fn.readfile(snapshot_path())
+    restart()
+    local lookups = {}
+    connection.operations.get_session = function()
+      local lookup = Promise.new()
+      table.insert(lookups, lookup)
+      return lookup
+    end
+    state.session.set_active({ id = 'explicit' })
+    local restoring = service.restore(true)
+    assert.is_not_nil(restoring)
+    assert.is_true(vim.wait(1000, function()
+      return #lookups > 0
+    end))
+    service.save()
+    assert.same(saved, vim.fn.readfile(snapshot_path()))
+    for index, lookup in ipairs(lookups) do
+      lookup:resolve({ id = index == 1 and 'first' or 'second' })
+    end
+    restoring:wait()
   end)
 
   it('does not replace a session selected while saved sessions are loading', function()
@@ -228,6 +282,32 @@ describe('session tab persistence', function()
     assert.equals(2, #tabs.list())
   end)
 
+  it('keeps sessions from the snapshot when a failed restore later persists new work', function()
+    save_tabs()
+    restart()
+    server_stub:revert()
+    local calls = 0
+    server_stub = stub(server_job, 'ensure_server', function()
+      calls = calls + 1
+      if calls == 1 then
+        return Promise.new():resolve(connection)
+      end
+      return Promise.new():reject('startup failed')
+    end)
+    local restoring = service.restore(false)
+    assert.is_not_nil(restoring)
+    restoring:wait()
+    state.session.set_active({ id = 'explicit', title = 'Explicit' })
+    assert.is_true(service.save())
+    local saved = vim.json.decode(table.concat(vim.fn.readfile(snapshot_path()), '\n'))
+    assert.same({ 'first', 'second', 'explicit' }, {
+      saved.tabs[1].session_id,
+      saved.tabs[2].session_id,
+      saved.tabs[3].session_id,
+    })
+    assert.equals(3, saved.active_index)
+  end)
+
   it('skips deleted sessions and falls back to the first surviving active tab', function()
     save_tabs()
     restart()
@@ -240,6 +320,32 @@ describe('session tab persistence', function()
     restore()
     assert.equals(1, #tabs.list())
     assert.equals('first', tabs.current().active_session.id)
+  end)
+
+  it('logs the session id and error when a restore lookup fails', function()
+    save_tabs()
+    restart()
+    connection.operations.get_session = function(_, id, location)
+      if id == 'second' then
+        return Promise.new():reject('get_session failed: 404')
+      end
+      return Promise.new():resolve({ id = id, location = location })
+    end
+    local warned = stub(log, 'warn').invokes(function() end)
+    restore()
+    assert.stub(warned).was_called_with('session lookup failed for %s: %s', 'second', 'get_session failed: 404')
+    warned:revert()
+  end)
+
+  it('records which session ids a save wrote', function()
+    save_tabs()
+    restart()
+    restore()
+    tabs.activate(tabs.list()[1])
+    local logged = stub(log, 'debug').invokes(function() end)
+    assert.is_true(service.save())
+    assert.stub(logged).was_called_with('session tabs written for %s: %s active_index=%d', 'manual', 'first,second', 1)
+    logged:revert()
   end)
 
   it('skips missing directories and preserves the empty fallback tab when none survive', function()
@@ -287,6 +393,7 @@ describe('session tab persistence', function()
     save_tabs()
     local path = snapshot_path()
     local saved = vim.fn.readfile(path)
+    tabs.activate(tabs.list()[1])
     local rename = stub(os, 'rename').returns(nil, 'rename failed')
     local ok = service.save()
     rename:revert()
@@ -359,7 +466,7 @@ describe('session tab persistence', function()
     enter('other-project', temporary)
     local path_b = service.path('other-project', a.server)
     assert.equals('test-project', vim.json.decode(table.concat(vim.fn.readfile(path_a), '\n')).project)
-    state.session.set_active({ id = 'other', location = { directory = temporary } })
+    state.session.set_active({ id = 'other', title = 'Other', location = { directory = temporary } })
     service.save()
     assert.equals('other-project', vim.json.decode(table.concat(vim.fn.readfile(path_b), '\n')).project)
     restart()
@@ -497,6 +604,9 @@ describe('session tab persistence', function()
       connection.operations.create_session = function(_, location)
         return Promise.new():resolve({ id = 'default-session', location = location })
       end
+      connection.operations.list_sessions_project = function()
+        return Promise.new():resolve({})
+      end
     end)
 
     after_each(function()
@@ -512,8 +622,7 @@ describe('session tab persistence', function()
       local previous = tabs.current()
       cwd = temporary
       runtime.handle_directory_change(cwd):wait()
-      assert.equals('default-session', state.active_session.id)
-      assert.equals(temporary, state.active_session.location.directory)
+      assert.is_nil(state.active_session)
       assert.equals(1, #tabs.list())
       assert.equals('second', previous.active_session.id)
       assert.stub(ui.hide_visible_windows).was_called(1)
@@ -524,30 +633,46 @@ describe('session tab persistence', function()
       assert.equals('second', state.active_session.id)
     end)
 
-    it('creates a default session on first open without a snapshot and reuses it on reopen', function()
+    it('leaves a draft tab on first open without a snapshot and creates nothing', function()
       cwd = temporary
-      local create = stub(connection.operations, 'create_session').invokes(function(_, location)
-        return Promise.new():resolve({ id = 'fresh', location = location })
-      end)
+      local create = stub(connection.operations, 'create_session')
       table.insert(runtime_stubs, create)
       runtime.open({ new_session = false }):wait()
-      assert.equals('fresh', state.active_session.id)
-      assert.equals(temporary, state.active_session.location.directory)
+      assert.is_nil(state.active_session)
       assert.equals(1, #tabs.list())
       runtime.open({ new_session = false }):wait()
-      assert.stub(create).was_called(1)
+      assert.is_nil(state.active_session)
+      assert.equals(1, #tabs.list())
+      assert.stub(create).was_not_called()
     end)
 
-    it('defers default-session creation for a hidden incoming group until the panel opens', function()
+    it('keeps an empty tab for a hidden incoming group until the first prompt', function()
       save_tabs()
       table.insert(runtime_stubs, stub(state.ui, 'is_visible').returns(false))
       cwd = temporary
       runtime.handle_directory_change(cwd):wait()
       assert.is_nil(state.active_session)
       runtime.open({ new_session = false }):wait()
-      assert.equals('default-session', state.active_session.id)
-      assert.equals(temporary, state.active_session.location.directory)
+      assert.is_nil(state.active_session)
       assert.equals(1, #tabs.list())
+    end)
+
+    it('resumes the most recent project session when the snapshot yields nothing', function()
+      local create = stub(connection.operations, 'create_session')
+      table.insert(runtime_stubs, create)
+      connection.operations.list_sessions_project = function()
+        return Promise.new():resolve({
+          {
+            id = 'recent',
+            title = 'Recent work',
+            time = { updated = 200 },
+            location = { directory = vim.fn.getcwd() },
+          },
+        })
+      end
+      runtime.open({ new_session = false }):wait()
+      assert.equals('recent', state.active_session.id)
+      assert.stub(create).was_not_called()
     end)
 
     it('keeps restored sessions without creating an extra default session', function()
@@ -563,7 +688,7 @@ describe('session tab persistence', function()
 
     for _, empty_snapshot in ipairs({ false, true }) do
       it(
-        'creates a default session when ' .. (empty_snapshot and 'the snapshot is empty' or 'no saved sessions survive'),
+        'opens a draft tab when ' .. (empty_snapshot and 'the snapshot is empty' or 'no saved sessions survive'),
         function()
           save_tabs()
           if empty_snapshot then
@@ -578,7 +703,7 @@ describe('session tab persistence', function()
           end
           restart()
           runtime.open({ new_session = false }):wait()
-          assert.equals('default-session', state.active_session.id)
+          assert.is_nil(state.active_session)
           assert.equals(1, #tabs.list())
         end
       )
@@ -595,7 +720,7 @@ describe('session tab persistence', function()
       assert.equals(2, #tabs.list())
       runtime.set_session_lock(false)
       runtime.open({ new_session = false, open_action = 'restore_hidden' }):wait()
-      assert.equals('default-session', state.active_session.id)
+      assert.is_nil(state.active_session)
       assert.equals(1, #tabs.list())
     end)
   end)

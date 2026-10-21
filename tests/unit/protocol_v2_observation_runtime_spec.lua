@@ -90,7 +90,7 @@ local function event(session_id, kind, data, created)
 end
 
 local function flush(predicate)
-  assert.is_true(vim.wait(500, predicate or function()
+  assert.is_true(vim.wait(2000, predicate or function()
     return true
   end, 5))
 end

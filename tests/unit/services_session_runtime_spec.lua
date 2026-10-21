@@ -31,6 +31,9 @@ describe('opencode.services.session_runtime', function()
 
   before_each(function()
     original = support.snapshot_state()
+    -- Tabs are not part of the snapshot; leftovers from earlier specs would
+    -- otherwise be bound to the sessions these tests activate.
+    state.session_tabs.reset()
     -- Keep open() away from snapshots in the real stdpath('state').
     original_restore_tabs_on_startup = config.ui.restore_tabs_on_startup
     config.ui.restore_tabs_on_startup = false
@@ -332,11 +335,28 @@ describe('opencode.services.session_runtime', function()
       vim.fn.getcwd = original_getcwd
     end)
 
-    it('handles new session properly', function()
+    it('leaves the new-session tab empty until the first prompt', function()
       state.ui.set_windows(nil)
       state.session.set_active({ id = 'old-session' })
       session_runtime.open({ new_session = true, focus = 'input' }):wait()
-      assert.truthy(state.active_session)
+      assert.is_nil(state.active_session)
+    end)
+
+    it('leaves a new session tab empty instead of resuming the last session', function()
+      state.ui.set_windows(nil)
+      state.session.set_active({ id = 'old-session' })
+      state.opencode_server.operations.list_sessions_project = function()
+        return Promise.new():resolve({
+          { id = 'recent-session', title = 'recent', time = { updated = 5 } },
+        })
+      end
+      local create = stub(session_runtime, 'create_new_session').returns(Promise.new():resolve({ id = 'eager' }))
+
+      session_runtime.open_session_tab():wait()
+
+      assert.stub(create).was_not_called()
+      assert.is_nil(state.active_session)
+      create:revert()
     end)
 
     it('clears old attachments before loading editor context for a new session', function()
@@ -387,7 +407,7 @@ describe('opencode.services.session_runtime', function()
       assert.is_true(output_focused)
     end)
 
-    it('creates a new session when no active session and no last session exists', function()
+    it('leaves the tab empty when no active session and no last session exists', function()
       state.ui.set_windows(nil)
       state.session.set_active(nil)
       state.opencode_server.operations.list_sessions_project = function()
@@ -396,17 +416,16 @@ describe('opencode.services.session_runtime', function()
 
       session_runtime.open({ new_session = false, focus = 'input' }):wait()
 
-      assert.truthy(state.active_session)
-      assert.truthy(state.active_session.id)
+      assert.is_nil(state.active_session)
     end)
 
     it('resets is_opening flag when error occurs', function()
       state.ui.set_windows(nil)
       store.set('is_opening', false)
 
-      local original_create_new_session = session_runtime.create_new_session
-      session_runtime.create_new_session = function()
-        error('Test error in create_new_session')
+      local original_ensure_current_mode = agent_model.ensure_current_mode
+      agent_model.ensure_current_mode = function()
+        error('Test error in ensure_current_mode')
       end
 
       local notify_stub = stub(vim, 'notify')
@@ -421,7 +440,7 @@ describe('opencode.services.session_runtime', function()
       assert.is_false(state.is_opening)
       assert.stub(notify_stub).was_called()
 
-      session_runtime.create_new_session = original_create_new_session
+      agent_model.ensure_current_mode = original_ensure_current_mode
       notify_stub:revert()
     end)
   end)
@@ -479,13 +498,44 @@ describe('opencode.services.session_runtime', function()
 
   describe('detached session creation', function()
     local ensure_server
+    local resolve_selection
     local server_job = require('opencode.server_job')
+
+    before_each(function()
+      resolve_selection = stub(agent_model, 'resolve_session_selection').returns(
+        Promise.new():resolve({ mode = 'custom-agent', model = 'provider/model' })
+      )
+    end)
 
     after_each(function()
       if ensure_server then
         ensure_server:revert()
         ensure_server = nil
       end
+      if resolve_selection then
+        resolve_selection:revert()
+        resolve_selection = nil
+      end
+    end)
+
+    it('creates the session with the resolved agent selection', function()
+      local received
+      local connection = {
+        operations = {
+          create_session = function(_, _, _, _, _, selected)
+            received = selected
+            return Promise.new():resolve({ id = 'detached-id' })
+          end,
+        },
+        observe = function()
+          return {}
+        end,
+      }
+      ensure_server = stub(server_job, 'ensure_server').returns(Promise.new():resolve(connection))
+
+      session_runtime.create_detached_session():wait()
+
+      assert.same({ mode = 'custom-agent', model = 'provider/model' }, received)
     end)
 
     for _, case in ipairs({

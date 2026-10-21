@@ -4,6 +4,23 @@ local session_tabs = require('opencode.state.session_tabs')
 ---@class OpencodeSessionStateMutations
 local M = {}
 
+---The active tab is the session owner; the store only projects it.
+---A session never migrates between tabs: activating a session someone else owns
+---activates that owner instead.
+---@param session OpencodeSession|nil
+local function bind_active_tab(session)
+  local runtime = session_tabs.current()
+  if not runtime then
+    return
+  end
+  local owner = session and session.id and session_tabs.owner_of(session.id)
+  if owner and owner.id ~= runtime.id then
+    session_tabs.activate(owner)
+    return
+  end
+  session_tabs.set_session(runtime, session)
+end
+
 ---@param session OpencodeSession|nil
 function M.set_active(session)
   local ref
@@ -27,6 +44,7 @@ function M.set_active(session)
     end
   end
 
+  bind_active_tab(ref)
   local result = store.batch(function()
     store.set('restore_points', {})
     store.set('last_sent_context', nil)
@@ -55,6 +73,7 @@ function M.update_active_metadata(session)
     return active
   end
 
+  bind_active_tab(updated)
   local result = store.set('active_session', updated)
   session_tabs.sync()
   return result
@@ -79,6 +98,7 @@ function M.clear_active()
     end
   end
 
+  bind_active_tab(nil)
   local result = store.batch(function()
     store.set('restore_points', {})
     store.set('last_sent_context', nil)

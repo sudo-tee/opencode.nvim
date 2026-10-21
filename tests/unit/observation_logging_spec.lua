@@ -149,6 +149,22 @@ describe('observation logging', function()
     assert.equals(0, count_occurrences(read_log(), 'unhandled session event type: session%.foreign%.only'))
   end)
 
+  it('logs the session id when a resource snapshot request fails', function()
+    local observed = v1_observation_for('ses-log-resource')
+    local original = observed._runtime.request_resource
+    observed._runtime.request_resource = function()
+      error('snapshot unavailable')
+    end
+
+    observed:watch({ 'session' }, function() end)
+
+    observed._runtime.request_resource = original
+    assert.matches(
+      '%[WARN%].*observation ses%-log%-resource load failed for session %([^%)]+%): .*snapshot unavailable',
+      read_log()
+    )
+  end)
+
   it('does not log unknown events outside the session. prefix', function()
     local observed = v2_observation_for('ses-log-prefix')
 

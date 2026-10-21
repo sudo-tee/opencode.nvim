@@ -556,6 +556,7 @@
 ---@field focus? 'input' | 'output'
 ---@field start_insert? boolean
 ---@field new_session? boolean
+---@field draft? boolean Open without resuming a session; the tab stays empty until the first prompt
 ---@field open_action? 'reuse_visible'|'restore_hidden'|'create_fresh'
 
 ---@class SendMessageOpts

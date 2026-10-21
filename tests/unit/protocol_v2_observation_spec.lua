@@ -113,6 +113,17 @@ describe('V2 protocol Observation interpretation', function()
     assert.equals(99, entry.cost)
   end)
 
+  it('rejects a message id with a colon, which would make synthesized part ids ambiguous', function()
+    local observed = observation('ses-target')
+    observation_module.ingest_snapshot(observed, { assistant('msg-assistant') })
+
+    local ok, err = pcall(observation_module.ingest_snapshot, observed, { assistant('msg:collide') })
+
+    assert.is_false(ok)
+    assert.matches('message id must not contain', tostring(err))
+    assert.same({ 'msg-assistant' }, observed:read().entry_order)
+  end)
+
   it('projects newest-first native snapshots into chronological frozen facts', function()
     local observed = observation('ses-target')
     observation_module.ingest_snapshot(observed, {

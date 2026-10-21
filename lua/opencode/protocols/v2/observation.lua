@@ -53,9 +53,9 @@ function M.new(connection, ref)
     end,
     on_stream_error = actions.invalidate_submissions,
     ---@param current OpencodeObservation
-    on_close = function(current)
+    on_close = function(current, reason)
       ---@cast current OpencodeV2Observation
-      actions.invalidate_submissions(current, 'connection closed')
+      actions.invalidate_submissions(current, 'connection closed (' .. tostring(reason) .. ')')
     end,
   })
   ---@cast observation OpencodeV2Observation
@@ -68,8 +68,9 @@ function M.new(connection, ref)
 end
 
 ---@param connection OpencodeV2Connection
-function M.close(connection)
-  lifecycle.close(connection)
+---@param reason string
+function M.close(connection, reason)
+  lifecycle.close(connection, reason)
 end
 
 return M

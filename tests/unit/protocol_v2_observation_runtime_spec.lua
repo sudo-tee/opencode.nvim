@@ -769,6 +769,38 @@ describe('V2 protocol Observation runtime', function()
     )
   end
 
+  it('warns about unhandled session events only when no handler covers the type', function()
+    local value = connection()
+    local streams = install_operations(value)
+    local observed = value:observe({ id = 'ses-main' })
+    local stop = observed:watch({ 'messages' }, function() end)
+    local log = require('opencode.log')
+    local warns = {}
+    local original_warn = log.warn
+    log.warn = function(msg, ...)
+      warns[#warns + 1] = string.format(tostring(msg), ...)
+    end
+
+    -- covered by messages.handlers: must stay silent
+    emit(streams[1], event('ses-main', 'session.step.started', { assistantMessageID = 'msg-live', agent = 'build' }, 9))
+    emit(streams[1], event('ses-main', 'session.text.started', { assistantMessageID = 'msg-live', ordinal = 0 }, 9.5))
+    emit(
+      streams[1],
+      event('ses-main', 'session.text.delta', { assistantMessageID = 'msg-live', ordinal = 0, delta = 'x' }, 10)
+    )
+    flush()
+    assert.equals(0, #warns)
+
+    -- not in routes, handlers, or EXEMPT: must warn
+    emit(streams[1], event('ses-main', 'session.entirely_unknown', {}, 11))
+    flush()
+    assert.equals(1, #warns)
+    assert.truthy(warns[1]:find('session%.entirely_unknown'))
+
+    log.warn = original_warn
+    stop()
+  end)
+
   it('marks a known inbox item not_pending when an authority snapshot omits it', function()
     local value = connection()
     local inbox_page = Promise.new()

@@ -1,6 +1,7 @@
 local normalize = require('opencode.protocols.v2.normalize')
 local lifecycle = require('opencode.protocols.observation')
 local boundary = require('opencode.protocols.v2.observation.boundary')
+local log = require('opencode.log')
 local messages = require('opencode.protocols.v2.observation.messages')
 local actions = require('opencode.protocols.v2.observation.actions')
 local event_capture = require('opencode.event_capture')
@@ -398,6 +399,28 @@ local function apply_event(observation, event, route)
   return true
 end
 
+---Exposed for the event-contract coverage test (tests/unit/protocol_v2_event_coverage_spec.lua).
+M.routes = routes
+
+local notified_unhandled = {}
+
+---@param event OpencodeV2Event
+local function log_unhandled_session_event(event)
+  if notified_unhandled[event.type] then
+    return
+  end
+  notified_unhandled[event.type] = true
+  local gap = require('opencode.protocols.v2.event_contract').KNOWN_GAPS[event.type]
+  if gap then
+    log.warn('unhandled v2 event %s (known gap: %s)', event.type, gap)
+  else
+    log.warn(
+      'unhandled v2 event %s is not in the contract; adjudicate it in lua/opencode/protocols/v2/event_contract.lua',
+      event.type
+    )
+  end
+end
+
 ---@param connection OpencodeV2Connection
 ---@param event OpencodeV2Event
 function M.route(connection, event)
@@ -430,6 +453,14 @@ function M.route(connection, event)
         if apply_event(observation, event, route) or observation:read().sync[resource] ~= previous_sync then
           changed[resource] = true
         end
+      end
+    elseif local_event and event.type:match('^session%.') then
+      -- Handled means routes or messages.handlers cover the type; keep this
+      -- check in sync with the coverage spec's handled set (same union).
+      local handled = routes[event.type] or messages.handlers[event.type]
+      local exempt = require('opencode.protocols.v2.event_contract').EXEMPT[event.type]
+      if not handled and not exempt then
+        log_unhandled_session_event(event)
       end
     end
 

@@ -12,12 +12,9 @@ local optimistic = require('opencode.state.optimistic')
 
 local M = {}
 
----@type table<string, {token: string, release: fun()}>
-local draft_creations = {}
-local next_draft_token = 0
 ---changedtick covers native completion, which does not fire TextChangedI while the popup is visible.
----@type table<string, number>
-local input_ticks = {}
+---@type table<string, {tick: integer?}>
+local input_attempts = {}
 
 ---@param tab_id? string
 ---@param submission_context OpencodeContext
@@ -174,87 +171,6 @@ local function submit_message(observation, prompt, tab_id, session_id, prepared,
   return result
 end
 
----Releasing the subscription early restores the session resource to unread, and the submit that follows is rejected.
----@param tab_id string
----@param token string Identifies this attempt; a newer attempt on the same tab invalidates it
----@return OpencodeObservation|nil, SubmissionSnapshot|nil, fun()|nil
-local function materialize_draft_session(tab_id, token)
-  local runtime = session_tabs.get(tab_id)
-  if not runtime or runtime.active_session then
-    return nil, nil, nil
-  end
-  session_tabs.sync(tab_id)
-  local snapshot = {
-    mode = runtime.current_mode,
-    model = runtime.current_model,
-    variant = runtime.current_variant,
-    context_config = vim.deepcopy(runtime.current_context_config),
-    context = vim.deepcopy(runtime.context_data or context.get_context()),
-    last_sent_context = runtime.last_sent_context and vim.deepcopy(runtime.last_sent_context),
-    session_id = nil,
-  }
-
-  local ready = Promise.new()
-  local unsubscribe
-  local cancelled = false
-  local function release()
-    cancelled = true
-    if unsubscribe then
-      unsubscribe()
-    end
-    ready:resolve(false)
-  end
-  draft_creations[tab_id] = { token = token, release = release }
-  runtime._draft_release = release
-
-  local creation = session_runtime.create_detached_session():catch(function(err)
-    log.warn('draft session creation failed: %s', tostring(err))
-    return nil
-  end)
-  local gate = Promise.new()
-  creation:and_then(function(value)
-    gate:resolve(value)
-  end)
-  ready:and_then(function()
-    gate:resolve(nil)
-  end)
-  local detached = gate:await()
-  local entry = draft_creations[tab_id]
-  local owner = session_tabs.get(tab_id)
-  if cancelled or not detached or not owner or owner.active_session or not entry or entry.token ~= token then
-    release()
-    return nil, nil, nil
-  end
-  local observation = detached.observation
-  unsubscribe = observation:watch({ 'session' }, function(observed)
-    local state_now = observed:read()
-    local sync = state_now.sync and state_now.sync.session
-    if sync and (sync.state == 'current' or sync.state == 'error') then
-      ready:resolve(sync.state == 'current')
-    end
-  end)
-  local became_ready = ready:await()
-  entry = draft_creations[tab_id]
-  if not became_ready or not entry or entry.token ~= token then
-    release()
-    return nil, nil, nil
-  end
-  owner = session_tabs.get(tab_id)
-  if not owner or owner.active_session then
-    release()
-    return nil, nil, nil
-  end
-
-  local session = detached.session
-  snapshot.session_id = session.id
-  if session_tabs.active_id() == tab_id then
-    state.session.set_active(session)
-  else
-    session_tabs.set_session(owner, session)
-  end
-  return observation, snapshot, release
-end
-
 ---The active tab's buffer and store are the authority; writing the parked runtime alone is overwritten by the next sync.
 ---@param tab_id string
 ---@param prompt string
@@ -278,43 +194,57 @@ M.send_message = Promise.async(function(prompt, opts)
   local tab_id = state.active_session_tab
   local observation = state.session.active_observation()
   local snapshot
-  local release_draft
+  local release_session
   if not observation then
     if not tab_id then
       return false
     end
-    local previous = draft_creations[tab_id]
-    if previous then
-      previous.release()
-    end
-    next_draft_token = next_draft_token + 1
-    local token = 'draft-' .. next_draft_token
     local windows = state.windows
-    local tick = windows and windows.input_buf and vim.api.nvim_buf_get_changedtick(windows.input_buf)
-    input_ticks[tab_id] = tick
-    observation, snapshot, release_draft = materialize_draft_session(tab_id, token)
-    local entry = draft_creations[tab_id]
-    if entry and entry.token == token then
-      draft_creations[tab_id] = nil
-    end
+    local attempt = { tick = windows and windows.input_buf and vim.api.nvim_buf_get_changedtick(windows.input_buf) }
+    input_attempts[tab_id] = attempt
     local runtime = session_tabs.get(tab_id)
-    if runtime and runtime._draft_release == release_draft then
-      runtime._draft_release = nil
+    if not runtime then
+      return false
     end
-    if not observation then
+    session_tabs.sync(tab_id)
+    snapshot = {
+      mode = runtime.current_mode,
+      model = runtime.current_model,
+      variant = runtime.current_variant,
+      context_config = vim.deepcopy(runtime.current_context_config),
+      context = vim.deepcopy(runtime.context_data or context.get_context()),
+      last_sent_context = runtime.last_sent_context and vim.deepcopy(runtime.last_sent_context),
+    }
+    local lease = session_runtime.ensure_session(tab_id):await()
+    if not lease then
       local buf = windows and windows.input_buf
       local buf_alive = buf and vim.api.nvim_buf_is_valid(buf)
       local current_tick = buf_alive and vim.api.nvim_buf_get_changedtick(buf)
-      if entry and entry.token == token and buf_alive and current_tick == input_ticks[tab_id] then
+      if
+        input_attempts[tab_id] == attempt
+        and session_tabs.get(tab_id)
+        and buf_alive
+        and current_tick == attempt.tick
+      then
         restore_prompt(tab_id, prompt)
       end
       return false
     end
+    observation = lease.observation
+    snapshot.session_id = lease.session.id
+    release_session = lease.release
+  else
+    local lease = session_runtime.ensure_session(tab_id):await()
+    if not lease then
+      return false
+    end
+    observation = lease.observation
+    release_session = lease.release
   end
 
   local function abandon(reason)
-    if release_draft then
-      release_draft()
+    if release_session then
+      release_session()
     end
     if reason then
       log.notify(reason, vim.log.levels.WARN)
@@ -350,28 +280,27 @@ M.send_message = Promise.async(function(prompt, opts)
   local prepared_ok, prepared = pcall(prepare_message, observation, prompt, vim.deepcopy(opts or {}), snapshot)
   if not prepared_ok then
     optimistic.finish(observation, pending, 'failed')
-    if release_draft then
-      release_draft()
+    if release_session then
+      release_session()
     end
     error(prepared, 0)
   end
-  local result = submit_message(observation, prompt, tab_id, session_fact.id, prepared, pending)
-  if release_draft then
-    release_draft()
+  ---@type boolean, any
+  local ok, result = pcall(submit_message, observation, prompt, tab_id, session_fact.id, prepared, pending)
+  if release_session then
+    release_session()
+  end
+  if not ok then
+    error(result, 0)
   end
   return result
 end)
 
----@param name string Skill name from the server catalog
----@param prompt? string User instructions; omitted or empty activates the skill directly
---- Resolves after activation or prompt completion; rejects on catalog/activation failure.
-M.run_skill = Promise.async(function(name, prompt)
-  local connection = assert(state.opencode_server, 'Connection is not ready')
-  ---@cast connection OpencodeV1Connection|OpencodeV2Connection
-  local observation = state.session.active_observation()
-  if not observation then
-    error('No active session observation')
-  end
+---@param connection OpencodeV1Connection|OpencodeV2Connection
+---@param observation OpencodeObservation
+---@param name string
+---@param prompt? string
+local function run_skill(connection, observation, name, prompt)
   local observed = observation:read()
   local session = observed.session
   if not session or not observed.sync or not observed.sync.session or observed.sync.session.state ~= 'current' then
@@ -421,7 +350,63 @@ M.run_skill = Promise.async(function(name, prompt)
     end
   end
   error('Unknown skill: ' .. name)
+end
+
+---@param name string Skill name from the server catalog
+---@param prompt? string User instructions; omitted or empty activates the skill directly
+--- Resolves after activation or prompt completion; rejects on catalog/activation failure.
+M.run_skill = Promise.async(function(name, prompt)
+  local connection = assert(state.opencode_server, 'Connection is not ready')
+  ---@cast connection OpencodeV1Connection|OpencodeV2Connection
+  if not state.active_session_tab and not state.active_session then
+    error('No active session observation')
+  end
+  local lease = session_runtime.ensure_session():await()
+  if not lease then
+    return false
+  end
+  ---@type boolean, any
+  local ok, result = pcall(run_skill, connection, lease.observation, name, prompt)
+  lease.release()
+  if not ok then
+    error(result, 0)
+  end
+  return result
 end)
+
+---Send a catalog-resolved user command, materializing a draft only when executing it.
+---Returns false if no session can be acquired; rejects on request failure.
+---@type fun(input: {command: string, arguments: string, model?: string, agent?: string, variant?: string}): Promise<any>
+M.send_user_command = Promise.async(
+  ---@return any
+  function(input)
+    local connection = state.opencode_server
+    if not connection or not connection:is_ready() then
+      error('Connection is not ready')
+    end
+    local lease = session_runtime.ensure_session():await()
+    if not lease then
+      return false
+    end
+    local ok, result = pcall(function()
+      return lease.connection.operations
+        .send_command(
+          lease.connection,
+          lease.session.id,
+          lease.session.location,
+          input,
+          util.apply_path_map,
+          util.apply_reverse_path_map
+        )
+        :await()
+    end)
+    lease.release()
+    if not ok then
+      error(result, 0)
+    end
+    return result
+  end
+)
 
 ---@param prompt string
 ---@param tab_id? string|OpencodeContext

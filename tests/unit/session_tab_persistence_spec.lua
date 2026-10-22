@@ -675,6 +675,27 @@ describe('session tab persistence', function()
       assert.stub(create).was_not_called()
     end)
 
+    it('does not resume a recent session when reopening an intentional draft after startup', function()
+      connection.operations.list_sessions_project = function()
+        return Promise.new():resolve({
+          { id = 'recent', title = 'Recent work', time = { updated = 200 }, location = { directory = cwd } },
+        })
+      end
+      runtime.open({ new_session = false }):wait()
+      local first = tabs.current()
+      local draft = tabs.create(nil)
+      tabs.activate(draft)
+      state.ui.set_input_content({ 'draft prompt' })
+
+      runtime.open({ new_session = false, focus = 'input' }):wait()
+
+      assert.equals(draft, tabs.current())
+      assert.is_nil(state.active_session)
+      assert.is_nil(draft.active_session)
+      assert.same({ 'draft prompt' }, state.input_content)
+      assert.equals('recent', first.active_session.id)
+    end)
+
     it('keeps restored sessions without creating an extra default session', function()
       save_tabs()
       restart()

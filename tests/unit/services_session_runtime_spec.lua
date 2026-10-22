@@ -359,6 +359,90 @@ describe('opencode.services.session_runtime', function()
       create:revert()
     end)
 
+    it('still resumes the most recent session on first open without an existing tab', function()
+      state.session_tabs.reset()
+      state.session.set_active(nil)
+      state.context.set_current_cwd(vim.fn.getcwd())
+      state.opencode_server.operations.list_sessions_project = function()
+        return Promise.new():resolve({ { id = 'recent-session', title = 'recent', time = { updated = 5 } } })
+      end
+
+      session_runtime.open({ new_session = false, focus = 'input' }):wait()
+
+      assert.equals('recent-session', state.active_session.id)
+    end)
+
+    for _, focus in ipairs({ 'input', 'output' }) do
+      it('preserves an existing draft when reopening ' .. focus .. ' beside a real session', function()
+        local tabs = state.session_tabs
+        state.context.set_current_cwd(vim.fn.getcwd())
+        state.session.set_active({ id = 'real-session' })
+        local first = tabs.ensure_current()
+        local draft = tabs.create(nil)
+        tabs.activate(draft)
+        state.ui.set_input_content({ 'unfinished draft' })
+        local list = stub(state.opencode_server.operations, 'list_sessions_project').returns(Promise.new():resolve({
+          { id = 'real-session', title = 'real', time = { updated = 5 } },
+        }))
+        local create = stub(session_runtime, 'create_detached_session')
+
+        session_runtime.open({ new_session = false, focus = focus }):wait()
+
+        assert.equals(draft.id, tabs.active_id())
+        assert.is_nil(state.active_session)
+        assert.is_nil(draft.active_session)
+        assert.equals('real-session', first.active_session.id)
+        assert.same({ 'unfinished draft' }, state.input_content)
+        assert.stub(list).was_not_called()
+        assert.stub(create).was_not_called()
+        list:revert()
+        create:revert()
+      end)
+    end
+
+    it('keeps attached selection context in its draft when opening input', function()
+      local context = require('opencode.context')
+      local tabs = state.session_tabs
+      local original_context = context.snapshot()
+      state.context.set_current_cwd(vim.fn.getcwd())
+      state.session.set_active({ id = 'real-session' })
+      context.clear_selections()
+      local first = tabs.ensure_current()
+      tabs.set_context(context.snapshot())
+      local draft = tabs.create(nil)
+      tabs.activate(draft)
+      state.ui.set_input_content({ 'unfinished draft' })
+      state.opencode_server.operations.list_sessions_project = function()
+        return Promise.new():resolve({ { id = 'real-session', title = 'real', time = { updated = 5 } } })
+      end
+      local selection = {
+        content = 'local gate = Promise.new()',
+        lines = '580, 580',
+        file = { path = '/tmp/session_runtime.lua', name = 'session_runtime.lua', extension = 'lua' },
+      }
+      local add = stub(context, 'add_visual_selection').invokes(function()
+        context.add_selection(selection)
+        return true
+      end)
+      local create = stub(session_runtime, 'create_detached_session')
+
+      require('opencode.commands.handlers.workflow').actions
+        .add_visual_selection({}, { start = 580, stop = 580 })
+        :wait()
+
+      assert.equals(draft.id, tabs.active_id())
+      assert.is_nil(state.active_session)
+      assert.same({ selection }, context.get_context().selections)
+      assert.same({ selection }, draft.context_data.selections)
+      assert.same({}, first.context_data.selections)
+      assert.same({ 'unfinished draft' }, state.input_content)
+      assert.equals('real-session', first.active_session.id)
+      assert.stub(create).was_not_called()
+      add:revert()
+      create:revert()
+      context.restore(original_context)
+    end)
+
     it('clears old attachments before loading editor context for a new session', function()
       local context = require('opencode.context')
       local calls = {}

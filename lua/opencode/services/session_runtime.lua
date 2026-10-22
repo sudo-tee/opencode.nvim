@@ -17,6 +17,23 @@ local active_binding
 local directory_change_generation = 0
 local group_panel_visible = false
 
+---@class OpencodeSessionLease
+---@field session {id: string, location?: OpencodeLocation}
+---@field observation OpencodeObservation
+---@field connection OpencodeServer
+---@field release fun() Idempotent; call after the operation completes, including failures.
+
+---@class OpencodeDraftCreation
+---@field result Promise<OpencodeDetachedSession|nil>
+---@field ready Promise<boolean>
+---@field cancelled boolean
+---@field users integer
+---@field unsubscribe? fun()
+---@field cancel fun()
+
+---@type table<string, OpencodeDraftCreation>
+local draft_creations = {}
+
 local function release_active_observation()
   local previous = active_binding
   active_binding = nil
@@ -388,6 +405,9 @@ end
 M.open = Promise.async(function(opts)
   opts = opts or { focus = 'input', new_session = false }
   local editor_cwd = vim.fs.normalize(vim.fn.getcwd())
+  local existing_tab = session_tabs.current()
+  local tabs_initialized = not config.ui.restore_tabs_on_startup or tab_persistence.is_initialized()
+  local draft_tab_id = tabs_initialized and existing_tab and not state.active_session and existing_tab.id
 
   session_tabs.ensure_current()
   session_tabs.set_context(context.snapshot())
@@ -449,7 +469,9 @@ M.open = Promise.async(function(opts)
       agent_model.ensure_current_mode():await()
     else
       agent_model.ensure_current_mode():await()
-      if not state.active_session and not opts.draft then
+      -- Reopening an intentional draft must not adopt another tab's recent session.
+      local preserve_draft = draft_tab_id and session_tabs.active_id() == draft_tab_id
+      if not state.active_session and not opts.draft and not preserve_draft then
         local resumed, recent = pcall(function()
           return last_workspace_session():await()
         end)
@@ -546,6 +568,171 @@ M.create_detached_session = Promise.async(function(title_or_opts)
   end
   return { session = session, connection = connection, observation = observation }
 end)
+
+---@param entry OpencodeDraftCreation
+local function release_draft_observation(entry)
+  local unsubscribe = entry.unsubscribe
+  entry.unsubscribe = nil
+  if unsubscribe then
+    unsubscribe()
+  end
+end
+
+---@param detached OpencodeDetachedSession
+local function discard_detached(detached)
+  local connection, session = detached.connection, detached.session
+  connection.operations
+    .delete_session(connection, session.id, session.location, util.apply_path_map)
+    :catch(function(err)
+      log.warn('Failed to delete abandoned draft session %s: %s', session.id, vim.inspect(err))
+    end)
+end
+
+---@param tab_id string
+---@param entry OpencodeDraftCreation
+---@param connection OpencodeServer
+local materialize_draft = Promise.async(function(tab_id, entry, connection)
+  local created, detached = pcall(function()
+    return M.create_detached_session():await()
+  end)
+  if not created then
+    log.warn('draft session creation failed: %s', tostring(detached))
+    return nil
+  end
+  ---@cast detached OpencodeDetachedSession
+  local owner = session_tabs.get(tab_id)
+  if entry.cancelled or not owner or owner.active_session or state.opencode_server ~= connection then
+    discard_detached(detached)
+    return nil
+  end
+
+  local observation = detached.observation
+  local function changed()
+    local sync = observation:read().sync.session
+    if sync.state == 'current' or sync.state == 'error' then
+      entry.ready:resolve(sync.state == 'current')
+    end
+  end
+  entry.unsubscribe = observation:watch({ 'session' }, changed)
+  changed()
+  local ready = entry.ready:await()
+  owner = session_tabs.get(tab_id)
+  if not ready or entry.cancelled or not owner or owner.active_session or state.opencode_server ~= connection then
+    discard_detached(detached)
+    return nil
+  end
+  if session_tabs.active_id() == tab_id then
+    state.session.set_active(detached.session)
+  else
+    session_tabs.set_session(owner, detached.session)
+  end
+  return detached
+end)
+
+---Explicitly materialize a draft; observation getters remain side-effect free.
+---Concurrent callers share creation and hold independent leases on its metadata subscription.
+---Returns nil on creation/metadata failure, missing draft, or cancellation (including tab close).
+---Rejects on unexpected observation/runtime failure.
+---Existing sessions are returned as-is; callers retain their operation-specific readiness checks.
+---tab_id defaults to the active tab; a supplied tab never follows tab switches.
+---@type fun(tab_id?: string): Promise<OpencodeSessionLease|nil>
+M.ensure_session = Promise.async(
+  ---@param tab_id? string
+  ---@return OpencodeSessionLease|nil
+  function(tab_id)
+    tab_id = tab_id or state.active_session_tab
+    local connection = state.opencode_server
+    if not connection or not connection:is_ready() then
+      return nil
+    end
+    local runtime = tab_id and session_tabs.get(tab_id)
+    if tab_id and not runtime then
+      return nil
+    end
+    local session = runtime and runtime.active_session or (not tab_id and state.active_session)
+    if session then
+      local observation = connection:observe(session)
+      local unsubscribe = observation:watch({ 'session' }, function() end)
+      local released = false
+      return {
+        session = session,
+        connection = connection,
+        observation = observation,
+        release = function()
+          if not released then
+            released = true
+            unsubscribe()
+          end
+        end,
+      }
+    end
+    if not runtime then
+      return nil
+    end
+    ---@cast tab_id string
+    local entry = draft_creations[tab_id]
+    if not entry then
+      ---@type OpencodeDraftCreation
+      local creation = {
+        result = Promise.new(),
+        ready = Promise.new(),
+        cancelled = false,
+        users = 0,
+        cancel = function() end,
+      }
+      entry = creation
+      creation.cancel = function()
+        creation.cancelled = true
+        creation.ready:resolve(false)
+        release_draft_observation(creation)
+      end
+      draft_creations[tab_id] = creation
+      runtime._draft_release = creation.cancel
+      materialize_draft(tab_id, creation, connection)
+        :and_then(function(detached)
+          draft_creations[tab_id] = nil
+          local owner = session_tabs.get(tab_id)
+          if owner and owner._draft_release == creation.cancel then
+            owner._draft_release = nil
+          end
+          if not detached then
+            creation.cancel()
+          end
+          creation.result:resolve(detached)
+        end)
+        :catch(function(err)
+          draft_creations[tab_id] = nil
+          local owner = session_tabs.get(tab_id)
+          if owner and owner._draft_release == creation.cancel then
+            owner._draft_release = nil
+          end
+          creation.cancel()
+          creation.result:reject(err)
+        end)
+    end
+    entry.users = entry.users + 1
+    local detached = entry.result:await()
+    if not detached then
+      return nil
+    end
+    local released = false
+    return {
+      session = detached.session,
+      observation = detached.observation,
+      connection = connection,
+      release = function()
+        if released then
+          return
+        end
+        released = true
+        entry.users = entry.users - 1
+        if entry.users == 0 then
+          release_draft_observation(entry)
+        end
+      end,
+    }
+  end
+)
 
 ---Rename a session without mutating the supplied fact or prompting for input.
 ---@param session OpencodeSession

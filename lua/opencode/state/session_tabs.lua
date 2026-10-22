@@ -3,6 +3,7 @@ local log = require('opencode.log')
 local renderer_context = require('opencode.ui.renderer.ctx')
 
 ---@class OpencodeSessionTabRuntime
+---@field _draft_release? fun() Cancel pending server-session materialization when the tab closes.
 ---@field id string Logical panel-tab identifier
 ---@field group string Owning project/server group
 ---@field active_session OpencodeSession|nil

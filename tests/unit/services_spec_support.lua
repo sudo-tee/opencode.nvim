@@ -22,6 +22,9 @@ function M.mock_connection()
       time = { updated = 2 },
     })
   end
+  connection.operations.delete_session = function()
+    return Promise.new():resolve(true)
+  end
   connection.operations.list_sessions_project = function()
     return Promise.new():resolve({ { id = 'test-session', title = 'test-session', time = { updated = 2 } } })
   end

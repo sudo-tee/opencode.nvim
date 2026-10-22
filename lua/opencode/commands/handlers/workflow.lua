@@ -17,18 +17,6 @@ local M = {
   actions = {},
 }
 
----@param message string
----@return OpencodeSession|nil
-local function get_active_session_or_warn(message)
-  local active_session = state.active_session
-  if not active_session then
-    vim.notify(message, vim.log.levels.WARN)
-    return nil
-  end
-
-  return active_session
-end
-
 ---@param command string
 ---@param args string[]|nil
 local function schedule_slash_history(command, args)
@@ -45,21 +33,6 @@ local function join_args(args)
     return ''
   end
   return table.concat(args, ' ')
-end
-
-local function send_user_command(session, input)
-  local connection = state.opencode_server
-  if not connection or not connection:is_ready() then
-    error('Connection is not ready')
-  end
-  return connection.operations.send_command(
-    connection,
-    session.id,
-    session.location,
-    input,
-    util.apply_path_map,
-    util.apply_reverse_path_map
-  )
 end
 
 ---@param prompt string
@@ -419,19 +392,18 @@ M.actions.run_user_command = Promise.async(function(name, args)
     end
   end
 
-  local active_session = get_active_session_or_warn('No active session')
-  if not active_session then
-    return
+  local result = require('opencode.services.messaging')
+    .send_user_command({
+      command = name,
+      arguments = join_args(args),
+      model = model,
+      agent = agent,
+      variant = state.current_variant,
+    })
+    :await()
+  if result ~= false then
+    schedule_slash_history(name, args)
   end
-
-  send_user_command(active_session, {
-    command = name,
-    arguments = join_args(args),
-    model = model,
-    agent = agent,
-    variant = state.current_variant,
-  }):await()
-  schedule_slash_history(name, args)
 end)
 
 function M.actions.first_message()
@@ -524,15 +496,17 @@ M.actions.review = Promise.async(function(args)
 
   state.session.set_active(new_session)
   window_handler.actions.open_input():await()
-  return send_user_command(state.active_session, {
-    command = 'review',
-    arguments = join_args(args),
-    model = state.current_model,
-    agent = state.current_mode,
-    variant = state.current_variant,
-  }):and_then(function()
-    schedule_slash_history('review', args)
-  end)
+  return require('opencode.services.messaging')
+    .send_user_command({
+      command = 'review',
+      arguments = join_args(args),
+      model = state.current_model,
+      agent = state.current_mode,
+      variant = state.current_variant,
+    })
+    :and_then(function()
+      schedule_slash_history('review', args)
+    end)
 end)
 
 M.actions.add_visual_selection = Promise.async(

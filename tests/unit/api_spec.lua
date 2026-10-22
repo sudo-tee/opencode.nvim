@@ -525,6 +525,13 @@ describe('opencode.api', function()
         local original_server = state.opencode_server
         local sent = {}
         state.jobs.set_server({
+          observe = function()
+            return {
+              watch = function()
+                return function() end
+              end,
+            }
+          end,
           is_ready = function()
             return true
           end,
@@ -573,6 +580,13 @@ describe('opencode.api', function()
             local request = Promise.new()
             local original_server = state.opencode_server
             state.jobs.set_server({
+              observe = function()
+                return {
+                  watch = function()
+                    return function() end
+                  end,
+                }
+              end,
               is_ready = function()
                 return true
               end,
@@ -630,6 +644,13 @@ describe('opencode.api', function()
             local send_command_calls = {}
             local original_server = state.opencode_server
             state.jobs.set_server({
+              observe = function()
+                return {
+                  watch = function()
+                    return function() end
+                  end,
+                }
+              end,
               is_ready = function()
                 return true
               end,

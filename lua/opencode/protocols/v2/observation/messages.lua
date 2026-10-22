@@ -190,14 +190,23 @@ local handlers = {}
 ---@param event OpencodeV2Event
 ---@param data table
 handlers['session.inbox.enqueued'] = function(observation, event, data)
-  if type(data.inboxID) ~= 'string' or type(data.item) ~= 'table' or data.item.type ~= 'user' then
+  if type(data.inboxID) ~= 'string' or type(data.item) ~= 'table' then
+    return false
+  end
+  local kind = data.item.type
+  if kind ~= 'user' and kind ~= 'synthetic' then
     return false
   end
   if type(data.item.payload) ~= 'table' then
-    return invalid(observation, event.type, 'is missing user payload')
+    return invalid(observation, event.type, 'is missing ' .. kind .. ' payload')
+  end
+  -- A busy session steers background completions through the inbox instead of
+  -- emitting session.synthetic; the inbox id becomes the persisted message id.
+  if kind == 'synthetic' and not normalize.is_background_notification(data.item.payload.metadata) then
+    return false
   end
   local info = vim.deepcopy(data.item.payload)
-  info.id, info.type, info.time = data.inboxID, 'user', { created = event.created }
+  info.id, info.type, info.time = data.inboxID, kind, { created = event.created }
   local ok, entry = pcall(normalize.mapped_message, observation._session_id, info)
   if not ok then
     return boundary.diagnostic(observation, 'messages', tostring(entry))
@@ -404,8 +413,7 @@ handlers['session.compaction.ended'] = invalidate_messages
 ---@param data table
 ---@return string|boolean
 handlers['session.synthetic'] = function(observation, event, data)
-  local metadata = data.metadata
-  if type(metadata) ~= 'table' or (metadata.source ~= 'shell' and metadata.source ~= 'subagent') then
+  if not normalize.is_background_notification(data.metadata) then
     return false
   end
   return invalidate_messages()

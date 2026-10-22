@@ -1021,4 +1021,5 @@ return {
   enrich_permission_previews = enrich_permission_previews,
   mapped_question = mapped_question,
   synthetic_id = synthetic_id,
+  is_background_notification = is_background_notification,
 }

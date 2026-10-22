@@ -108,6 +108,70 @@ describe('V2 protocol Observation interpretation', function()
     observed._start_resource = original
   end)
 
+  it('records background completions steered through the inbox of a busy session', function()
+    local observed = observation('ses-bg')
+    observation_module.ingest_snapshot(observed, {
+      {
+        id = 'msg-assistant',
+        type = 'assistant',
+        agent = 'build',
+        model = { providerID = 'provider', id = 'model' },
+        time = { created = 200 },
+        content = {
+          {
+            type = 'tool',
+            id = 'call-shell',
+            name = 'shell',
+            executed = true,
+            time = { created = 201 },
+            state = {
+              status = 'completed',
+              input = { command = 'make build', background = true },
+              metadata = { status = 'running', truncated = false, shellID = 'sh_1' },
+              content = {},
+            },
+          },
+        },
+      },
+    })
+    local background_tasks = require('opencode.services.background_tasks')
+    assert.equals(1, background_tasks.count_observed(observed).shells)
+
+    assert.is_true(observation_module.ingest_event(
+      observed,
+      event('ses-bg', 'session.inbox.enqueued', {
+        inboxID = 'msg-completion',
+        item = {
+          type = 'synthetic',
+          payload = {
+            text = '<shell id="sh_1" state="completed" command="make build">\nbuilt\n</shell>',
+            description = 'make build',
+            metadata = { source = 'shell', shellID = 'sh_1', jobID = 'sh_1', state = 'completed', exit = 0 },
+          },
+          delivery = 'steer',
+        },
+      })
+    ))
+
+    local completion = observed:read().entries_by_id['msg-completion']
+    assert.equals('sh_1', completion.background_result.id)
+    assert.equals('built', completion.background_result.text)
+    assert.equals(0, background_tasks.count_observed(observed).total)
+  end)
+
+  it('ignores inbox synthetic items that are not background completions', function()
+    local observed = observation('ses-bg')
+
+    assert.is_false(observation_module.ingest_event(
+      observed,
+      event('ses-bg', 'session.inbox.enqueued', {
+        inboxID = 'msg-context',
+        item = { type = 'synthetic', payload = { text = 'embedded context', metadata = { source = 'acp' } } },
+      })
+    ))
+    assert.is_nil(observed:read().entries_by_id['msg-context'])
+  end)
+
   it('ignores synthetic messages that are not background completions', function()
     local observed = observation('ses-bg')
     local original = observed._start_resource

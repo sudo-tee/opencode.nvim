@@ -14,6 +14,36 @@ To see the settings in effect:
 
 Server credentials show up in this output, so check it before sharing.
 
+## Terminal program status (OSC 7501)
+
+Uses the [Program Status Protocol (OSC 7501)](https://www.superlogical.com/rex/docs/build/program-status).
+
+```lua
+require('opencode').setup({
+  program_status = { enabled = true },
+})
+```
+
+Reports one named record for each session owned by an open plugin tab, including
+inactive tabs and tabs whose panel is hidden. Sessions without an open tab,
+subagents, and background tasks do not get records. Only the owning session's
+execution can mark it finished; pending permissions/questions report `blocked`.
+Unseen completion reports `done`, failure reports `error`, and viewing the session
+acknowledges the result. Closing a tab or exiting Neovim clears its records.
+Server disconnection clears live status but preserves unseen `done`/`error`
+records for still-open tabs until viewed, replaced, or closed.
+V1 servers expose only busy/idle execution status, so completion returns to `idle`
+rather than guessing success, failure, or cancellation.
+
+Requires a terminal supporting OSC 7501. GUI/headless clients do not receive raw
+terminal output. With tmux, set `program_status.tmux = true`, enable tmux's
+`allow-passthrough` option, and enable `focus-events` (for example
+`set -g focus-events on`). Without focus events, Neovim cannot tell when its
+terminal loses focus, so completions that happen while the panel was last focused
+are reported as `idle` instead of `done`. Reports include sanitized session
+titles, but no prompt, command, or response text. Feature detection is not
+required by the protocol.
+
 ## Full default configuration
 
 Optional callbacks and values are shown as `nil`.
@@ -30,6 +60,7 @@ require('opencode').setup({
   keymap_prefix = '<leader>o',
   opencode_executable = 'opencode',
   lock_session_to_directory = false,
+  program_status = { enabled = false, tmux = false },
   server = {
     url = nil,
     port = nil,

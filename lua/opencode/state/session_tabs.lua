@@ -660,6 +660,7 @@ end
 function M.set_session(runtime, session)
   runtime.active_session = normalize_session(session)
   verify_unique_session_tabs('set_session')
+  notify_change()
 end
 
 ---@param runtime OpencodeSessionTabRuntime

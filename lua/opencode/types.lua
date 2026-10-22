@@ -453,6 +453,7 @@
 ---@field keymap_prefix string
 ---@field opencode_executable 'opencode' | string -- Command run for calling opencode
 ---@field lock_session_to_directory boolean|fun(change: OpencodeDirectoryChange): boolean -- true locks everywhere; a function decides per directory change; errors fall back to following cwd
+---@field program_status {enabled: boolean, tmux: boolean} -- OSC 7501 reporting; tmux enables DCS passthrough
 ---@field server OpencodeServerConfig -- Custom/external server configuration
 ---@field keymap OpencodeKeymap
 ---@field ui OpencodeUIConfig

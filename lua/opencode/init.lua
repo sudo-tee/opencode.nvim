@@ -48,6 +48,7 @@ function M.setup(opts)
   require('opencode.ui.contextual_actions').setup()
   require('opencode.ui.autocmds').setup_subscriptions()
   require('opencode.ui.session_tab_notifications').setup()
+  require('opencode.ui.program_status').setup()
   require('opencode.context').setup()
   require('opencode.ui.context_bar').setup()
 end

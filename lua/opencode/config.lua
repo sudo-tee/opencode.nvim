@@ -12,6 +12,7 @@ M.defaults = {
   keymap_prefix = '<leader>o',
   opencode_executable = 'opencode',
   lock_session_to_directory = false,
+  program_status = { enabled = true, tmux = false },
   server = {
     url = nil,
     port = nil,

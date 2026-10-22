@@ -135,6 +135,7 @@
         "opencode.ui.session_tab_picker",  // logical-tab picker; actions via session_runtime
         "opencode.ui.session_tab_strip",   // logical-tab strip rendering
         "opencode.ui.session_tab_notifications", // tab lifecycle notifications
+        "opencode.ui.program_status",      // terminal program status transport
         "opencode.ui.symbol_snapshot",
         "opencode.ui.inline_input",
         "opencode.ui.symbol_tokens",

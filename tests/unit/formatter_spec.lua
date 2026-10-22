@@ -48,11 +48,34 @@ describe('formatter', function()
         },
       },
       time = { started = 1, completed = 2 },
+      result = { { kind = 'text', text = 'Duplicate raw answer' } },
     })
 
     local output = formatter.format_part(part, message, true)
     assert.are.equal('**A1:** First line', output.lines[4])
     assert.are.equal('Second line', output.lines[5])
+    assert.is_nil(table.concat(output.lines, '\n'):find('Duplicate raw answer', 1, true))
+  end)
+
+  it('does not render question results before completion', function()
+    local part = tool('question', {
+      state = 'running',
+      answer_text = 'Not finished yet',
+    })
+    local output = formatter.format_part(part, assistant(), true)
+    assert.is_nil(table.concat(output.lines, '\n'):find('Not finished yet', 1, true))
+  end)
+
+  it('renders normalized plain question replies', function()
+    local part = tool('question', { answer_text = 'First reply\nSecond reply' })
+    local output = formatter.format_part(part, assistant(), true)
+    assert.is_truthy(table.concat(output.lines, '\n'):find('First reply\nSecond reply', 1, true))
+  end)
+
+  it('does not interpret raw question tool results', function()
+    local part = tool('question', { result = { { kind = 'text', text = 'Raw wire reply' } } })
+    local output = formatter.format_part(part, assistant(), true)
+    assert.is_nil(table.concat(output.lines, '\n'):find('Raw wire reply', 1, true))
   end)
 
   it('ignores unsupported message roles and part kinds without adding spacing', function()

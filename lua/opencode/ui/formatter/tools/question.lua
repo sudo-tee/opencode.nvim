@@ -1,7 +1,7 @@
 local M = {}
 
 ---@param output Output
----@param part table
+---@param part OpencodeQuestionToolPart
 function M.format(output, part)
   if part.name ~= 'question' then
     return
@@ -19,6 +19,10 @@ function M.format(output, part)
   end
 
   local answers = part.answers or {}
+  if #answers == 0 and part.answer_text then
+    output:add_lines(require('opencode.util').sanitize_lines(vim.split(part.answer_text, '\n')))
+    return
+  end
 
   for i, answer_item in ipairs(answers) do
     local question_lines = vim.split(answer_item.question or '', '\n')
@@ -31,7 +35,7 @@ function M.format(output, part)
       output:add_line(string.format('**Q%d:** %s', i, question_lines[1]))
     end
 
-    local selected = answer_item.values or {}
+    local selected = answer_item.values
     local answer = #selected > 0 and table.concat(selected, ', ') or 'No answer'
     local answer_lines = vim.split(answer, '\n', { plain = true })
     output:add_line(string.format('**A%d:** %s', i, answer_lines[1]))

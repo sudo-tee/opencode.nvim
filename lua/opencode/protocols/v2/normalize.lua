@@ -644,6 +644,15 @@ local function mapped_tool(part)
     result.error = mapped_error(part.state.error)
   end
   apply_tool_metadata(result, part.name, part.state.metadata)
+  if part.name == 'question' and status == 'completed' then
+    local text = {}
+    for _, item in ipairs(result.result) do
+      if item.kind == 'text' then
+        text[#text + 1] = item.text
+      end
+    end
+    result.answer_text = table.concat(text, '\n')
+  end
   if part.name == 'grep' and result.search == nil and result.result then
     for _, item in ipairs(result.result) do
       if item.kind == 'text' then

@@ -25,6 +25,17 @@ local resource_names = {
 ---@field content table[] Message content parts
 ---@field queued? boolean User input awaiting assistant consumption, projected by the protocol adapter
 
+---@class OpencodeQuestionAnswer
+---@field question? string
+---@field header? string
+---@field values string[]
+
+---@class OpencodeQuestionToolPart
+---@field name string
+---@field state string
+---@field answers? OpencodeQuestionAnswer[] Structured question replies
+---@field answer_text? string Plain reply text when structured answers are unavailable
+
 ---@class OpencodePermissionPreview
 ---@field title? string Request title, independent of tool description
 ---@field command? string Exact command requiring approval

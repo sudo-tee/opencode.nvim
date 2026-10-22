@@ -59,6 +59,34 @@ local function event(session_id, kind, data, created)
 end
 
 describe('V2 protocol Observation interpretation', function()
+  it('normalizes completed question text into the shared reply contract', function()
+    local native = assistant('msg-question')
+    native.content = {
+      {
+        type = 'tool',
+        id = 'call-question',
+        name = 'question',
+        time = { created = 1 },
+        state = {
+          status = 'completed',
+          input = {},
+          content = {
+            { type = 'text', text = 'First reply' },
+            { type = 'file', uri = 'file:///tmp/reply.txt', mime = 'text/plain' },
+            { type = 'text', text = 'Second reply\nMore detail' },
+          },
+        },
+      },
+    }
+    local normalize = require('opencode.protocols.v2.normalize')
+    local entry = normalize.mapped_message('ses-question', native)
+    assert.equals('First reply\nSecond reply\nMore detail', entry.content[1].answer_text)
+
+    native.content[1].state = { status = 'running', input = {} }
+    entry = normalize.mapped_message('ses-question', native)
+    assert.is_nil(entry.content[1].answer_text)
+  end)
+
   it('preserves native skill attachments while preparing a message', function()
     local observed = observation('ses-skill')
     local skills = { { id = 'skill-id', mention = { start_byte = 0, end_byte = 7 } } }

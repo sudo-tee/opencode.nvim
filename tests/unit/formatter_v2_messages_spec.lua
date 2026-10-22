@@ -15,6 +15,32 @@ describe('V2 native message rendering', function()
     assert.equals('Catalog updated\nSecond line\n', render({ type = 'system', text = 'Catalog updated\nSecond line' }))
   end)
 
+  it('renders completed question results without legacy answer metadata', function()
+    local text = render({
+      type = 'assistant',
+      agent = 'build',
+      content = {
+        {
+          type = 'tool',
+          id = 'call_question',
+          name = 'question',
+          time = { created = 1, completed = 2 },
+          state = {
+            status = 'completed',
+            input = {},
+            content = {
+              { type = 'text', text = 'Which spelling? English acronym KFC' },
+              { type = 'text', text = 'Apply everywhere?\nYes, including tests' },
+            },
+          },
+        },
+      },
+    })
+
+    assert.is_truthy(text:find('Which spelling? English acronym KFC', 1, true))
+    assert.is_truthy(text:find('Apply everywhere?\nYes, including tests', 1, true))
+  end)
+
   it('renders a loaded skill name and instructions', function()
     local text =
       render({ type = 'skill', skill = 'review', name = 'Code review', text = 'Review changes\nCheck tests' })

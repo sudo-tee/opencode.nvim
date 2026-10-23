@@ -482,9 +482,6 @@ handlers['session.compaction.ended'] = invalidate_messages
 function M.ingest_event(observation, event)
   local handler = handlers[event.type]
   if not handler then
-    if event.type:sub(1, #'session.') == 'session.' and event.data.sessionID == observation._session_id then
-      require('opencode.protocols.v2.event_contract').note_unknown(event.type)
-    end
     return false
   end
   if event.data.sessionID ~= observation._session_id then

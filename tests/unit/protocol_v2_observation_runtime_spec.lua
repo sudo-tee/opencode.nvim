@@ -791,11 +791,24 @@ describe('V2 protocol Observation runtime', function()
     flush()
     assert.equals(0, #warns)
 
+    -- Exempt and other-resource events still pass through the message resource.
+    emit(streams[1], event('ses-main', 'session.status', { status = { type = 'idle' } }, 10.1))
+    emit(streams[1], event('ses-main', 'session.execution.started', {}, 10.2))
+    flush()
+    assert.equals(0, #warns)
+
     -- not in routes, handlers, or EXEMPT: must warn
-    emit(streams[1], event('ses-main', 'session.entirely_unknown', {}, 11))
+    for _ = 1, 3 do
+      emit(streams[1], event('ses-main', 'session.entirely_unknown', {}, 11))
+    end
     flush()
     assert.equals(1, #warns)
     assert.truthy(warns[1]:find('session%.entirely_unknown'))
+
+    emit(streams[1], event('ses-main', 'session.compaction.failed', {}, 12))
+    flush()
+    assert.equals(2, #warns)
+    assert.truthy(warns[2]:find('known gap', 1, true))
 
     log.warn = original_warn
     stop()

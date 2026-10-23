@@ -35,6 +35,8 @@ for _, name in ipairs({
   'opencode.protocols.v2.observation',
   'opencode.protocols.v2.observation.messages',
   'opencode.protocols.v2.observation.boundary',
+  'opencode.protocols.v2.observation.events',
+  'opencode.protocols.v2.event_contract',
 }) do
   package.loaded[name] = nil
 end
@@ -42,6 +44,7 @@ end
 local log = require('opencode.log')
 local v1_observation = require('opencode.protocols.v1.observation')
 local v2_observation = require('opencode.protocols.v2.observation')
+local v2_events = require('opencode.protocols.v2.observation.events')
 
 local function read_log()
   local path = log.get_path()
@@ -131,9 +134,7 @@ describe('observation logging', function()
     local observed = v2_observation_for('ses-log-unknown')
 
     for _ = 1, 3 do
-      assert.is_false(
-        v2_observation.ingest_event(observed, v2_event('ses-log-unknown', 'session.foo.bar', { detail = 'x' }))
-      )
+      v2_events.route(observed._connection, v2_event('ses-log-unknown', 'session.foo.bar', { detail = 'x' }))
     end
 
     assert.equals(1, count_occurrences(read_log(), 'unhandled v2 event session%.foo%.bar is not in the contract'))
@@ -142,9 +143,7 @@ describe('observation logging', function()
   it('does not log unknown events belonging to other sessions', function()
     local observed = v2_observation_for('ses-log-foreign')
 
-    assert.is_false(
-      v2_observation.ingest_event(observed, v2_event('ses-foreign', 'session.foreign.only', { detail = 'x' }))
-    )
+    v2_events.route(observed._connection, v2_event('ses-foreign', 'session.foreign.only', { detail = 'x' }))
 
     assert.equals(0, count_occurrences(read_log(), 'unhandled v2 event session%.foreign%.only is not in the contract'))
   end)
@@ -168,9 +167,7 @@ describe('observation logging', function()
   it('does not log unknown events outside the session. prefix', function()
     local observed = v2_observation_for('ses-log-prefix')
 
-    assert.is_false(
-      v2_observation.ingest_event(observed, v2_event('ses-log-prefix', 'other.unknown.event', { detail = 'x' }))
-    )
+    v2_events.route(observed._connection, v2_event('ses-log-prefix', 'other.unknown.event', { detail = 'x' }))
 
     assert.equals(0, count_occurrences(read_log(), 'unhandled v2 event other%.unknown%.event is not in the contract'))
   end)

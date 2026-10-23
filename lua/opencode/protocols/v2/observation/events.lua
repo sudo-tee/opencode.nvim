@@ -1,7 +1,6 @@
 local normalize = require('opencode.protocols.v2.normalize')
 local lifecycle = require('opencode.protocols.observation')
 local boundary = require('opencode.protocols.v2.observation.boundary')
-local log = require('opencode.log')
 local messages = require('opencode.protocols.v2.observation.messages')
 local actions = require('opencode.protocols.v2.observation.actions')
 local event_capture = require('opencode.event_capture')

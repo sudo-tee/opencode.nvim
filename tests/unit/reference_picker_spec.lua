@@ -226,11 +226,15 @@ describe('opencode.ui.reference_picker', function()
       vim.notify = original_notify
     end)
 
-    it('passes correct options to base_picker.pick', function()
+    it('navigates directly when there is only one reference', function()
       local pick_calls = {}
-      mock_base_picker.pick = function(opts)
-        table.insert(pick_calls, opts)
+      mock_base_picker.pick = function()
+        table.insert(pick_calls, true)
         return {}
+      end
+      local cmd_calls = {}
+      vim.cmd = function(cmd)
+        table.insert(cmd_calls, cmd)
       end
 
       rebuild_facts({
@@ -245,11 +249,35 @@ describe('opencode.ui.reference_picker', function()
       })
       reference_picker.pick()
 
+      assert.equal(0, #pick_calls)
+      assert.equal('tabedit /test/project/src/main.lua', cmd_calls[1])
+    end)
+
+    it('passes correct options to base_picker.pick', function()
+      local pick_calls = {}
+      mock_base_picker.pick = function(opts)
+        table.insert(pick_calls, opts)
+        return {}
+      end
+
+      rebuild_facts({
+        {
+          id = 'msg1',
+          kind = 'assistant',
+          session_id = 'ses_1',
+          content = {
+            { kind = 'text', id = 'part1', text = 'Check `src/main.lua:10`.' },
+            { kind = 'text', id = 'part2', text = 'Also `src/other.lua:3`.' },
+          },
+        },
+      })
+      reference_picker.pick()
+
       assert.equal(1, #pick_calls)
-      assert.equal(1, #pick_calls[1].items)
+      assert.equal(2, #pick_calls[1].items)
       assert.is_function(pick_calls[1].format_fn)
       assert.is_function(pick_calls[1].callback)
-      assert.equal('Code References (1)', pick_calls[1].title)
+      assert.equal('Code References (2)', pick_calls[1].title)
       assert.equal(100, pick_calls[1].width)
       assert.equal('file', pick_calls[1].preview)
     end)
@@ -261,7 +289,7 @@ describe('opencode.ui.reference_picker', function()
           kind = 'assistant',
           session_id = 'ses_1',
           content = {
-            { kind = 'text', id = 'part1', text = 'Check `src/main.lua:10` for details.' },
+            { kind = 'text', id = 'part1', text = 'Check `src/main.lua:10` for details. And `src/util.lua:2` too.' },
           },
         },
       })
@@ -275,7 +303,7 @@ describe('opencode.ui.reference_picker', function()
       local items = captured and captured.items
 
       assert.is_not_nil(items)
-      assert.equal(1, #items)
+      assert.equal(2, #items)
       assert.equal('src/main.lua', items[1].path)
       assert.equal(10, items[1].line)
     end)
@@ -289,6 +317,7 @@ describe('opencode.ui.reference_picker', function()
           content = {
             { kind = 'text', id = 'part1', text = 'First `src/main.lua:10`.' },
             { kind = 'text', id = 'part2', text = 'Second `src/main.lua:10`.' },
+            { kind = 'text', id = 'part3', text = 'Third `src/other.lua:1`.' },
           },
         },
       })
@@ -300,9 +329,9 @@ describe('opencode.ui.reference_picker', function()
 
       reference_picker.pick()
 
-      assert.equal(1, #captured.items)
+      assert.equal(2, #captured.items)
       assert.equal('part1', captured.items[1].part_id)
-      assert.equal('Code References (1)', captured.title)
+      assert.equal('Code References (2)', captured.title)
     end)
   end)
 end)

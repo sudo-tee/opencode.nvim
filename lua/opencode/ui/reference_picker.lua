@@ -43,6 +43,11 @@ function M.pick()
     return
   end
 
+  if #refs == 1 then
+    M.navigate_to(refs[1])
+    return
+  end
+
   return base_picker.pick({
     items = refs,
     format_fn = format_reference_item,

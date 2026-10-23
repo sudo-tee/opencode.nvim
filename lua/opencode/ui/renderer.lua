@@ -2,6 +2,7 @@ local state = require('opencode.state')
 local config = require('opencode.config')
 local output_window = require('opencode.ui.output_window')
 local reference_facts = require('opencode.ui.reference_facts')
+local formatter_utils = require('opencode.ui.formatter.utils')
 local contexts = require('opencode.ui.renderer.ctx')
 local RenderSession = require('opencode.ui.renderer.session')
 local flush = require('opencode.ui.renderer.flush')
@@ -67,9 +68,12 @@ end
 ---@param message table
 ---@return boolean
 local function is_non_conversation_record(message)
+  -- A synthetic message is transcript-visible through its `description` (the
+  -- schema's summary field) or a background result; otherwise its text is
+  -- model-facing payload.
   return message.kind == 'agent-switched'
     or message.kind == 'model-switched'
-    or (message.kind == 'synthetic' and not message.background_result)
+    or (message.kind == 'synthetic' and not formatter_utils.has_description(message) and not message.background_result)
 end
 
 ---@param message table|nil

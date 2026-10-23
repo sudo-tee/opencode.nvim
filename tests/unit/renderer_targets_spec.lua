@@ -44,6 +44,28 @@ describe('renderer target API', function()
     assert.equals('part1', contexts.current().pending.dirty_part_order[1])
     assert.is_true(contexts.current().pending.dirty_part_by_message.msg1.part1)
   end)
+
+  it('resolves selection links on their rendered line to the selected file location', function()
+    local part = {
+      id = 'selection',
+      kind = 'editor_context',
+      source = { kind = 'selection', file_name = 'src/main.lua', range = '4, 9' },
+      text = 'selected code',
+    }
+    local output = require('opencode.ui.formatter').format_part(part, { kind = 'user' }, true, {
+      interactive = true,
+      current_files = { '/repo/src/main.lua' },
+    })
+    contexts.current().render_state:set_part(part, 'msg1', part.id, 10, 11)
+    contexts.current().render_state:add_targets(part.id, output.targets, 10)
+
+    local target = renderer.get_target_at_position(11, 4)
+    assert.is_not_nil(target)
+    assert.equals('/repo/src/main.lua', target.path)
+    assert.equals(4, target.line)
+    assert.equals(part.id, target.part_id)
+    assert.is_nil(renderer.get_target_at_position(10, 4))
+  end)
 end)
 
 describe('renderer child observations', function()

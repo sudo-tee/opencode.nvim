@@ -95,6 +95,37 @@ jobs:
         if: steps.check.outputs.status != '0'
         run: exit 1
 
+  # See tests/unit/protocol_v2_event_coverage_spec.lua
+  event-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: setup neovim
+        uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: v0.11.4
+
+      - name: Download opencode
+        run: |
+          VERSION=$(curl -fsSL "https://registry.npmjs.org/@opencode%2fcli-linux-x64" | jq -r '.["dist-tags"]["latest"]')
+          if [ -z "$VERSION" ] || [ "$VERSION" = "null" ]; then
+            echo "::error::could not resolve latest @opencode/cli-linux-x64 version"
+            exit 1
+          fi
+          echo "opencode $VERSION (@opencode/cli-linux-x64)"
+          curl -fsSL "https://registry.npmjs.org/@opencode/cli-linux-x64/-/cli-linux-x64-$VERSION.tgz" -o /tmp/opencode.tgz
+          mkdir -p /tmp/opencode-unpack
+          tar -xzf /tmp/opencode.tgz -C /tmp/opencode-unpack
+          sudo install -m 0755 /tmp/opencode-unpack/package/bin/opencode /usr/local/bin/opencode
+
+      - name: Run event contract coverage
+        env:
+          OPENCODE_EVENTS_SOURCE: /usr/local/bin/opencode
+        run: ./run_tests.sh -t tests/unit/protocol_v2_event_coverage_spec.lua
+
   test:
     timeout-minutes: 4
     strategy:

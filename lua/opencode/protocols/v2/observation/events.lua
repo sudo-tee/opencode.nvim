@@ -398,6 +398,25 @@ local function apply_event(observation, event, route)
   return true
 end
 
+local handled_types_cache
+
+---Every session event type the observation layer dispatches: the route table
+---plus the message resource's own handlers.
+---@return table<string, boolean>
+function M.handled_types()
+  if handled_types_cache then
+    return handled_types_cache
+  end
+  handled_types_cache = {}
+  for event_type in pairs(routes) do
+    handled_types_cache[event_type] = true
+  end
+  for event_type in pairs(messages.handler_types()) do
+    handled_types_cache[event_type] = true
+  end
+  return handled_types_cache
+end
+
 ---@param connection OpencodeV2Connection
 ---@param event OpencodeV2Event
 function M.route(connection, event)
@@ -430,6 +449,11 @@ function M.route(connection, event)
         if apply_event(observation, event, route) or observation:read().sync[resource] ~= previous_sync then
           changed[resource] = true
         end
+      end
+    elseif local_event and event.type:match('^session%.') then
+      local contract = require('opencode.protocols.v2.event_contract')
+      if not M.handled_types()[event.type] and not contract.EXEMPT[event.type] then
+        contract.note_unknown(event.type)
       end
     end
 

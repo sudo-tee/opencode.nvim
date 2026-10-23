@@ -3,6 +3,14 @@ local config = require('opencode.config')
 
 local M = {}
 
+---The schema marks a transcript summary on `description`; an empty string means
+---"no summary" just as a missing field does.
+---@param message table
+---@return boolean
+function M.has_description(message)
+  return message.description ~= nil and message.description ~= ''
+end
+
 ---Compute duration text for a tool part, returning nil when not applicable.
 ---@param part table
 ---@return string|nil

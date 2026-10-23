@@ -638,7 +638,8 @@ function M._format_selection_context(output, part, context)
   local label = part.source.range and (file_name .. ':' .. part.source.range) or file_name
   local text = string.format('[`%s`](%s)', label, file_name)
   local line = output:add_line(text)
-  M.add_vertical_border(output, line, line, 'OpencodeMessageRoleUser', -3)
+  -- The preceding part owns the separator line, but the selection must border it.
+  M.add_vertical_border(output, line - 1, line, 'OpencodeMessageRoleUser', -3)
   local path = resolve_available_path(file_name, available_file_set(context))
   if path then
     ---@type integer?

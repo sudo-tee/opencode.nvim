@@ -112,6 +112,21 @@ describe('formatter', function()
     assert.equals(2, #output.lines)
   end)
 
+  it('keeps the user border continuous across the separator before a selection link', function()
+    local output = formatter.format_part({
+      kind = 'editor_context',
+      source = { kind = 'selection', file_name = 'observation.lua', range = '28, 31' },
+      text = 'selected code',
+    }, { kind = 'user' }, true)
+
+    -- Each part is formatted separately; row -1 is the previous part's blank separator.
+    for _, row in ipairs({ -1, 0 }) do
+      assert.is_not_nil(output.extmarks[row])
+      assert.same({ { icons.get('border'), 'OpencodeMessageRoleUser' } }, output.extmarks[row][1].virt_text)
+    end
+    assert.is_nil(output.extmarks[1])
+  end)
+
   it('renders system messages through their transcript description, not the payload', function()
     local text =
       'The available MCP server instructions have changed. This list supersedes the previous one.\n\n<mcp_instructions>\n  <server name="context7" />\n</mcp_instructions>'

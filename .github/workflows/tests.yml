@@ -122,6 +122,8 @@ jobs:
           sudo install -m 0755 /tmp/opencode-unpack/package/bin/opencode /usr/local/bin/opencode
 
       - name: Run event contract coverage
+        env:
+          OPENCODE_EVENTS_SOURCE: /usr/local/bin/opencode
         run: ./run_tests.sh -t tests/unit/protocol_v2_event_coverage_spec.lua
 
   test:

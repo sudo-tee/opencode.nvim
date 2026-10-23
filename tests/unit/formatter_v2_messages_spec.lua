@@ -79,9 +79,31 @@ describe('V2 native message rendering', function()
       end
     end
     assert.is_truthy(context_part)
-    local text = table.concat(formatter.format_part(context_part, entry, true).lines, '\n')
+    local output = formatter.format_part(context_part, entry, true, {
+      interactive = true,
+      current_files = { '/repo/test.py' },
+    })
+    local text = table.concat(output.lines, '\n')
     assert.is_truthy(text:find('`test%.py:1%-2`', 1, false))
     assert.is_nil(text:find('LINE1', 1, true))
+    assert.same({
+      {
+        kind = 'file',
+        path = '/repo/test.py',
+        line = 1,
+        range = { line = 1, start_col = 0, end_col = #output.lines[1] },
+      },
+    }, output.targets)
+  end)
+
+  it('does not make unavailable selection files executable targets', function()
+    local output = formatter.format_part({
+      kind = 'editor_context',
+      source = { kind = 'selection', file_name = 'missing.py', range = '4, 9' },
+      text = 'selected code',
+    }, { kind = 'user' }, true, { interactive = true, current_files = {} })
+
+    assert.same({}, output.targets)
   end)
 
   it('renders structured shell output without exposing its envelope', function()

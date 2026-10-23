@@ -422,20 +422,6 @@ local function format_compaction_divider(output)
   output:add_extmark(output:get_line_count() - 1, { line_hl_group = 'OpencodeBorder', priority = 5000 })
 end
 
----@param output Output Output object to write to
----@param part table
-function M._format_selection_context(output, part)
-  if part.kind ~= 'editor_context' or not part.source or part.source.kind ~= 'selection' then
-    return
-  end
-  -- The selection payload can be long; render one reference-style line. The
-  -- full text stays on the part for preview and jump.
-  local file_name = part.source.file_name or ''
-  local label = part.source.range and (file_name .. ':' .. part.source.range) or file_name
-  local line = output:add_line(string.format('[`%s`](%s)', label, file_name))
-  M.add_vertical_border(output, line, line, 'OpencodeMessageRoleUser', -3)
-end
-
 ---@param output Output
 ---@param part table
 function M._format_review_comment_context(output, part)
@@ -638,6 +624,32 @@ local function resolve_available_path(path, available_files)
     end
   end
   return match
+end
+
+---@param output Output
+---@param part table
+---@param context? FormatterContext
+function M._format_selection_context(output, part, context)
+  if part.kind ~= 'editor_context' or not part.source or part.source.kind ~= 'selection' then
+    return
+  end
+  -- Keep the full payload on the part while exposing its location for navigation.
+  local file_name = part.source.file_name or ''
+  local label = part.source.range and (file_name .. ':' .. part.source.range) or file_name
+  local text = string.format('[`%s`](%s)', label, file_name)
+  local line = output:add_line(text)
+  M.add_vertical_border(output, line, line, 'OpencodeMessageRoleUser', -3)
+  local path = resolve_available_path(file_name, available_file_set(context))
+  if path then
+    ---@type integer?
+    local target_line = tonumber(part.source.range and part.source.range:match('^(%d+)')) --[[@as integer?]]
+    output:add_target({
+      kind = 'file',
+      path = path,
+      line = target_line,
+      range = { line = line, start_col = 0, end_col = #text },
+    })
+  end
 end
 
 local function output_range_for_absolute_range(rendered, first_output_line, start_offset, end_offset)
@@ -927,8 +939,9 @@ end
 
 ---@param output Output
 ---@param part table
-local function format_editor_context(output, part)
-  M._format_selection_context(output, part)
+---@param context? FormatterContext
+local function format_editor_context(output, part, context)
+  M._format_selection_context(output, part, context)
   M._format_review_comment_context(output, part)
   M._format_cursor_data_context(output, part)
   M._format_diagnostics_context(output, part)
@@ -962,20 +975,21 @@ end
 ---@param output Output
 ---@param part table
 ---@param message table
+---@param context? FormatterContext
 ---@return Output, boolean
-local function format_user_part(output, part, message)
+local function format_user_part(output, part, message, context)
   if is_compaction_part(part) then
     format_compaction_divider(output)
     return output, true
   elseif part.kind == 'text' and type(part.text) == 'string' then
     if part.synthetic == true then
-      format_editor_context(output, part)
+      format_editor_context(output, part, context)
     else
       M._format_user_prompt(output, vim.trim(part.text), message)
       return output, true
     end
   elseif part.kind == 'editor_context' then
-    format_editor_context(output, part)
+    format_editor_context(output, part, context)
     return output, true
   elseif part.kind == 'file' then
     return output, format_user_file(output, part, message)

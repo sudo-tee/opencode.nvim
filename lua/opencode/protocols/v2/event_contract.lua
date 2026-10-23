@@ -2,6 +2,8 @@
 ---for which `session.*` events exist is the opencode distribution itself,
 ---extracted at check time; never snapshotted here.
 
+local log = require('opencode.log')
+
 local M = {}
 
 ---Event types with no handler on purpose; each reason says why the missing
@@ -75,6 +77,27 @@ function M.extract_session_events(source_path)
   end
   table.sort(types)
   return types
+end
+
+local notified_unknown = {}
+
+---Report an event type we neither handle nor exempt, once per type: a new gap
+---should be discoverable without flooding the log.
+---@param event_type string
+function M.note_unknown(event_type)
+  if notified_unknown[event_type] then
+    return
+  end
+  notified_unknown[event_type] = true
+  local gap = M.KNOWN_GAPS[event_type]
+  if gap then
+    log.warn('unhandled v2 event %s (known gap: %s)', event_type, gap)
+    return
+  end
+  log.warn(
+    'unhandled v2 event %s is not in the contract; adjudicate it in lua/opencode/protocols/v2/event_contract.lua',
+    event_type
+  )
 end
 
 ---@param handled table<string, boolean> event types with a registered handler

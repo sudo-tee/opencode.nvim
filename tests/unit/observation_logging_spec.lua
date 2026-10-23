@@ -136,7 +136,7 @@ describe('observation logging', function()
       )
     end
 
-    assert.equals(1, count_occurrences(read_log(), 'unhandled session event type: session%.foo%.bar'))
+    assert.equals(1, count_occurrences(read_log(), 'unhandled v2 event session%.foo%.bar is not in the contract'))
   end)
 
   it('does not log unknown events belonging to other sessions', function()
@@ -146,7 +146,7 @@ describe('observation logging', function()
       v2_observation.ingest_event(observed, v2_event('ses-foreign', 'session.foreign.only', { detail = 'x' }))
     )
 
-    assert.equals(0, count_occurrences(read_log(), 'unhandled session event type: session%.foreign%.only'))
+    assert.equals(0, count_occurrences(read_log(), 'unhandled v2 event session%.foreign%.only is not in the contract'))
   end)
 
   it('logs the session id when a resource snapshot request fails', function()
@@ -172,6 +172,6 @@ describe('observation logging', function()
       v2_observation.ingest_event(observed, v2_event('ses-log-prefix', 'other.unknown.event', { detail = 'x' }))
     )
 
-    assert.equals(0, count_occurrences(read_log(), 'unhandled session event type: other%.unknown%.event'))
+    assert.equals(0, count_occurrences(read_log(), 'unhandled v2 event other%.unknown%.event is not in the contract'))
   end)
 end)

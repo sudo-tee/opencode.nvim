@@ -2,7 +2,6 @@ local entries = require('opencode.protocols.entries')
 local Promise = require('opencode.promise')
 local normalize = require('opencode.protocols.v2.normalize')
 local boundary = require('opencode.protocols.v2.observation.boundary')
-local log = require('opencode.log')
 
 local M = {}
 
@@ -186,14 +185,15 @@ end
 ---@type table<string, fun(observation: OpencodeV2Observation, event: OpencodeV2Event, data: table): boolean>
 local handlers = {}
 
----@param observation OpencodeV2Observation
----@param event OpencodeV2Event
----@param data table
----@return string 'refetch'
+---Signals that the cached page is out of date and must be refetched.
+---@return 'refetch'
 local function invalidate_messages()
   return 'refetch'
 end
 
+---@param observation OpencodeV2Observation
+---@param event OpencodeV2Event
+---@param data table
 handlers['session.inbox.enqueued'] = function(observation, event, data)
   if type(data.inboxID) ~= 'string' or type(data.item) ~= 'table' then
     return false
@@ -476,23 +476,14 @@ handlers['session.tool.failed'] = finish_tool
 handlers['session.revert.committed'] = invalidate_messages
 handlers['session.compaction.ended'] = invalidate_messages
 
--- Upstream adds and renames session event families independently of this plugin;
--- record each unknown type once so a new gap is discoverable without flooding the log.
-local unknown_session_events = {}
-
 ---@param observation OpencodeV2Observation
 ---@param event OpencodeV2Event
 ---@return boolean changed
 function M.ingest_event(observation, event)
   local handler = handlers[event.type]
   if not handler then
-    if
-      not unknown_session_events[event.type]
-      and event.type:sub(1, #'session.') == 'session.'
-      and event.data.sessionID == observation._session_id
-    then
-      unknown_session_events[event.type] = true
-      log.info('unhandled session event type: %s', event.type)
+    if event.type:sub(1, #'session.') == 'session.' and event.data.sessionID == observation._session_id then
+      require('opencode.protocols.v2.event_contract').note_unknown(event.type)
     end
     return false
   end
@@ -596,8 +587,11 @@ function M.attach_history(observation, connection)
   end
 end
 
----Exposed for the event-contract coverage test (tests/unit/protocol_v2_event_coverage_spec.lua).
-M.handlers = handlers
+---Session event types the message resource handles.
+---@return table<string, fun(observation: OpencodeV2Observation, event: OpencodeV2Event, data: table): boolean>
+function M.handler_types()
+  return handlers
+end
 
 ---@param observation OpencodeV2Observation
 function M.release(observation)

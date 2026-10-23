@@ -1013,7 +1013,7 @@ local function format_system_part(output, part, message)
     -- "for transcript display"; `text` is the model-facing payload (instruction
     -- snapshots, restart context) and stays hidden while a summary exists.
     local description = message.description
-    if description and description ~= '' then
+    if format_utils.has_description(message) then
       format_utils.format_action(output, icons.get('info'), description, '')
       return output, true
     end
@@ -1176,7 +1176,7 @@ local function format_synthetic_part(output, part, message, context)
   if message.background_result then
     return format_background_completion(output, part, message, context)
   end
-  if not message.description then
+  if not format_utils.has_description(message) then
     return output, false
   end
   return format_system_part(output, part, message)

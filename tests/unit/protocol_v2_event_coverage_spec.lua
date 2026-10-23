@@ -1,17 +1,7 @@
 local contract = require('opencode.protocols.v2.event_contract')
 local events = require('opencode.protocols.v2.observation.events')
-local messages = require('opencode.protocols.v2.observation.messages')
 
----Every handler key registered across the observation modules.
----M.routes is the merged dispatch table (inbox/execution/permissions/questions/session)
----and M.handlers covers the message-resource events.
-local handled = {}
-for event_type in pairs(events.routes) do
-  handled[event_type] = true
-end
-for event_type in pairs(messages.handlers) do
-  handled[event_type] = true
-end
+local handled = events.handled_types()
 
 ---Locate the opencode distribution to extract the event union from.
 ---Priority: explicit OPENCODE_EVENTS_SOURCE (file or schema directory), then a

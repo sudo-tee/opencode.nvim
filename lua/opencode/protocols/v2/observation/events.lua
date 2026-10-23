@@ -399,26 +399,23 @@ local function apply_event(observation, event, route)
   return true
 end
 
----Exposed for the event-contract coverage test (tests/unit/protocol_v2_event_coverage_spec.lua).
-M.routes = routes
+local handled_types_cache
 
-local notified_unhandled = {}
-
----@param event OpencodeV2Event
-local function log_unhandled_session_event(event)
-  if notified_unhandled[event.type] then
-    return
+---Every session event type the observation layer dispatches: the route table
+---plus the message resource's own handlers.
+---@return table<string, boolean>
+function M.handled_types()
+  if handled_types_cache then
+    return handled_types_cache
   end
-  notified_unhandled[event.type] = true
-  local gap = require('opencode.protocols.v2.event_contract').KNOWN_GAPS[event.type]
-  if gap then
-    log.warn('unhandled v2 event %s (known gap: %s)', event.type, gap)
-  else
-    log.warn(
-      'unhandled v2 event %s is not in the contract; adjudicate it in lua/opencode/protocols/v2/event_contract.lua',
-      event.type
-    )
+  handled_types_cache = {}
+  for event_type in pairs(routes) do
+    handled_types_cache[event_type] = true
   end
+  for event_type in pairs(messages.handler_types()) do
+    handled_types_cache[event_type] = true
+  end
+  return handled_types_cache
 end
 
 ---@param connection OpencodeV2Connection
@@ -455,12 +452,9 @@ function M.route(connection, event)
         end
       end
     elseif local_event and event.type:match('^session%.') then
-      -- Handled means routes or messages.handlers cover the type; keep this
-      -- check in sync with the coverage spec's handled set (same union).
-      local handled = routes[event.type] or messages.handlers[event.type]
-      local exempt = require('opencode.protocols.v2.event_contract').EXEMPT[event.type]
-      if not handled and not exempt then
-        log_unhandled_session_event(event)
+      local contract = require('opencode.protocols.v2.event_contract')
+      if not M.handled_types()[event.type] and not contract.EXEMPT[event.type] then
+        contract.note_unknown(event.type)
       end
     end
 

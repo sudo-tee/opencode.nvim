@@ -67,6 +67,9 @@ function M.ingest_snapshot(observation, messages, merge)
     end)
   else
     local state = observation:read()
+    -- Only a wholesale replacement moves entries, order and cursor together,
+    -- and only that makes the pages cut from the previous one stale.
+    observation._v2_snapshot_generation = observation._v2_snapshot_generation + 1
     local entries_by_id, order = {}, {}
     for _, entry in ipairs(mapped) do
       entries_by_id[entry.id] = entries.replace(state.entries_by_id[entry.id], entry)
@@ -529,7 +532,8 @@ function M.initialize(observation)
   observation._v2_content_by_message = {}
   observation._v2_older_cursor = nil
   observation._v2_history_complete = false
-  observation._v2_older_loading = false
+  observation._v2_older_page = nil
+  observation._v2_snapshot_generation = 0
 end
 
 ---@param observation OpencodeV2Observation
@@ -537,21 +541,29 @@ end
 function M.attach_history(observation, connection)
   ---@return Promise<nil>
   function observation:load_older()
-    if self._v2_older_loading then
-      boundary.fail('load_older is already in progress')
-    end
     if self._v2_history_complete or not self._v2_older_cursor then
       return Promise.new():resolve(nil)
     end
 
-    self._v2_older_loading = true
+    local in_flight = self._v2_older_page
+    if in_flight then
+      if in_flight.cursor == self._v2_older_cursor then
+        return in_flight.promise
+      end
+      -- The cursor moved while the page was in flight; queue behind it so this
+      -- caller reads the cursor that a rebuild left behind, not the one it saw.
+      return Promise.async(function()
+        in_flight.promise:await()
+        self:load_older():await()
+      end)()
+    end
+
     local finish = self:_begin_local_operation()
     local cursor = self._v2_older_cursor
-    local revision = self._event_revisions.messages
+    local generation = self._v2_snapshot_generation
     local ok, operation_request =
       pcall(connection.operations.list_messages, connection, self._session_id, cursor, 50, nil)
     if not ok then
-      self._v2_older_loading = false
       finish()
       error(operation_request, 0)
     end
@@ -560,25 +572,38 @@ function M.attach_history(observation, connection)
       if not self:_is_current() then
         boundary.fail('older messages arrived after Observation release')
       end
-      if self._event_revisions.messages ~= revision then
-        self:read().sync.messages = { state = 'stale' }
-        self:_start_resource('messages')
+      if self._v2_snapshot_generation ~= generation then
+        -- The snapshot this page was cut from is gone; the newer one already
+        -- carries the server's answer.
         return
       end
       M.apply_page(self, page, true)
       self:_notify('messages')
     end)
-    return request:finally(function()
-      self._v2_older_loading = false
+    local page = { cursor = cursor, promise = nil }
+    ---@cast page OpencodeV2OlderPage
+    page.promise = request:finally(function()
+      -- release/initialize drop the slot; a page landing after that must not
+      -- blank the one that replaced it
+      if self._v2_older_page == page then
+        self._v2_older_page = nil
+      end
       finish()
     end)
+    self._v2_older_page = page
+    return page.promise
   end
 
   ---@return Promise<nil>
   function observation:load_complete_history()
     return Promise.async(function()
       while not self._v2_history_complete and self._v2_older_cursor do
+        local cursor = self._v2_older_cursor
         self:load_older():await()
+        if self._v2_older_cursor == cursor then
+          -- Same cursor back means another round would ask the same question.
+          return
+        end
       end
     end)()
   end
@@ -595,6 +620,8 @@ function M.release(observation)
   observation._v2_content_by_message = {}
   observation._v2_older_cursor = nil
   observation._v2_history_complete = false
+  observation._v2_older_page = nil
+  observation._v2_snapshot_generation = 0
 end
 
 return M

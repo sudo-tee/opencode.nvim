@@ -301,6 +301,11 @@
 
 ---@alias OpencodeV2EventHandler fun(observation: OpencodeV2Observation, event: OpencodeV2Event, data: table): false|'terminal'|nil
 
+---An older page being fetched; callers asking for the same page share `promise`.
+---@class OpencodeV2OlderPage
+---@field cursor string
+---@field promise Promise<nil>
+
 ---@class OpencodeV2Observation: OpencodeObservation
 ---@field _connection OpencodeV2Connection
 ---@field _v2_admissions table<string, OpencodeV2PendingAdmission|nil>
@@ -312,7 +317,8 @@
 ---@field _v2_content_by_message table<string, table<string, table|nil>|nil>
 ---@field _v2_older_cursor? string
 ---@field _v2_history_complete boolean
----@field _v2_older_loading boolean
+---@field _v2_older_page? OpencodeV2OlderPage
+---@field _v2_snapshot_generation integer Bumped when a wholesale snapshot replaces entries, order and cursor
 ---@field _v2_inbox_terminal table<string, table|nil>
 ---@field _v2_permission_terminal table<string, {answer: string}|nil>
 ---@field _v2_question_terminal table<string, {status: string, answers?: OpencodeV2FormAnswers}|nil>

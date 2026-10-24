@@ -836,6 +836,16 @@ local function grow_window_with_older_page(ctx)
   return true
 end
 
+---Drop the pending navigation callback once the scroll target it was registered
+---under is gone.
+---@param ctx RendererCtx
+local function drop_stale_callback(ctx)
+  local pending = ctx.after_history_load
+  if pending and pending.revision ~= ctx.history_navigation_revision then
+    ctx.after_history_load = nil
+  end
+end
+
 ---Pull the complete remaining history and render all of it.
 ---@return boolean Whether a history load was started
 ---@param ctx RendererCtx
@@ -856,6 +866,7 @@ local function load_complete_history(ctx, scroll_to_top)
   end
   request
     :and_then(function()
+      drop_stale_callback(ctx)
       if
         not ctx:is_active()
         or ctx.observation ~= observation
@@ -872,8 +883,14 @@ local function load_complete_history(ctx, scroll_to_top)
         pcall(output_window.restore_view_topline, win, 1)
       end
       ctx.history_top_pending = false
+      local after_load = ctx.after_history_load
+      ctx.after_history_load = nil
+      if after_load then
+        after_load.fn()
+      end
     end)
     :catch(function(err)
+      drop_stale_callback(ctx)
       if ctx.history_navigation_revision == navigation_revision then
         ctx.history_top_pending = false
       end
@@ -1043,7 +1060,8 @@ end
 
 ---Load all remaining messages and re-render.
 ---Used for navigation and search; by default, gg lands at the true top.
----@return boolean Whether any messages were loaded
+---@return boolean loaded Whether any messages were loaded
+---@return boolean started Whether a complete-history pull was started
 ---@param ctx? RendererCtx
 ---@param opts? {scroll_to_top?: boolean}
 function M.load_all_messages(ctx, opts)
@@ -1069,7 +1087,16 @@ function M.load_all_messages(ctx, opts)
   if not loading then
     ctx.history_top_pending = false
   end
-  return loading or expanded
+  return loading or expanded, loading
+end
+
+---Run `fn` when the complete-history pull in flight lands; a later `gg` drops it
+---instead of running it under a different scroll target.
+---@param fn fun()
+---@param ctx? RendererCtx
+function M.after_history_load(fn, ctx)
+  ctx = ctx or contexts.current()
+  ctx.after_history_load = { fn = fn, revision = ctx.history_navigation_revision }
 end
 
 ---Render the currently observed state synchronously; this does not load history.

@@ -94,7 +94,27 @@ function M.goto_prev_message()
   vim.api.nvim_win_set_cursor(win, { 1, 0 })
 end
 
-function M.goto_next_user_message()
+---@param win integer
+---@param direction 'next'|'prev'
+---@param line integer Line the search starts from, 1-indexed
+---@return boolean moved
+local function jump_to_user_message(win, direction, line)
+  local target
+  if direction == 'next' then
+    target = renderer.get_next_user_message(line)
+  else
+    target = renderer.get_prev_user_message(line)
+  end
+  if not target or not target.line_start then
+    return false
+  end
+  mark_jump_position(win)
+  vim.api.nvim_win_set_cursor(win, { target.line_start + 1, 0 })
+  return true
+end
+
+---@param direction 'next'|'prev'
+local function goto_user_message(direction)
   require('opencode.ui.ui').focus_output()
   local windows = state.windows or {}
   local win = windows.output_win
@@ -104,42 +124,44 @@ function M.goto_next_user_message()
     return
   end
 
-  -- Like `gg`, under lazy render the target
-  -- message may not yet have a line_start, so force a full render first.
-  renderer.load_all_messages(nil, { scroll_to_top = false })
+  local missing = direction == 'next' and 'No next user message' or 'No previous user message'
+  -- Growing the window renumbers every line below, so hold the position by id.
+  local anchor = renderer.get_prev_rendered_message(vim.api.nvim_win_get_cursor(win)[1] + 1)
+  local anchor_id = anchor and anchor.message.id
+  local _, started = renderer.load_all_messages(nil, { scroll_to_top = false })
 
-  local current_line = vim.api.nvim_win_get_cursor(win)[1]
-  local next_message = renderer.get_next_user_message(current_line)
-  if next_message and next_message.line_start then
-    mark_jump_position(win)
-    vim.api.nvim_win_set_cursor(win, { next_message.line_start + 1, 0 })
+  if jump_to_user_message(win, direction, vim.api.nvim_win_get_cursor(win)[1]) then
     return
   end
 
-  vim.notify('No next user message', vim.log.levels.INFO)
+  if not started then
+    vim.notify(missing, vim.log.levels.INFO)
+    return
+  end
+
+  renderer.after_history_load(function()
+    if not vim.api.nvim_win_is_valid(win) then
+      return
+    end
+    local rendered = anchor_id and renderer.get_rendered_message(anchor_id)
+    local line
+    if rendered and rendered.line_start then
+      line = rendered.line_start + 2
+    else
+      line = vim.api.nvim_win_get_cursor(win)[1]
+    end
+    if not jump_to_user_message(win, direction, line) then
+      vim.notify(missing, vim.log.levels.INFO)
+    end
+  end)
+end
+
+function M.goto_next_user_message()
+  goto_user_message('next')
 end
 
 function M.goto_prev_user_message()
-  require('opencode.ui.ui').focus_output()
-  local windows = state.windows or {}
-  local win = windows.output_win
-  local buf = windows.output_buf
-
-  if not win or not buf then
-    return
-  end
-
-  renderer.load_all_messages(nil, { scroll_to_top = false })
-
-  local current_line = vim.api.nvim_win_get_cursor(win)[1]
-  local previous_message = renderer.get_prev_user_message(current_line)
-  if previous_message and previous_message.line_start then
-    mark_jump_position(win)
-    vim.api.nvim_win_set_cursor(win, { previous_message.line_start + 1, 0 })
-    return
-  end
-
-  vim.notify('No previous user message', vim.log.levels.INFO)
+  goto_user_message('prev')
 end
 
 ---@param raw string

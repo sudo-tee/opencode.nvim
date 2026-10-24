@@ -115,7 +115,7 @@ describe('V2 protocol Observation interpretation', function()
     observed._start_resource = original_refresh
   end)
 
-  it('refreshes messages when a background completion notification arrives', function()
+  it('projects a background completion from the event without pulling a snapshot', function()
     local observed = observation('ses-bg')
     local original = observed._start_resource
     local refreshed
@@ -123,15 +123,69 @@ describe('V2 protocol Observation interpretation', function()
       refreshed = resource
     end
 
-    assert.is_true(observation_module.ingest_event(
-      observed,
-      event('ses-bg', 'session.synthetic', {
-        text = '<shell id="sh_1" state="completed" command="make build">\nexit 0\n</shell>',
-        metadata = { source = 'shell', shellID = 'sh_1', state = 'completed', exit = 0 },
-      })
-    ))
-    assert.equals('messages', refreshed)
+    local completion = event('ses-bg', 'session.synthetic', {
+      text = '<shell id="sh_1" state="completed" command="make build">\nexit 0\n</shell>',
+      metadata = { source = 'shell', shellID = 'sh_1', state = 'completed', exit = 0 },
+    })
+    assert.is_true(observation_module.ingest_event(observed, completion))
+
+    local state = observed:read()
+    assert.equals('current', state.sync.messages.state, 'projecting the completion needs no snapshot')
+    assert.equals(1, #state.entry_order)
+    local entry = state.entries_by_id[state.entry_order[1]]
+    assert.equals('sh_1', entry.background_result.id)
+    assert.equals('exit 0', entry.background_result.text)
+
+    observed:_event_changed('messages')
+    assert.is_nil(refreshed, 'the dispatch has nothing to refetch')
+
+    assert.is_true(observation_module.ingest_event(observed, completion))
+    assert.equals(1, #observed:read().entry_order, 'a redelivered completion replaces its entry')
+
+    observed._start_resource = original
+  end)
+
+  it('drops the tail a committed revert deleted without refetching', function()
+    local observed = observation('ses-revert')
+    observation_module.ingest_snapshot(observed, { assistant('msg-c'), assistant('msg-b'), assistant('msg-a') })
+    local original = observed._start_resource
+    local refreshed
+    observed._start_resource = function(_, resource)
+      refreshed = resource
+    end
+
+    assert.is_true(
+      observation_module.ingest_event(observed, event('ses-revert', 'session.revert.committed', { to = 'msg-b' }))
+    )
+
+    local state = observed:read()
+    assert.same({ 'msg-a' }, state.entry_order, 'the boundary message is deleted too')
+    assert.is_nil(state.entries_by_id['msg-c'])
+    assert.equals('current', state.sync.messages.state)
+    assert.is_nil(refreshed, 'a known tail needs no snapshot')
+
+    observed._start_resource = original
+  end)
+
+  it('asks for the snapshot when the revert boundary was never loaded', function()
+    local observed = observation('ses-revert')
+    observation_module.ingest_snapshot(observed, { assistant('msg-a') })
+    local original = observed._start_resource
+    local refreshed
+    observed._start_resource = function(_, resource)
+      refreshed = resource
+    end
+
+    assert.is_true(
+      observation_module.ingest_event(
+        observed,
+        event('ses-revert', 'session.revert.committed', { to = 'msg-before-the-window' })
+      )
+    )
     assert.equals('stale', observed:read().sync.messages.state)
+
+    observed:_event_changed('messages')
+    assert.equals('messages', refreshed, 'only a snapshot can say what the deletion took')
 
     observed._start_resource = original
   end)

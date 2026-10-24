@@ -250,26 +250,30 @@ end
 ---@param data table
 handlers['session.synthetic'] = function(observation, event, data)
   local metadata = data.metadata
-  -- Background completions carry no message id, so the snapshot is the only
-  -- source of the entry that records their outcome.
-  if normalize.is_background_notification(metadata) then
-    return invalidate_messages()
-  end
-  -- Only server-authored notices carry a description; plain synthetic parts are
-  -- already in the message snapshot, so projecting them again would duplicate.
-  if type(data.description) ~= 'string' or data.description == '' then
-    return false
+  local background = normalize.is_background_notification(metadata)
+  -- Pulling a snapshot for these would replace every loaded page with the
+  -- newest one, and the entry is already reachable from the event's id.
+  if not background then
+    -- Plain synthetic parts are already in the snapshot; only notices carry a
+    -- description meant for the transcript.
+    if type(data.description) ~= 'string' or data.description == '' then
+      return false
+    end
   end
   if type(data.text) ~= 'string' then
     return invalid(observation, event.type, 'is missing text')
   end
-  return put_notice(observation, event, {
+  local info = {
     id = notice_message_id(event),
     type = 'synthetic',
     text = data.text,
     description = data.description,
     time = { created = event.created },
-  })
+  }
+  if background then
+    info.metadata = metadata
+  end
+  return put_notice(observation, event, info)
 end
 
 ---@param observation OpencodeV2Observation
@@ -476,7 +480,37 @@ end
 handlers['session.tool.success'] = finish_tool
 handlers['session.tool.failed'] = finish_tool
 
-handlers['session.revert.committed'] = invalidate_messages
+---A committed revert deletes every message from its boundary onwards, so a
+---loaded tail can be dropped without asking for the page again.
+---@param observation OpencodeV2Observation
+---@param event OpencodeV2Event
+---@param data table
+handlers['session.revert.committed'] = function(observation, event, data)
+  local order = observation:read().entry_order
+  local boundary
+  if type(data.to) == 'string' then
+    for position, id in ipairs(order) do
+      if id == data.to then
+        boundary = position
+        break
+      end
+    end
+  end
+  if not boundary then
+    -- The boundary predates the loaded window, so any loaded message may have
+    -- been deleted; only a snapshot can say which.
+    return invalidate_messages()
+  end
+  local state = observation:read()
+  for position = #order, boundary, -1 do
+    local id = order[position]
+    state.entries_by_id[id] = nil
+    observation._v2_content_by_message[id] = nil
+    order[position] = nil
+  end
+  return true
+end
+
 handlers['session.compaction.ended'] = invalidate_messages
 
 ---@param observation OpencodeV2Observation
@@ -492,8 +526,9 @@ function M.ingest_event(observation, event)
   end
   local result = handler(observation, event, event.data)
   if result == 'refetch' then
+    -- Let `_event_changed` start the refetch: it bumps the revision first, so
+    -- the request it makes is the one that lands.
     observation:read().sync.messages = { state = 'stale' }
-    observation:_start_resource('messages')
     return true
   end
   if not result then

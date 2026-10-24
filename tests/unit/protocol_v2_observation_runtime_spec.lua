@@ -673,11 +673,12 @@ describe('V2 protocol Observation runtime', function()
 
     local page = observed:load_older()
     assert.equals(2, #calls)
-    emit(streams[1], event('ses-main', 'session.revert.committed', { messageID = 'B' }, 20))
+    emit(streams[1], event('ses-main', 'session.compaction.ended', {}, 20))
     flush(function()
       return observed._loading.messages == nil and observed:read().sync.messages.state == 'current' and #calls >= 3
     end)
     local refetched = #calls
+    assert.equals(3, refetched, 'one rebuild request, not a stale one followed by a second')
 
     older:resolve({ data = { user('B', 'B', 4), user('Z', 'Z', 1) }, cursor = {} })
     page:wait()
@@ -685,6 +686,70 @@ describe('V2 protocol Observation runtime', function()
     assert.same({ 'A' }, observed:read().entry_order, 'the superseded page is dropped, not merged')
     assert.equals('c2', observed._v2_older_cursor, 'the cursor stays with the snapshot that replaced the page')
     assert.equals(refetched, #calls, 'dropping the page does not trigger another snapshot request')
+    stop()
+  end)
+
+  it('lets a rebuild of an empty window replace text deltas appended while it flew', function()
+    local value = connection()
+    local calls = {}
+    local rebuild = Promise.new()
+    local function reply(text)
+      return { id = 'msg-reply', type = 'assistant', agent = 'build', content = { { type = 'text', text = text } } }
+    end
+    local streams = install_operations(value, {
+      list_messages = function(_, _, cursor, limit)
+        calls[#calls + 1] = { cursor = cursor, limit = limit }
+        if #calls == 1 then
+          return resolved({ data = {}, cursor = { next = 'c1' } })
+        end
+        return rebuild
+      end,
+    })
+    local observed = value:observe({ id = 'ses-main' })
+    local stop = observed:watch({ 'messages' }, function() end)
+    flush(function()
+      return observed:read().sync.messages.state == 'current'
+    end)
+
+    emit(
+      streams[1],
+      event('ses-main', 'session.step.started', { assistantMessageID = 'msg-reply', agent = 'build' }, 20)
+    )
+    emit(streams[1], event('ses-main', 'session.text.started', { assistantMessageID = 'msg-reply', ordinal = 0 }, 21))
+    emit(
+      streams[1],
+      event('ses-main', 'session.text.delta', { assistantMessageID = 'msg-reply', ordinal = 0, delta = 'b' }, 22)
+    )
+    emit(
+      streams[1],
+      event('ses-main', 'session.text.delta', { assistantMessageID = 'msg-reply', ordinal = 0, delta = 'c' }, 23)
+    )
+    flush()
+    assert.equals('bc', observed:read().entries_by_id['msg-reply'].content[1].text, 'the deltas append locally')
+
+    emit(streams[1], event('ses-main', 'session.revert.committed', { messageID = 'msg-reply' }, 24))
+    flush(function()
+      return #calls >= 2
+    end)
+    rebuild:resolve({ data = { reply('b') }, cursor = { next = 'c1' } })
+    flush(function()
+      return observed._loading.messages == nil and observed:read().sync.messages.state == 'current'
+    end)
+
+    assert.equals(
+      'b',
+      observed:read().entries_by_id['msg-reply'].content[1].text,
+      'the snapshot is authoritative even though it lags the live text'
+    )
+
+    emit(
+      streams[1],
+      event('ses-main', 'session.text.ended', { assistantMessageID = 'msg-reply', ordinal = 0, text = 'bc' }, 25)
+    )
+    flush(function()
+      return observed:read().entries_by_id['msg-reply'].content[1].text == 'bc'
+    end)
+    assert.equals('bc', observed:read().entries_by_id['msg-reply'].content[1].text, 'the finished text restores it')
     stop()
   end)
 
@@ -738,6 +803,7 @@ describe('V2 protocol Observation runtime', function()
     flush(function()
       return pulls == 2
     end)
+    emit(streams[1], event('ses-main', 'session.compaction.ended', {}, 21))
     rebuild:resolve({ data = { user('A', 'A', 3) }, cursor = { next = 'c2' } })
     flush(function()
       return observed._loading.messages == nil and observed:read().entries_by_id['C'] ~= nil

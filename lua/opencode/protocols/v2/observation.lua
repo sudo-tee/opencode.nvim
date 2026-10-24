@@ -30,7 +30,7 @@ function M.new(connection, ref)
     ---@param sync table
     ---@return boolean
     refresh_after_event = function(resource, sync)
-      return resource ~= 'files' and sync.state == 'error'
+      return resource ~= 'files' and (sync.state == 'error' or sync.state == 'stale')
     end,
     request_resource = function(current, resource)
       ---@cast current OpencodeV2Observation

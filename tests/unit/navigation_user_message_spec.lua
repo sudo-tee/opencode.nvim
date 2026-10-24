@@ -299,6 +299,78 @@ describe('navigation user message jumps', function()
 
       assert.equals(2, vim.api.nvim_win_get_cursor(output_win)[1])
     end)
+
+    it('jumps once the pulled history renders the target above the window', function()
+      seed({
+        { id = 'a1', kind = 'assistant', line_start = 1 },
+      })
+      contexts.current().lazy_render_count = 1
+
+      local pending
+      local original_load = renderer.load_all_messages
+      local original_after = renderer.after_history_load
+      renderer.load_all_messages = function()
+        return true, true
+      end
+      renderer.after_history_load = function(fn)
+        pending = fn
+      end
+      local notify_stub = stub(vim, 'notify')
+
+      vim.api.nvim_win_set_cursor(output_win, { 2, 0 })
+      navigation.goto_prev_user_message()
+
+      renderer.load_all_messages = original_load
+      renderer.after_history_load = original_after
+      notify_stub:revert()
+
+      assert.is_function(pending)
+      assert.stub(notify_stub).was_called(0)
+
+      -- the pull lands: an older user message joins above and everything moves down
+      local ctx = contexts.current()
+      local older = { id = 'u0', kind = 'user', content = {} }
+      table.insert(ctx.entries, 1, older)
+      ctx.render_state:set_message(older, 10, 10)
+      ctx.render_state:set_message(ctx.entries[2], 30, 30)
+      pending()
+
+      assert.equals(11, vim.api.nvim_win_get_cursor(output_win)[1])
+    end)
+
+    it('jumps forward once the pulled history renders the target below the window', function()
+      seed({
+        { id = 'u1', kind = 'user', line_start = 1 },
+        { id = 'u2', kind = 'user' },
+      })
+      contexts.current().lazy_render_count = 1
+
+      local pending
+      local original_load = renderer.load_all_messages
+      local original_after = renderer.after_history_load
+      renderer.load_all_messages = function()
+        return true, true
+      end
+      renderer.after_history_load = function(fn)
+        pending = fn
+      end
+      local notify_stub = stub(vim, 'notify')
+
+      vim.api.nvim_win_set_cursor(output_win, { 2, 0 })
+      navigation.goto_next_user_message()
+
+      renderer.load_all_messages = original_load
+      renderer.after_history_load = original_after
+      notify_stub:revert()
+
+      assert.is_function(pending)
+      assert.stub(notify_stub).was_called(0)
+
+      contexts.current().render_state:set_message(contexts.current().entries[2], 10, 10)
+      pending()
+
+      assert.equals(11, vim.api.nvim_win_get_cursor(output_win)[1])
+    end)
   end)
 
   it('keeps user-message jumps after a completed history request resolves asynchronously', function()

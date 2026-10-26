@@ -9,6 +9,19 @@ local slash_registry = require('opencode.services.slash_registry')
 M.register_slash_command = slash_registry.register
 M.unregister_slash_command = slash_registry.unregister
 
+---Register a recipe-owned completion source.
+---@param source CompletionSource
+function M.register_completion_source(source)
+  return require('opencode.ui.completion').register_source(source)
+end
+
+---Unregister a recipe-owned completion source.
+---@param name string
+---@return boolean
+function M.unregister_completion_source(name)
+  return require('opencode.ui.completion').unregister_source(name)
+end
+
 local function on_opencode_server()
   require('opencode.ui.permission_window').clear_all()
 end

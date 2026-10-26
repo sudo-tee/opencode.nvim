@@ -30,7 +30,9 @@ Add a short recording here if it helps; otherwise leave it out.
 ## Caveats and undo
 
 Explain limitations, any destructive behavior, and how to remove the setup.
-Link to relevant guides or API contracts rather than repeating them.
+For extension recipes, include registration timing, cleanup, callback failure
+behavior, and the relevant API contract instead of reaching into plugin
+internals.
 
 ## Related
 

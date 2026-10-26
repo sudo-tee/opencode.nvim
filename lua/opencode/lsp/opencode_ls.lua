@@ -162,7 +162,7 @@ handlers[ms.textDocument_completion] = function(params, callback)
   local promises = {}
 
   for _, source in ipairs(sources) do
-    table.insert(promises, source.complete(completion_context))
+    table.insert(promises, completion.complete_source(source, completion_context))
   end
 
   Promise.all(promises)

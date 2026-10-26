@@ -363,6 +363,41 @@ describe('lazy render', function()
     end
   end)
 
+  it('replaces the transcript with what a rebuilt snapshot carries', function()
+    local session = { id = 'ses_test', location = { directory = helpers.MOCK_CWD } }
+    local entries = make_session_data(50) -- 100 messages, oldest first
+
+    ---@param list table[]
+    local function observed(list)
+      local snapshot = { entry_order = {}, entries_by_id = {}, session = session, sync = {} }
+      for _, entry in ipairs(list) do
+        snapshot.entry_order[#snapshot.entry_order + 1] = entry.id
+        snapshot.entries_by_id[entry.id] = entry
+      end
+      return {
+        read = function()
+          return snapshot
+        end,
+      }
+    end
+
+    contexts.current().observation = observed(entries)
+    contexts.current().entries = entries
+    contexts.current().lazy_render_count = #entries
+    renderer.render_from_cache()
+    assert.are.equal(#entries, count_rendered_messages())
+
+    -- The snapshot carries the newest page only.
+    contexts.current().observation = observed(vim.list_slice(entries, 51, 100))
+    renderer.render_from_cache()
+
+    assert.are.equal(50, count_rendered_messages())
+    local render_state = contexts.current().render_state
+    assert.is_nil(render_state:get_message('msg_u1'))
+    assert.is_nil(render_state:get_message('msg_a25'))
+    assert.is_not_nil(render_state:get_message('msg_u26'))
+  end)
+
   it('load_more_messages returns false when all messages already rendered', function()
     -- No lazy_render_count means all messages rendered — no unrendered content
     local session_data = make_session_data(50) -- 100 messages total
@@ -739,6 +774,109 @@ describe('older history bridge', function()
       return false
     end)
     assert.are.equal(1, vim.api.nvim_win_get_cursor(state.windows.output_win)[1])
+  end)
+
+  it('drops a navigation callback when a top jump supersedes the pull it was registered for', function()
+    config.ui.output.max_messages = 10
+    local newer = make_session_data(20)
+    local entries = newer
+    local page_request = Promise.new()
+    local top_request = Promise.new()
+    local requests = { page_request, top_request }
+    local observation = {
+      read = function()
+        local by_id, order = {}, {}
+        for _, entry in ipairs(entries) do
+          by_id[entry.id] = entry
+          order[#order + 1] = entry.id
+        end
+        return { session = { id = 'ses_test' }, entries_by_id = by_id, entry_order = order }
+      end,
+      load_complete_history = function()
+        return table.remove(requests, 1) or Promise.new()
+      end,
+    }
+    local ctx = contexts.current()
+    ctx.observation = observation
+    ctx.lazy_render_count = 10
+    renderer._render_full_session_data(newer)
+    while ctx.lazy_render_count < #newer do
+      assert.is_true(renderer.load_more_messages())
+    end
+    local first = renderer.get_next_rendered_message(0)
+    vim.api.nvim_win_set_cursor(state.windows.output_win, { first.line_start + 1, 0 })
+
+    local reached = 0
+    assert.is_true(renderer.load_all_messages(nil, { scroll_to_top = false }))
+    renderer.after_history_load(function()
+      reached = reached + 1
+    end)
+
+    require('opencode.ui.navigation').goto_first_message()
+    page_request:resolve(nil)
+    vim.wait(100, function()
+      return false
+    end)
+    assert.are.equal(0, reached, 'a superseded pull must not fire the callback')
+
+    top_request:resolve(nil)
+    assert.is_true(
+      vim.wait(1000, function()
+        return vim.api.nvim_win_get_cursor(state.windows.output_win)[1] == 1
+      end),
+      'the top jump should still land at the first message'
+    )
+    assert.are.equal(0, reached, 'the top jump must not inherit the callback')
+  end)
+
+  it('keeps a callback registered while an older pull is still in flight', function()
+    config.ui.output.max_messages = 10
+    local newer = make_session_data(20)
+    local entries = newer
+    local failing = Promise.new()
+    local sibling = Promise.new()
+    local requests = { failing, sibling }
+    local observation = {
+      read = function()
+        local by_id, order = {}, {}
+        for _, entry in ipairs(entries) do
+          by_id[entry.id] = entry
+          order[#order + 1] = entry.id
+        end
+        return { session = { id = 'ses_test' }, entries_by_id = by_id, entry_order = order }
+      end,
+      load_complete_history = function()
+        return table.remove(requests, 1) or Promise.new()
+      end,
+    }
+    local ctx = contexts.current()
+    ctx.observation = observation
+    ctx.lazy_render_count = 10
+    renderer._render_full_session_data(newer)
+    while ctx.lazy_render_count < #newer do
+      assert.is_true(renderer.load_more_messages())
+    end
+
+    assert.is_true(renderer.load_all_messages(nil, { scroll_to_top = false }))
+    local reached = 0
+    renderer.after_history_load(function()
+      reached = reached + 1
+    end)
+    assert.is_true(renderer.load_all_messages(nil, { scroll_to_top = false }))
+
+    failing:reject('boom')
+    vim.wait(100, function()
+      return false
+    end)
+    assert.are.equal(0, reached, 'a failed pull must not fire the callback')
+
+    sibling:resolve(nil)
+    assert.is_true(
+      vim.wait(1000, function()
+        return reached == 1
+      end),
+      'the sibling pull should still fire the callback'
+    )
   end)
 
   it('load_more_messages pulls an older page when the cached window is exhausted', function()

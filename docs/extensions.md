@@ -80,6 +80,72 @@ the command and returns whether it existed.
 
 See [Worktree sessions](recipes/worktree.md) for a practical command.
 
+## Completion sources
+
+Recipes can add completion sources without modifying built-in sources or the
+completion engine. Register sources before `setup()` or before opening the
+first `opencode` buffer so custom trigger characters are advertised to the
+completion client:
+
+```lua
+local Promise = require('opencode.promise')
+local opencode = require('opencode')
+
+opencode.register_completion_source({
+  name = 'issue_references',
+  priority = 10,
+  get_trigger_character = function()
+    return '>'
+  end,
+  complete = Promise.async(function(ctx)
+    if ctx.trigger_char ~= '>' then
+      return {}
+    end
+
+    return {
+      {
+        label = '>123 Fix login timeout',
+        kind = 'issue',
+        kind_icon = '',
+        detail = 'GitHub issue',
+        documentation = 'Insert an issue reference.',
+        insert_text = '123',
+        data = { number = 123 },
+      },
+    }
+  end),
+  on_complete = function(item)
+    vim.notify('Selected issue #' .. item.data.number)
+  end,
+})
+
+opencode.setup({})
+```
+
+`name` must be unique. Built-in names (`commands`, `context`, `files`,
+`skills`, and `subagents`) are reserved. `complete` receives a
+`CompletionContext` with `input`, `trigger_char`, `line`, and `cursor_pos`, and
+may return either a `Promise<CompletionItem[]>` or an item array. The registry
+adds `source_name` to returned items so `on_complete` can be called after
+selection. Item metadata includes `kind`, `kind_icon`, `kind_hl`, `detail`,
+`documentation`, `insert_text`, `priority`, and arbitrary `data`. Set
+source-level `custom_kind` to a numeric LSP completion kind when the default
+function kind is not suitable. `insert_text` replaces text after the trigger
+character; include the trigger in `label` but not in `insert_text`.
+
+Completion-source errors are logged and that source contributes no items;
+other sources continue working. Selection callback errors are isolated the
+same way. Set `is_incomplete = true` when a source expects the client to ask
+for more results. Remove a recipe with:
+
+```lua
+require('opencode').unregister_completion_source('issue_references')
+```
+
+The function returns `true` when a source was removed and `false` otherwise.
+For a practical selection callback, see the [GitHub issue references recipe](recipes/completion-source.md),
+which expands the selected issue into the visible draft.
+
 ## Prompt guard
 
 `prompt_guard(mentioned_files)` must return a boolean. It receives a list of

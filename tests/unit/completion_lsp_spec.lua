@@ -89,6 +89,26 @@ describe('opencode LSP completion', function()
         local sources = completion.get_sources()
         assert.are.equal(2, #sources)
       end)
+
+      it('rejects duplicate and builtin source names', function()
+        local source = { name = 'source1', priority = 1, complete = function() end }
+        completion.register_source(source)
+
+        assert.has_error(function()
+          completion.register_source({ name = 'source1', priority = 2, complete = function() end })
+        end)
+        assert.has_error(function()
+          completion.register_source({ name = 'files', priority = 2, complete = function() end })
+        end)
+      end)
+
+      it('unregisters sources and reports whether they existed', function()
+        completion.register_source({ name = 'source1', priority = 1, complete = function() end })
+
+        assert.is_true(completion.unregister_source('source1'))
+        assert.is_false(completion.unregister_source('source1'))
+        assert.is_nil(completion.get_source_by_name('source1'))
+      end)
     end)
 
     describe('get_source_by_name', function()
@@ -228,6 +248,24 @@ describe('opencode LSP completion', function()
         assert.has_no.errors(function()
           completion.on_completion_done(item)
         end)
+      end)
+
+      it('isolates selection callback failures', function()
+        package.loaded['opencode.log'] = { error = function() end }
+        completion._sources = {}
+        completion.register_source({
+          name = 'failing_callback',
+          priority = 1,
+          complete = function() end,
+          on_complete = function()
+            error('selection failed')
+          end,
+        })
+
+        assert.has_no.errors(function()
+          completion.on_completion_done({ source_name = 'failing_callback', label = 'test' })
+        end)
+        package.loaded['opencode.log'] = nil
       end)
     end)
   end)
@@ -585,6 +623,98 @@ describe('opencode LSP completion', function()
 
         assert.is_not_nil(callback_result)
         package.loaded['opencode.log'] = nil
+      end)
+
+      it('keeps healthy sources when another source fails', function()
+        package.loaded['opencode.log'] = { error = function() end }
+        completion.register_source({
+          name = 'error_source',
+          priority = 2,
+          complete = function()
+            return Promise.new():reject('test error')
+          end,
+          get_trigger_character = function()
+            return '@'
+          end,
+        })
+        completion.register_source({
+          name = 'healthy_source',
+          priority = 1,
+          complete = function()
+            return Promise.new():resolve({
+              {
+                label = 'HealthyItem',
+                kind = 'reference',
+                kind_icon = '',
+                insert_text = 'HealthyItem',
+                detail = 'Healthy source',
+                documentation = 'Healthy item',
+                data = {},
+              },
+            })
+          end,
+          get_trigger_character = function()
+            return '@'
+          end,
+        })
+
+        local config_obj = ls.create_config()
+        local server = config_obj.cmd({}, {})
+        local callback_result
+        server.request('textDocument/completion', {
+          position = { line = 0, character = 5 },
+        }, function(err, result)
+          callback_result = result
+        end)
+
+        vim.wait(200, function()
+          return callback_result ~= nil
+        end)
+
+        assert.is_not_nil(callback_result)
+        assert.are.equal(1, #callback_result.items)
+        assert.are.equal('HealthyItem', callback_result.items[1].filterText)
+        package.loaded['opencode.log'] = nil
+      end)
+
+      it('assigns source names to returned items', function()
+        completion.register_source({
+          name = 'metadata_source',
+          priority = 1,
+          complete = function()
+            return Promise.new():resolve({
+              {
+                label = 'MetadataItem',
+                kind = 'reference',
+                kind_icon = '',
+                insert_text = 'MetadataItem',
+                detail = 'Metadata source',
+                documentation = 'Metadata item',
+                data = { id = 42 },
+              },
+            })
+          end,
+          get_trigger_character = function()
+            return '@'
+          end,
+        })
+
+        local config_obj = ls.create_config()
+        local server = config_obj.cmd({}, {})
+        local callback_result
+        server.request('textDocument/completion', {
+          position = { line = 0, character = 5 },
+        }, function(err, result)
+          callback_result = result
+        end)
+
+        vim.wait(200, function()
+          return callback_result ~= nil
+        end)
+
+        local item = callback_result.items[1].data._opencode_item
+        assert.are.equal('metadata_source', item.source_name)
+        assert.are.equal(42, item.data.id)
       end)
     end)
 

@@ -3,6 +3,48 @@ local M = {
   _sources = {},
 }
 
+local builtin_source_names = {
+  commands = true,
+  context = true,
+  files = true,
+  skills = true,
+  subagents = true,
+}
+
+local function sort_sources()
+  table.sort(M._sources, function(a, b)
+    return (a.priority or 0) > (b.priority or 0)
+  end)
+end
+
+---@param source CompletionSource
+---@param allow_builtin boolean
+local function register_source(source, allow_builtin)
+  if not source.name or source.name == '' then
+    error('Completion source name is required')
+  end
+  if not source.complete then
+    error('Completion source must provide a complete function')
+  end
+  if not allow_builtin and builtin_source_names[source.name] then
+    error('Completion source already exists: ' .. source.name)
+  end
+  if M.get_source_by_name(source.name) then
+    if allow_builtin then
+      return
+    end
+    error('Completion source already exists: ' .. source.name)
+  end
+
+  table.insert(M._sources, source)
+  sort_sources()
+end
+
+---@param source CompletionSource
+local function report_source_error(source, err)
+  require('opencode.log').error('Completion source "' .. source.name .. '" failed: ' .. tostring(err))
+end
+
 ---@param opts? { execute_slash_command?: fun(slash_cmd: string, args: string[]|nil): any }
 function M.setup(opts)
   local files_source = require('opencode.ui.completion.files')
@@ -11,22 +53,23 @@ function M.setup(opts)
   local context_source = require('opencode.ui.completion.context')
   local skills_source = require('opencode.ui.completion.skills')
 
-  M.register_source(files_source.get_source())
-  M.register_source(subagents_source.get_source())
-  M.register_source(commands_source.get_source(opts and opts.execute_slash_command))
-  M.register_source(context_source.get_source())
-  M.register_source(skills_source.get_source())
-
-  table.sort(M._sources, function(a, b)
-    return (a.priority or 0) > (b.priority or 0)
-  end)
+  register_source(files_source.get_source(), true)
+  register_source(subagents_source.get_source(), true)
+  register_source(commands_source.get_source(opts and opts.execute_slash_command), true)
+  register_source(context_source.get_source(), true)
+  register_source(skills_source.get_source(), true)
 end
 
 function M.get_trigger_characters()
   local triggers = {}
   for _, source in ipairs(M._sources) do
     if source.get_trigger_character then
-      table.insert(triggers, source.get_trigger_character())
+      local ok, trigger = pcall(source.get_trigger_character)
+      if ok then
+        table.insert(triggers, trigger)
+      else
+        report_source_error(source, trigger)
+      end
     end
   end
   return triggers
@@ -35,7 +78,20 @@ end
 ---Register a completion source
 ---@param source CompletionSource
 function M.register_source(source)
-  table.insert(M._sources, source)
+  register_source(source, false)
+end
+
+---Unregister a completion source.
+---@param name string
+---@return boolean
+function M.unregister_source(name)
+  for index, source in ipairs(M._sources) do
+    if source.name == name then
+      table.remove(M._sources, index)
+      return true
+    end
+  end
+  return false
 end
 
 ---@return CompletionSource[]
@@ -54,6 +110,31 @@ function M.get_source_by_name(name)
   return nil
 end
 
+---Run one completion source without allowing it to affect other sources.
+---@param source CompletionSource
+---@param context CompletionContext
+---@return Promise<CompletionItem[]>
+function M.complete_source(source, context)
+  local Promise = require('opencode.promise')
+  local ok, result = pcall(source.complete, context)
+  if not ok then
+    report_source_error(source, result)
+    return Promise.new():resolve({})
+  end
+
+  return Promise.wrap(result)
+    :and_then(function(items)
+      for _, item in ipairs(items) do
+        item.source_name = source.name
+      end
+      return items
+    end)
+    :catch(function(err)
+      report_source_error(source, err)
+      return {}
+    end)
+end
+
 ---Call the on_completion_done method for a completion item
 ---@param item CompletionItem
 function M.on_completion_done(item)
@@ -63,7 +144,10 @@ function M.on_completion_done(item)
 
   for _, source in ipairs(M._sources) do
     if source.name == item.source_name and source.on_complete then
-      source.on_complete(item)
+      local ok, err = pcall(source.on_complete, item)
+      if not ok then
+        report_source_error(source, err)
+      end
       break
     end
   end

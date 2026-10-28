@@ -14,6 +14,7 @@ plugin; read [Usage](../usage.md) first if you are new.
 | [Review a session diff](review-session-diff.md) | You want to comment on V2 changes and send the comments with your next prompt |
 | [Quiet Blink completion](quiet-blink.md) | The completion menu pops up while you type a prompt |
 | [GitHub issue references](completion-source.md) | You want issue references available from a custom completion source |
+| [opencode-pty tools](tool-formatter.md) | You want readable output for tools added by a server plugin |
 
 ## Share a recipe
 

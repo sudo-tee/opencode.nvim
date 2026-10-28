@@ -22,6 +22,23 @@ function M.unregister_completion_source(name)
   return require('opencode.ui.completion').unregister_source(name)
 end
 
+---Register a recipe-owned tool formatter. Replacing a built-in formatter
+---requires `opts.replace = true`.
+---@param name string
+---@param formatter ToolFormatter
+---@param opts? { replace?: boolean }
+function M.register_tool_formatter(name, formatter, opts)
+  return require('opencode.ui.formatter.tool_registry').register(name, formatter, opts)
+end
+
+---Unregister a recipe-owned tool formatter. An active built-in override is
+---removed and the built-in formatter is restored.
+---@param name string
+---@return boolean
+function M.unregister_tool_formatter(name)
+  return require('opencode.ui.formatter.tool_registry').unregister(name)
+end
+
 local function on_opencode_server()
   require('opencode.ui.permission_window').clear_all()
 end

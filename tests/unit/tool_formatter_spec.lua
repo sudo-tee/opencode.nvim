@@ -117,8 +117,8 @@ describe('custom tool formatters', function()
     local original_log = package.loaded['opencode.log']
     local logged
     package.loaded['opencode.log'] = {
-      error = function(message)
-        logged = message
+      error = function(message, ...)
+        logged = string.format(message, ...)
       end,
     }
     register('bash', {
@@ -190,11 +190,56 @@ describe('custom tool formatters', function()
       format = function() end,
       summary = custom_summary,
     })
-    assert.are.equal(custom_summary, registry.summary('ci_report'))
+    assert.same({ 'icon', 'ci', 'report' }, { registry.summary('ci_report')({}) })
 
     register('grep', {
       format = function() end,
     }, { replace = true })
     assert.are.equal(require('opencode.ui.formatter.tools.grep').summary, registry.summary('grep'))
+  end)
+
+  it('falls back to the built-in summary when a custom summary fails', function()
+    local original_log = package.loaded['opencode.log']
+    local logged
+    package.loaded['opencode.log'] = {
+      error = function(message, ...)
+        logged = string.format(message, ...)
+      end,
+    }
+    register('grep', {
+      format = function() end,
+      summary = function()
+        error('summary exploded')
+      end,
+    }, { replace = true })
+
+    local part = { name = 'grep', state = 'completed', input = { pattern = 'x' } }
+    local expected = { require('opencode.ui.formatter.tools.grep').summary(part) }
+    local actual = { registry.summary('grep')(part) }
+    package.loaded['opencode.log'] = original_log
+
+    assert.same(expected, actual)
+    assert.is_truthy(logged:find('summary exploded', 1, true))
+  end)
+
+  it('logs formatter errors containing format specifiers', function()
+    local original_log = package.loaded['opencode.log']
+    local logged
+    package.loaded['opencode.log'] = {
+      error = function(message, ...)
+        logged = string.format(message, ...)
+      end,
+    }
+    register('bash', {
+      format = function()
+        error('bad pattern %d %y')
+      end,
+    }, { replace = true })
+
+    local output = render('bash', { command = 'echo hi' })
+    package.loaded['opencode.log'] = original_log
+
+    assert.is_truthy(text(output):find('run', 1, true))
+    assert.is_truthy(logged:find('bad pattern %d %y', 1, true))
   end)
 end)

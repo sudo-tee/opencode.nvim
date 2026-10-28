@@ -59,20 +59,36 @@ function M.fallback(name)
   return builtin(name)
 end
 
----Summary function for nested tool rows. An override without a summary keeps
----the matching built-in summary, then falls back to the generic tool summary.
 ---@param name string
 ---@return fun(part: table): string, string, string
-function M.summary(name)
-  local override = overrides[name]
-  if override and override.summary then
-    return override.summary
-  end
+local function builtin_summary(name)
   local builtin_formatter = builtins[name]
   if builtin_formatter and builtin_formatter.summary then
     return builtin_formatter.summary
   end
   return builtins.tool.summary
+end
+
+---Summary function for nested tool rows. An override without a summary keeps
+---the matching built-in summary, then falls back to the generic tool summary.
+---A failing override summary is logged and replaced by the built-in summary.
+---@param name string
+---@return fun(part: table): string, string, string
+function M.summary(name)
+  local override = overrides[name]
+  local fallback = builtin_summary(name)
+  if not (override and override.summary) then
+    return fallback
+  end
+  local custom_summary = override.summary
+  return function(part)
+    local ok, icon, label, value = pcall(custom_summary, part)
+    if ok then
+      return icon, label, value
+    end
+    require('opencode.log').error('Tool summary "%s" failed: %s', name, tostring(icon))
+    return fallback(part)
+  end
 end
 
 return M

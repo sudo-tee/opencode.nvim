@@ -922,7 +922,7 @@ function M.format_tool(output, part, context, message)
     local before = snapshot_output(output)
     local ok, err = pcall(formatter.format, output, part, context, tool_formatters, message)
     if not ok then
-      require('opencode.log').error('Tool formatter "' .. tool .. '" failed: ' .. tostring(err))
+      require('opencode.log').error('Tool formatter "%s" failed: %s', tool, tostring(err))
       restore_output(output, before)
       tool_formatters.fallback(tool).format(output, part, context, tool_formatters, message)
     end

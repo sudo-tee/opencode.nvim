@@ -4,13 +4,12 @@ local icons = require('opencode.ui.icons')
 ---@param part table
 ---@param status string
 ---@param utils table
----@param tool_formatters table registry of tool formatters (passed in by the
+---@param tool_formatters table tool formatter registry (passed in by the
 --- dispatch site; requiring the registry module here would form a cycle)
 ---@return string
 function M.tool_action_line(part, status, utils, tool_formatters)
   local tool = part.name
-  local formatter = tool_formatters[tool] or tool_formatters.tool
-  local summary = formatter.summary or tool_formatters.tool.summary
+  local summary = tool_formatters.summary(tool)
   local icon, tool_label, tool_value = summary(part)
 
   if status ~= 'completed' then
@@ -23,7 +22,7 @@ end
 ---@param output Output
 ---@param part table
 ---@param context? FormatterContext
----@param tool_formatters? table registry passed in by the dispatch site
+---@param tool_formatters? table tool formatter registry passed by the dispatch site
 function M.format(output, part, context, tool_formatters)
   if part.name ~= 'task' and part.name ~= 'subagent' then
     return

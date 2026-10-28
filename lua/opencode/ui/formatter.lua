@@ -7,7 +7,7 @@ local snapshot = require('opencode.snapshot')
 local mention = require('opencode.ui.mention')
 local system_formatters = require('opencode.ui.formatter.system')
 local symbol_tokens = require('opencode.ui.symbol_tokens')
-local tool_formatters = require('opencode.ui.formatter.tools')
+local tool_formatters = require('opencode.ui.formatter.tool_registry')
 local format_utils = require('opencode.ui.formatter.utils')
 
 local M = {}
@@ -883,6 +883,28 @@ function M._format_assistant_message(output, text, part, message, context)
   add_symbol_reference_highlights(output, rendered, rendered_mention_ranges, targeted_tokens, first_line_idx)
 end
 
+---@param output Output
+---@return table
+local function snapshot_output(output)
+  return {
+    lines = vim.deepcopy(output.lines),
+    extmarks = vim.deepcopy(output.extmarks),
+    actions = vim.deepcopy(output.actions),
+    targets = vim.deepcopy(output.targets),
+    fold_ranges = vim.deepcopy(output.fold_ranges),
+  }
+end
+
+---@param output Output
+---@param saved table
+local function restore_output(output, saved)
+  output.lines = saved.lines
+  output.extmarks = saved.extmarks
+  output.actions = saved.actions
+  output.targets = saved.targets
+  output.fold_ranges = saved.fold_ranges
+end
+
 ---@param output Output Output object to write to
 ---@param part table
 ---@param context? FormatterContext
@@ -894,9 +916,19 @@ function M.format_tool(output, part, context, message)
 
   local start_line = output:get_line_count() + 1
 
-  local formatter = tool_formatters[tool] or (tool:match('_') and tool_formatters.mcp) or tool_formatters.tool
+  local formatter = tool_formatters.resolve(tool)
   local fold_count = #output.fold_ranges
-  formatter.format(output, part, context, tool_formatters, message)
+  if tool_formatters.is_override(tool) then
+    local before = snapshot_output(output)
+    local ok, err = pcall(formatter.format, output, part, context, tool_formatters, message)
+    if not ok then
+      require('opencode.log').error('Tool formatter "%s" failed: %s', tool, tostring(err))
+      restore_output(output, before)
+      tool_formatters.fallback(tool).format(output, part, context, tool_formatters, message)
+    end
+  else
+    formatter.format(output, part, context, tool_formatters, message)
+  end
 
   if not format_utils.should_fold_tool(tool) then
     for idx = #output.fold_ranges, fold_count + 1, -1 do

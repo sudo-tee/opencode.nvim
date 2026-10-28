@@ -523,6 +523,10 @@
 ---@field current_files? string[]
 ---@field symbol_cycle? SymbolSnapshotCycle
 
+---@class ToolFormatter
+---@field format fun(output: Output, part: table, context?: FormatterContext, ...: any) Write this tool part's content to the output
+---@field summary? fun(part: table): string, string, string Icon, label, and value for nested tool rows
+
 ---@class OutputTargetRange
 ---@field line integer Output-local line, 1-based
 ---@field start_col integer Output-local column, 0-based inclusive

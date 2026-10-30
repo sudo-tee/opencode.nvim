@@ -50,6 +50,19 @@ function M.find(line, scan_from)
   return start_pos, end_pos, token
 end
 
+-- Plain prose words collide with locals in candidate files, so only accept
+-- identifier-shaped tokens or ones quoted as inline code.
+---@param line string
+---@param start_pos integer
+---@param end_pos integer
+---@param token string
+---@return boolean
+function M.is_code_like(line, start_pos, end_pos, token)
+  return token:find('[_.:]') ~= nil
+    or token:find('%l%u') ~= nil
+    or (line:sub(start_pos - 1, start_pos - 1) == '`' and line:sub(end_pos + 1, end_pos + 1) == '`')
+end
+
 function M.at_col(line, col)
   local scan_from = 1
   while scan_from <= #line do

@@ -60,4 +60,14 @@ describe('opencode.ui.symbol_tokens', function()
     assert.is_nil(symbol_tokens.at_col('tests/data/symbol-reference-navigation.json', 8))
     assert.is_nil(symbol_tokens.at_col('.cache/', 2))
   end)
+
+  it('accepts only code-like tokens', function()
+    for _, token in ipairs({ 'switch_to_mode', 'M.apply', 'A::b', 'fooBar' }) do
+      assert.is_true(symbol_tokens.is_code_like(token, 1, #token, token), token)
+    end
+    for _, token in ipairs({ 'first', 'Update', 'JSON' }) do
+      assert.is_false(symbol_tokens.is_code_like(token, 1, #token, token), token)
+    end
+    assert.is_true(symbol_tokens.is_code_like('see `first`', 6, 10, 'first'))
+  end)
 end)

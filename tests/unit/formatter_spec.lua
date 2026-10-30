@@ -808,7 +808,7 @@ describe('formatter', function()
     }
 
     local output = Output.new()
-    formatter._format_assistant_message(output, 'foo', { id = 'part_symbol_only' }, {
+    formatter._format_assistant_message(output, '`foo`', { id = 'part_symbol_only' }, {
       id = 'msg_symbol_only',
       kind = 'assistant',
       session_id = 'ses_1',
@@ -826,10 +826,45 @@ describe('formatter', function()
       {
         kind = 'symbol',
         token = 'foo',
-        range = { line = 1, start_col = 0, end_col = 3 },
+        range = { line = 1, start_col = 1, end_col = 4 },
       },
     }, output.targets)
     assert.are.equal('OpencodeSymbolReference', output.extmarks[0][1].hl_group)
+  end)
+
+  it('limits symbol targets to code-like or backticked tokens', function()
+    local original_symbol_snapshot = package.loaded['opencode.ui.symbol_snapshot']
+    package.loaded['opencode.ui.symbol_snapshot'] = {
+      targets_for_token = function(_, token)
+        return { { token = token, path = '/test/project/src/foo.lua', line = 1, col = 1 } }
+      end,
+    }
+
+    local output = Output.new()
+    formatter._format_assistant_message(
+      output,
+      'Move to the first line, `first` switch_to_mode M.apply fooBar',
+      {
+        id = 'part_prose',
+      },
+      nil,
+      {
+        interactive = true,
+        current_files = { '/test/project/src/foo.lua' },
+        current_refs = {},
+        symbol_cycle = {},
+      }
+    )
+
+    package.loaded['opencode.ui.symbol_snapshot'] = original_symbol_snapshot
+
+    assert.are.same(
+      { 'first', 'switch_to_mode', 'M.apply', 'fooBar' },
+      vim.tbl_map(function(target)
+        return target.token
+      end, output.targets)
+    )
+    assert.are.equal(4, #output.extmarks[0])
   end)
 
   it('does not create symbol targets without local candidate files', function()
@@ -930,14 +965,15 @@ describe('formatter', function()
 
   it('highlights a symbol before trailing prose colon', function()
     local original_symbol_snapshot = package.loaded['opencode.ui.symbol_snapshot']
-    local text = 'See `src/main.lua` foo: call this'
+    local text = 'See `src/main.lua` foo_bar: call this'
     local ref_start, ref_end = text:find('`src/main.lua`', 1, true)
     local part = { id = 'part_colon', kind = 'text', text = text }
     local message = assistant({ part }, { id = 'msg_colon' })
     package.loaded['opencode.ui.symbol_snapshot'] = {
       targets_for_token = function(_, token, candidate_files)
         assert.are.same({ vim.fn.getcwd() .. '/src/main.lua' }, candidate_files)
-        return token == 'foo' and { { token = 'foo', path = vim.fn.getcwd() .. '/src/main.lua', line = 3, col = 1 } }
+        return token == 'foo_bar'
+            and { { token = 'foo_bar', path = vim.fn.getcwd() .. '/src/main.lua', line = 3, col = 1 } }
           or {}
       end,
     }
@@ -961,11 +997,11 @@ describe('formatter', function()
     package.loaded['opencode.ui.symbol_snapshot'] = original_symbol_snapshot
 
     local symbol_mark = output.extmarks[0][2]
-    local foo_start = output.lines[1]:find('foo:', 1, true)
+    local foo_start = output.lines[1]:find('foo_bar:', 1, true)
     assert.are.equal(text:gsub('See ', 'See ' .. require('opencode.ui.icons').get('reference'), 1), output.lines[1])
     assert.are.equal(foo_start - 1, symbol_mark.start_col)
-    assert.are.equal(foo_start + 2, symbol_mark.end_col)
-    assert.are.equal('foo', output.targets[2].token)
+    assert.are.equal(foo_start + 6, symbol_mark.end_col)
+    assert.are.equal('foo_bar', output.targets[2].token)
   end)
 
   it('formats grep tools when streamed input contains vim.NIL placeholders', function()

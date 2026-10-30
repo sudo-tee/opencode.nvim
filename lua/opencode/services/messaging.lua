@@ -22,7 +22,7 @@ local function consume_sent_attachments(tab_id, submission_context)
   if tab_id and session_tabs.active_id() ~= tab_id then
     local runtime = session_tabs.get(tab_id)
     if runtime then
-      runtime.context_data = vim.deepcopy(submission_context)
+      runtime.context_data = runtime.context_data or vim.deepcopy(submission_context)
       context.consume_attachments(submission_context, runtime.context_data)
     end
     return
@@ -200,30 +200,32 @@ M.send_message = Promise.async(function(prompt, opts)
       return false
     end
     local windows = state.windows
-    local attempt = { tick = windows and windows.input_buf and vim.api.nvim_buf_get_changedtick(windows.input_buf) }
+    local attempt = { tick = windows and windows.input_buf and state.ui.get_buffer_changedtick(windows.input_buf) }
     input_attempts[tab_id] = attempt
     local runtime = session_tabs.get(tab_id)
     if not runtime then
       return false
     end
     session_tabs.sync(tab_id)
+    context.load()
+    local context_snapshot = context.snapshot()
+    session_tabs.set_context(context_snapshot)
     snapshot = {
       mode = runtime.current_mode,
       model = runtime.current_model,
       variant = runtime.current_variant,
       context_config = vim.deepcopy(runtime.current_context_config),
-      context = vim.deepcopy(runtime.context_data or context.get_context()),
+      context = context_snapshot,
       last_sent_context = runtime.last_sent_context and vim.deepcopy(runtime.last_sent_context),
     }
     local lease = session_runtime.ensure_session(tab_id):await()
     if not lease then
       local buf = windows and windows.input_buf
-      local buf_alive = buf and vim.api.nvim_buf_is_valid(buf)
-      local current_tick = buf_alive and vim.api.nvim_buf_get_changedtick(buf)
+      local current_tick = buf and state.ui.get_buffer_changedtick(buf)
       if
         input_attempts[tab_id] == attempt
         and session_tabs.get(tab_id)
-        and buf_alive
+        and current_tick
         and current_tick == attempt.tick
       then
         restore_prompt(tab_id, prompt)
@@ -262,7 +264,8 @@ M.send_message = Promise.async(function(prompt, opts)
     return abandon()
   end
 
-  local mentioned_files = context.get_context().mentioned_files or {}
+  local mentioned_files = snapshot and (snapshot.context.mentioned_files or {})
+    or (context.get_context().mentioned_files or {})
   local allowed, err_msg = util.check_prompt_allowed(config.prompt_guard, mentioned_files)
 
   if not allowed then

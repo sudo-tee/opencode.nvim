@@ -544,8 +544,8 @@ function M.should_update_current_file(current_file)
     return true, false
   end
 
-  -- Different file name means update needed
-  if M.context.current_file.name ~= current_file.name then
+  -- Basenames can repeat across directories; the path identifies the active file.
+  if M.context.current_file.path ~= current_file.path then
     return true, true
   end
 
@@ -587,7 +587,7 @@ function M.load()
   cleared_selections = {}
   cleared_selections_context = nil
 
-  if not state.active_session and not state.is_opening then
+  if not state.active_session and not state.is_opening and not state.ui.is_visible() then
     return
   end
 
@@ -707,17 +707,19 @@ M.format_message = Promise.async(function(prompt, opts)
   local context_config = opts.context_config
   local previous_context = opts.previous_context
   local submission_context = opts.submission_context
+  local context_data = submission_context or M.context
+  local review_comments = submission_context and (submission_context.review_comments or {}) or M.get_review_comments()
   local buf, win = base_context.get_current_buf()
   local range = opts.range
   local captured = { text = prompt, context = {}, files = {}, agents = {} }
   ---@type OpencodeAutomaticContextPayload[]
   local automatic_context = {}
 
-  for _, file_path in ipairs(M.context.mentioned_files or {}) do
+  for _, file_path in ipairs(context_data.mentioned_files or {}) do
     captured.files[#captured.files + 1] = capture_file(file_path, prompt)
   end
 
-  for _, agent in ipairs(M.context.mentioned_subagents or {}) do
+  for _, agent in ipairs(context_data.mentioned_subagents or {}) do
     captured.agents[#captured.agents + 1] = capture_agent(agent, prompt)
   end
 
@@ -729,9 +731,11 @@ M.format_message = Promise.async(function(prompt, opts)
   ---@type string[]
   local order = {}
   local diffs_by_range = {}
-  for _, comment in ipairs(M.get_review_comments()) do
+  for _, comment in ipairs(review_comments or {}) do
     local reference = M.review_comment_reference(comment.id)
-    local is_current_session = not state.active_session or comment.session_id == state.active_session.id
+    local is_current_session = submission_context ~= nil
+      or not state.active_session
+      or comment.session_id == state.active_session.id
     if is_current_session and (auto_review_comments or prompt_has_reference(prompt, reference)) then
       local hint
       local connection = state.opencode_server
@@ -812,16 +816,16 @@ M.format_message = Promise.async(function(prompt, opts)
       end
     end
 
-    for _, sel in ipairs(M.context.selections or {}) do
+    for _, sel in ipairs(context_data.selections or {}) do
       table.insert(selections, sel)
     end
   end
 
-  local current_file_selected = M.context.current_file
-      and review_comment_files[vim.fn.resolve(vim.fn.fnamemodify(M.context.current_file.path, ':p'))]
+  local current_file_selected = context_data.current_file
+      and review_comment_files[vim.fn.resolve(vim.fn.fnamemodify(context_data.current_file.path, ':p'))]
     or false
   for _, selection in ipairs(selections) do
-    if M.context.current_file and selection.file and selection.file.path == M.context.current_file.path then
+    if context_data.current_file and selection.file and selection.file.path == context_data.current_file.path then
       current_file_selected = true
       break
     end
@@ -829,11 +833,11 @@ M.format_message = Promise.async(function(prompt, opts)
 
   if
     base_context.is_context_enabled('current_file', context_config)
-    and M.context.current_file
-    and not M.context.current_file.sent_at
+    and context_data.current_file
+    and not context_data.current_file.sent_at
     and not current_file_selected
   then
-    captured.files[#captured.files + 1] = capture_file(M.context.current_file.path)
+    captured.files[#captured.files + 1] = capture_file(context_data.current_file.path)
   end
 
   for _, selection in ipairs(selections) do

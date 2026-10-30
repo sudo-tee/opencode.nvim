@@ -1300,6 +1300,64 @@ describe('ChatContext.load() preserves selections on file switch', function()
     ChatContext.get_diagnostics = original_get_diagnostics
   end)
 
+  it('treats same-named files in different directories as different current files', function()
+    ChatContext.context.current_file = { path = '/workspace/src/main.lua', name = 'main.lua' }
+
+    local should_update, is_different_file = ChatContext.should_update_current_file({
+      path = '/workspace/tests/main.lua',
+      name = 'main.lua',
+    })
+
+    assert.is_true(should_update)
+    assert.is_true(is_different_file)
+  end)
+
+  it('tracks the current file while a visible tab is still a draft', function()
+    local original_active_session = state.active_session
+    local original_is_visible = state.ui.is_visible
+    local original_get_current_buf = BaseContext.get_current_buf
+    local original_get_current_file = BaseContext.get_current_file
+    local original_get_current_cursor_data = BaseContext.get_current_cursor_data
+    local original_is_context_enabled = BaseContext.is_context_enabled
+    local original_get_diagnostics = ChatContext.get_diagnostics
+    local original_current_file = ChatContext.context.current_file
+    local current_file = { path = '/tmp/draft.lua', name = 'draft.lua', extension = 'lua' }
+
+    state.session.clear_active()
+    state.ui.set_opening(false)
+    state.ui.is_visible = function()
+      return true
+    end
+    BaseContext.get_current_buf = function()
+      return 1, 1
+    end
+    BaseContext.get_current_file = function()
+      return current_file
+    end
+    BaseContext.get_current_cursor_data = function()
+      return nil
+    end
+    BaseContext.is_context_enabled = function(context_type)
+      return context_type == 'current_file'
+    end
+    ChatContext.get_diagnostics = function()
+      return {}
+    end
+
+    ChatContext.load()
+
+    assert.same(current_file, ChatContext.context.current_file)
+
+    state.ui.is_visible = original_is_visible
+    BaseContext.get_current_buf = original_get_current_buf
+    BaseContext.get_current_file = original_get_current_file
+    BaseContext.get_current_cursor_data = original_get_current_cursor_data
+    BaseContext.is_context_enabled = original_is_context_enabled
+    ChatContext.get_diagnostics = original_get_diagnostics
+    ChatContext.context.current_file = original_current_file
+    state.session.set_active(original_active_session)
+  end)
+
   it('should add new visual selection from current buffer when load() is called', function()
     -- Start with one existing selection from another file
     local existing_selection = {

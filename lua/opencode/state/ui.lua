@@ -100,6 +100,15 @@ function M.set_current_code_buf(bufnr)
   return store.set('current_code_buf', bufnr)
 end
 
+---@param bufnr integer
+---@return integer|nil
+function M.get_buffer_changedtick(bufnr)
+  if not vim.api.nvim_buf_is_valid(bufnr) then
+    return nil
+  end
+  return vim.api.nvim_buf_get_changedtick(bufnr)
+end
+
 ---@param win_id integer|nil
 ---@param bufnr integer|nil
 function M.set_code_context(win_id, bufnr)

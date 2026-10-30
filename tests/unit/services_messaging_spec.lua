@@ -403,6 +403,54 @@ describe('opencode.services.messaging', function()
     tab = nil
   end)
 
+  it('sends and clears attachments from the active draft context', function()
+    local original_context = context.snapshot()
+    local original_session = state.active_session
+    local tab = session_tabs.ensure_current()
+    local original_tab_context = vim.deepcopy(tab.context_data)
+    state.session.clear_active()
+
+    local image_path = '/tmp/pasted_image_draft.png'
+    local stale_context = context.snapshot()
+    stale_context.mentioned_files = {}
+    stale_context.mentioned_subagents = {}
+    stale_context.selections = {}
+    stale_context.current_file = nil
+    stale_context.review_comments = {}
+    tab.context_data = stale_context
+    context.get_context().mentioned_files = { image_path }
+    context.get_context().mentioned_subagents = {}
+    context.get_context().selections = {}
+    context.get_context().current_file = nil
+    context.get_context().review_comments = {}
+
+    local observation = connection:observe({ id = 'draft-attachment' })
+    local original_submit = observation.submit
+    local submitted
+    observation.submit = function(_, params)
+      submitted = vim.deepcopy(params)
+      return successful_submission()
+    end
+    local session_runtime = require('opencode.services.session_runtime')
+    local create = stub(session_runtime, 'create_detached_session').returns(Promise.new():resolve({
+      session = { id = 'draft-attachment' },
+      observation = observation,
+      connection = connection,
+    }))
+
+    assert.is_table(messaging.send_message('inspect screenshot'):wait())
+
+    assert.equals(vim.uri_from_fname(image_path), submitted.files[1].server_uri)
+    assert.same({}, context.get_context().mentioned_files)
+    assert.same({}, tab.context_data.mentioned_files)
+
+    create:revert()
+    observation.submit = original_submit
+    context.restore(original_context)
+    tab.context_data = original_tab_context
+    state.session.set_active(original_session)
+  end)
+
   it('returns false and keeps the prompt when the draft session cannot be created', function()
     local buf = vim.api.nvim_create_buf(false, true)
     state.ui.set_windows({ input_buf = buf })
@@ -831,16 +879,28 @@ describe('opencode.services.messaging', function()
   end)
 
   it('keeps an in-flight send bound to its original tab and session', function()
+    local original_context = context.snapshot()
     session_tabs.reset()
     local first = session_tabs.ensure_current()
     state.session.set_active({ id = 'session-one' })
     state.model.clear_model()
     state.model.set_mode('mode-one')
+    local sent_file = '/tmp/sent-before-switch.png'
+    local added_file = '/tmp/added-before-switch.png'
+    context.get_context().mentioned_files = { sent_file }
+    context.get_context().mentioned_subagents = {}
+    context.get_context().selections = {}
+    context.get_context().review_comments = {}
+    context.get_context().current_file = nil
     local second = session_tabs.create({ id = 'session-two' })
     second.current_mode = 'mode-two'
 
     local config_promise = Promise.new()
-    local config_stub = stub(config_file, 'get_opencode_config').returns(config_promise)
+    local config_requested = false
+    local config_stub = stub(config_file, 'get_opencode_config').invokes(function()
+      config_requested = true
+      return config_promise
+    end)
     local agents_stub =
       stub(config_file, 'get_opencode_agents').returns(Promise.new():resolve({ 'mode-one', 'mode-two' }))
     local sent_session
@@ -853,21 +913,31 @@ describe('opencode.services.messaging', function()
     end
 
     local send = messaging.send_message('hello world')
+    assert.is_true(vim.wait(1000, function()
+      return config_requested
+    end))
+    context.get_context().mentioned_files = { sent_file, added_file }
+    session_tabs.set_context(context.snapshot())
     session_tabs.activate(second)
+    context.restore(session_tabs.get_context())
     config_promise:resolve({ model = 'test/model' })
     send:wait()
 
     assert.equals('session-one', sent_session)
     assert.equals('mode-one', sent_params.agent)
+    assert.equals(vim.uri_from_fname(sent_file), sent_params.files[1].server_uri)
     assert.equals('test/model', first.current_model)
     assert.equals('mode-two', state.current_mode)
     assert.is_nil(state.current_model)
+    assert.same({ added_file }, first.context_data.mentioned_files)
+    assert.same({}, context.get_context().mentioned_files)
     assert.equals(0, first.user_message_count['session-one'])
     assert.is_nil(second.user_message_count['session-one'])
 
     config_stub:revert()
     agents_stub:revert()
     session_tabs.reset()
+    context.restore(original_context)
   end)
 
   it('preserves attachments when message preparation fails', function()

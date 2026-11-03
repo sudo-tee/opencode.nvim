@@ -1,7 +1,7 @@
 local M = {}
 
 ---Define the plugin highlight groups for the current background.
-function M.setup()
+local function apply_highlights()
   local is_light = vim.o.background == 'light'
 
   if is_light then
@@ -151,6 +151,20 @@ function M.setup()
   vim.api.nvim_set_hl(0, 'OpencodeCompactionRunning', { link = 'DiagnosticInfo', default = true })
   vim.api.nvim_set_hl(0, 'OpencodeCompactionCompleted', { link = 'Added', default = true })
   vim.api.nvim_set_hl(0, 'OpencodeCompactionFailed', { link = 'DiagnosticError', default = true })
+end
+
+function M.setup()
+  apply_highlights()
+
+  local group = vim.api.nvim_create_augroup('OpencodePluginHighlights', {
+    clear = true,
+  })
+
+  vim.api.nvim_create_autocmd('ColorScheme', {
+    group = group,
+    callback = apply_highlights,
+    desc = 'Restore opencode.nvim highlights after colorscheme changes',
+  })
 end
 
 return M

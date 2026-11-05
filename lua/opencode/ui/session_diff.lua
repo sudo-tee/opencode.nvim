@@ -913,10 +913,14 @@ function M.open(files, session, options)
     index = selected
   end
   M.close()
+
   vim.cmd('tabnew')
+
   local tab = vim.api.nvim_get_current_tabpage()
   local list_win = vim.api.nvim_get_current_win()
   local list_buf = scratch({}, '', 'list')
+
+  vim.bo.bufhidden = 'wipe'
   vim.api.nvim_win_set_buf(list_win, list_buf)
   vim.wo[list_win].winbar = ''
   vim.wo[list_win].number = false

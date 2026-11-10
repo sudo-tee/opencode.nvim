@@ -523,6 +523,8 @@ function M._hide()
   pcall(vim.api.nvim_win_close, windows.input_win, false)
   windows.input_win = nil
 
+  require('opencode.ui.footer').set_visible(false)
+
   if windows.position == 'float' then
     float_layout.update(windows, false)
   end
@@ -577,6 +579,7 @@ function M._show()
     M.setup(windows)
     M._hidden = false
     M.focus_input()
+    require('opencode.ui.footer').set_visible(true)
 
     if was_at_bottom then
       vim.schedule(function()
@@ -602,6 +605,7 @@ function M._show()
 
   -- Focus the input window
   M.focus_input()
+  require('opencode.ui.footer').set_visible(true)
 
   if was_at_bottom then
     vim.schedule(function()

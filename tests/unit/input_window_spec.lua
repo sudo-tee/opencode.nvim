@@ -661,6 +661,67 @@ describe('input_window', function()
     end)
   end)
 
+  describe('footer visibility follows input window', function()
+    local input_buf, output_buf, input_win, output_win
+    local footer
+
+    before_each(function()
+      footer = require('opencode.ui.footer')
+      input_buf = vim.api.nvim_create_buf(false, true)
+      output_buf = vim.api.nvim_create_buf(false, true)
+      input_win = vim.api.nvim_open_win(input_buf, true, {
+        relative = 'editor',
+        width = 80,
+        height = 8,
+        row = 0,
+        col = 0,
+      })
+      output_win = vim.api.nvim_open_win(output_buf, false, {
+        relative = 'editor',
+        width = 80,
+        height = 8,
+        row = 10,
+        col = 0,
+      })
+
+      state.ui.set_windows({
+        input_buf = input_buf,
+        input_win = input_win,
+        output_buf = output_buf,
+        output_win = output_win,
+        footer_buf = footer.create_buf(),
+      })
+      footer.setup(state.windows)
+    end)
+
+    after_each(function()
+      footer.close()
+      pcall(vim.api.nvim_win_close, state.windows and state.windows.input_win or input_win, true)
+      pcall(vim.api.nvim_win_close, output_win, true)
+      pcall(vim.api.nvim_buf_delete, input_buf, { force = true })
+      pcall(vim.api.nvim_buf_delete, output_buf, { force = true })
+      state.ui.clear_windows()
+      state.ui.set_input_content({})
+      input_window._hidden = false
+    end)
+
+    local function footer_hidden()
+      return vim.api.nvim_win_get_config(state.windows.footer_win).hide == true
+    end
+
+    it('hides footer when input hides and restores it when input returns', function()
+      assert.is_false(footer_hidden())
+
+      input_window._hide()
+      assert.is_true(input_window.is_hidden())
+      assert.is_true(footer_hidden())
+
+      input_window._show()
+      assert.is_false(input_window.is_hidden())
+      assert.is_false(footer_hidden())
+    end)
+  end)
+
   describe('_hide focus', function()
     local editor_win, input_win, output_win, input_buf, output_buf
 

@@ -340,6 +340,27 @@ function M.mounted(windows)
     and vim.api.nvim_win_is_valid(windows.output_win --[[@as integer]])
 end
 
+---Set footer float visibility without unmounting it.
+---The footer is chrome of the input area: input_window._hide hides it
+---together with the input window, _show restores it.
+---@param visible boolean
+function M.set_visible(visible)
+  if not M.mounted() then
+    return
+  end
+  ---@cast state.windows OpencodeWindowState
+  local ok = pcall(vim.api.nvim_win_set_config, state.windows.footer_win --[[@as integer]], {
+    hide = not visible,
+  })
+  if not ok then
+    return
+  end
+  if visible then
+    -- re-anchor: the output window may have resized while the footer was hidden
+    M.update_window(state.windows)
+  end
+end
+
 ---@param windows table Windows table with footer_win and output_win
 function M.update_window(windows)
   if not M.mounted(windows) then

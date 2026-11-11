@@ -317,17 +317,14 @@ describe('output_window.is_at_bottom', function()
     vim.api.nvim_win_set_width(win, 20)
     vim.api.nvim_set_option_value('wrap', true, { win = win, scope = 'local' })
     vim.api.nvim_buf_set_lines(buf, 0, -1, false, { 'line 1', 'line 2', long_line, 'line 4', 'line 5' })
-    vim.api.nvim_win_set_cursor(win, { 5, 0 })
-    pcall(vim.api.nvim_win_call, win, function()
-      vim.fn.winrestview({ topline = 1 })
+    vim.api.nvim_win_call(win, function()
+      vim.cmd('normal! gg')
     end)
 
     local visible_bottom = output_window.get_visible_bottom_line(win)
-    -- With topline=1, height=10, wrap=true, width=20:
-    -- line 1 (1 row), line 2 (1 row), long_line (180/20=9 rows).
-    -- In headless Neovim the visible bottom is line 3 (the long wrapped line)
-    -- or line 2 depending on the environment's redraw behaviour.
-    -- The important property is that it is not the last buffer line (5).
+    -- Scrolled to top with topline=1, height=10, wrap=true, width=20:
+    -- line 1 (1 row), line 2 (1 row), long_line (180/20=9 rows, cut off).
+    -- The last completely visible line is 2, never the last buffer line (5).
     assert.is_true(visible_bottom ~= nil)
     assert.is_true(visible_bottom < 5)
   end)

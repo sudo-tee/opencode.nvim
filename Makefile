@@ -14,7 +14,7 @@ TOPOLOGY_REQUIREMENTS := scripts/dependency-topology/requirements.txt
 TOPOLOGY_PYTHON ?= $(if $(shell command -v uv),uv run --quiet --no-project --with-requirements $(TOPOLOGY_REQUIREMENTS) python3,$(PYTHON))
 TOPOLOGY_BASE ?= origin/main
 
-.PHONY: help check test test-minimal test-unit test-replay typecheck format-check format replay replay-regenerate topology topology-diff topology-check
+.PHONY: help check test test-minimal test-unit test-replay test-input-streaming typecheck format-check format replay replay-regenerate topology topology-diff topology-check
 
 help: ## List development commands
 	@awk 'BEGIN { FS = ":.*## " } /^[a-z-]+:.*## / { printf "  %-20s %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
@@ -33,6 +33,9 @@ test-unit: ## Run unit tests
 
 test-replay: ## Run automated replay tests
 	$(MAKE) test TEST=replay
+
+test-input-streaming: ## Exercise streamed rendering while typing through a real PTY
+	$(PYTHON) tests/manual/streaming_input.py $(ARGS)
 
 typecheck: ## Check Lua types (optional ARGS passed to emmylua_check)
 	./check_types.sh $(ARGS)

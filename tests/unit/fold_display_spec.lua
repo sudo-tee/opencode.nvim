@@ -41,6 +41,144 @@ describe('fold display with a real Neovim UI', function()
     vim.fn.jobstop(channel)
   end)
 
+  local function start_input()
+    exec([[
+      output.set_lines({ 'title', 'first', 'second', 'third', 'tail', 'old', 'history' })
+      output.set_folds({ { from = 2, to = 3 }, { from = 6, to = 7 } })
+      output_win = vim.api.nvim_get_current_win()
+      vim.cmd('vnew')
+      input_win = vim.api.nvim_get_current_win()
+      input_buf = vim.api.nvim_get_current_buf()
+      vim.bo.filetype = 'opencode'
+      mode_changes = {}
+      vim.api.nvim_create_autocmd('ModeChanged', {
+        pattern = 'i:n',
+        callback = function() mode_changes[#mode_changes + 1] = vim.api.nvim_get_current_buf() end,
+      })
+      maintenance_keys = {}
+      vim.on_key(function(key)
+        if vim.fn.mode(1) == 'n' then
+          maintenance_keys[#maintenance_keys + 1] = vim.fn.keytrans(key)
+        end
+      end, vim.api.nvim_create_namespace('fold-maintenance-keys'))
+    ]])
+    vim.rpcrequest(channel, 'nvim_input', 'i')
+    assert.is_true(vim.wait(1000, function()
+      return exec([[return vim.fn.mode(1)]]) == 'i'
+    end))
+    exec([[maintenance_keys = {}]])
+  end
+
+  local function assert_input_untouched()
+    assert.same(
+      { true, 'i', {}, {} },
+      exec([[
+      return { vim.api.nvim_get_current_win() == input_win, vim.fn.mode(1), mode_changes, maintenance_keys }
+    ]])
+    )
+  end
+
+  it('rebuilds and clears output folds without notifying input mode listeners', function()
+    start_input()
+    exec([[
+      ctx = require('opencode.ui.renderer.ctx').current()
+      buffer = require('opencode.ui.renderer.buffer')
+      ctx.render_state:set_part({ id = 'stream', kind = 'text' }, 'message', 'stream', 0, 6)
+      ctx.formatted_parts.stream = { fold_ranges = { { from = 2, to = 4 } } }
+      buffer.update_part_folds('stream')
+    ]])
+    assert_input_untouched()
+    assert.equals(
+      4,
+      exec([[
+      return vim.api.nvim_win_call(output_win, function() return vim.fn.foldclosedend(2) end)
+    ]])
+    )
+    exec([[
+      vim.api.nvim_win_call(output_win, function() vim.cmd('2foldopen!') end)
+      ctx.formatted_parts.stream.fold_ranges[1].to = 5
+      buffer.update_part_folds('stream')
+    ]])
+    assert_input_untouched()
+    assert.equals(
+      -1,
+      exec([[
+      return vim.api.nvim_win_call(output_win, function() return vim.fn.foldclosed(2) end)
+    ]])
+    )
+    exec([[buffer.remove_part_now('stream')]])
+    assert_input_untouched()
+    exec([[output.clear()]])
+    assert_input_untouched()
+    assert.equals(
+      0,
+      exec([[
+      return vim.api.nvim_win_call(output_win, function() return vim.fn.foldlevel(2) end)
+    ]])
+    )
+    vim.rpcrequest(channel, 'nvim_input', vim.api.nvim_replace_termcodes('<Esc>', true, false, true))
+    assert.is_true(vim.wait(1000, function()
+      return exec([[return #mode_changes]]) == 1
+    end))
+    assert.is_true(exec([[return mode_changes[1] == input_buf]]))
+  end)
+
+  it('repairs a changed fold without disturbing input or open history folds', function()
+    start_input()
+    exec([[
+      vim.api.nvim_win_call(output_win, function() vim.cmd('6foldopen!') end)
+      require('opencode.state').ui.set_output_folds({
+        ranges = { { from = 2, to = 4 }, { from = 6, to = 7 } },
+      })
+      output.repair_folds({ { from = 2, to = 4 } })
+    ]])
+    assert_input_untouched()
+    assert.same(
+      { 4, -1 },
+      exec([[
+      return vim.api.nvim_win_call(output_win, function()
+        return { vim.fn.foldclosedend(2), vim.fn.foldclosed(6) }
+      end)
+    ]])
+    )
+  end)
+
+  it('renders asynchronous session previews without synthetic input mode changes', function()
+    start_input()
+    exec([[
+      local connection = require('tests.unit.services_spec_support').mock_connection()
+      local observation = connection:observe({ id = 'preview' })
+      observation._state.entries_by_id = {
+        message = { id = 'message', kind = 'assistant', content = {
+          { id = 'text', kind = 'text', text = 'Background preview' },
+        } },
+      }
+      observation._state.entry_order = { 'message' }
+      observation._state.sync.messages = { state = 'current' }
+      observation.watch = function(self, _, changed)
+        vim.schedule(function() changed(self) end)
+        return function() end
+      end
+      local opts
+      require('opencode.ui.base_picker').pick = function(value) opts = value end
+      require('opencode.ui.session_picker').pick({ { id = 'preview', title = 'Preview' } }, function() end)
+      local buf = vim.api.nvim_win_get_buf(output_win)
+      opts.preview_fn({ id = 'preview' }, {
+        is_valid = function() return true end,
+        get_bufnr = function() return buf end,
+        set_lines = function(_, lines) output.set_lines(lines) end,
+        with_window = function(_, fn) vim.api.nvim_win_call(output_win, fn) end,
+      })
+    ]])
+    assert.is_true(vim.wait(1000, function()
+      return exec([[
+        return table.concat(vim.api.nvim_buf_get_lines(
+          vim.api.nvim_win_get_buf(output_win), 0, -1, false), '\n'):find('Background preview', 1, true) ~= nil
+      ]])
+    end))
+    assert_input_untouched()
+  end)
+
   it('keeps tool borders beside both input and result fold summaries', function()
     exec([[
       local formatter = require('opencode.ui.formatter')

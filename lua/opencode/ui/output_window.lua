@@ -54,9 +54,18 @@ local function build_fold_state(folds)
   return fold_state
 end
 
-local function clear_manual_folds(win)
+---Clear native folds without running Normal commands or consuming typeahead.
+---@param win integer
+function M.clear_manual_folds(win)
   vim.api.nvim_win_call(win, function()
-    vim.cmd('silent! normal! zE')
+    local nestmax = vim.wo.foldnestmax
+    -- Indent folds update during Insert; expr/marker folds defer until it ends.
+    -- Recompute with depth zero, then retain the empty fold tree in manual mode.
+    vim.wo.foldnestmax = 0
+    vim.wo.foldmethod = 'indent'
+    vim.fn.foldlevel(1)
+    vim.wo.foldmethod = 'manual'
+    vim.wo.foldnestmax = nestmax
   end)
 end
 
@@ -555,7 +564,7 @@ function M.get_open_fold_starts(win, buf, ranges)
   return was_open
 end
 
----Repair only the supplied folds after a buffer rewrite, leaving history alone.
+---Repair native folds against the recorded ranges after a buffer rewrite.
 ---Existing open folds stay open; a pre-write snapshot restores deleted open folds.
 ---@param ranges {from: integer, to: integer}[]
 ---@param was_open? table<number, boolean>
@@ -566,7 +575,7 @@ function M.repair_folds(ranges, was_open)
   end
   vim.api.nvim_win_call(windows.output_win, function()
     local line_count = vim.api.nvim_buf_line_count(windows.output_buf)
-    ---@type table<string, integer>?
+    ---@type vim.fn.winrestview.dict?
     local view
     for _, range in ipairs(ranges) do
       if range.to <= line_count then
@@ -576,7 +585,12 @@ function M.repair_folds(ranges, was_open)
         if not exists or (closed_start ~= -1 and (closed_start ~= range.from or closed_end ~= range.to)) then
           view = view or vim.fn.winsaveview()
           if exists then
-            vim.cmd(range.from .. 'normal! zd')
+            -- Neovim has no Ex command for deleting one manual fold. Rebuild
+            -- only when a surviving fold has wrong bounds; missing folds below
+            -- still use the incremental path.
+            M.set_folds(state.ui.get_output_folds().ranges, true, was_open)
+            vim.fn.winrestview(view)
+            return
           end
           vim.cmd(range.from .. ',' .. range.to .. 'fold')
           if was_open and was_open[range.from] then
@@ -619,7 +633,7 @@ function M.set_folds(fold_ranges, force, open_starts)
 
   vim.api.nvim_win_call(win, function()
     local view = preserve_view and vim.fn.winsaveview() or nil
-    clear_manual_folds(win)
+    M.clear_manual_folds(win)
 
     local line_count = vim.api.nvim_buf_line_count(buf)
     local fold_commands = {}
@@ -896,7 +910,7 @@ end
 function M.clear()
   local windows = state.windows
   if M.mounted(windows) then
-    clear_manual_folds(windows.output_win)
+    M.clear_manual_folds(windows.output_win)
   end
   state.ui.clear_output_folds()
   M.set_lines({})

@@ -186,7 +186,7 @@ local function render_preview_buffer(target, formatted)
     vim.api.nvim_set_option_value('foldcolumn', '1', { win = 0 })
     vim.api.nvim_set_option_value('statuscolumn', '', { win = 0 })
     vim.api.nvim_set_option_value('foldmethod', 'manual', { win = 0 })
-    vim.cmd('silent! normal! zE') -- clear existing manual folds
+    output_window.clear_manual_folds(vim.api.nvim_get_current_win())
     local line_count = vim.api.nvim_buf_line_count(bufnr)
     for _, range in ipairs(formatted.fold_ranges) do
       if range.from <= line_count and range.to <= line_count then

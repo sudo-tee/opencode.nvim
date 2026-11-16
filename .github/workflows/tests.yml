@@ -153,6 +153,10 @@ jobs:
       - name: Run tests
         run: make test
 
+      - name: Preserve input during streamed rendering
+        if: always()
+        run: make test-input-streaming
+
       # # For sshing in to debug GH actions
       # - name: Setup tmate session
       #   uses: mxschmitt/action-tmate@v3

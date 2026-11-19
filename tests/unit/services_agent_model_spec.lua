@@ -226,7 +226,7 @@ describe('opencode.services.agent_model', function()
     set_observation({
       id = 'primary',
       agent = 'study',
-      model = { providerID = 'anthropic', id = 'claude-3-opus', variant = 'low' },
+      model = { providerID = 'anthropic', modelID = 'claude-3-opus', variant = 'low' },
     })
 
     local model = agent_model.initialize_current_model({ restore_from_messages = true }):wait()

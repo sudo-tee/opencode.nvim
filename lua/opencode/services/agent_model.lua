@@ -191,8 +191,20 @@ M.initialize_current_model = Promise.async(function(opts)
   local observation = state.session.active_observation()
   local observed = observation and observation:read() or nil
   if opts.restore_from_messages and observed then
+    -- The session fact is the server's own record of the selection; message
+    -- history only approximates it and may fail to load at all.
+    local fact = observed.session
+    if fact and fact.agent then
+      M.apply_server_agent(fact.agent)
+    end
+    local fact_model = fact and fact.model
+    if fact_model and fact_model.providerID and fact_model.id then
+      M.apply_server_selection(fact_model)
+      return state.current_model
+    end
+
     local order = observed.entry_order or {}
-    local is_child = observed.session and observed.session.parentID ~= nil
+    local is_child = fact and fact.parentID ~= nil
     local start_idx, end_idx, step = #order, 1, -1
     if is_child then
       start_idx, end_idx, step = 1, #order, 1
@@ -202,7 +214,7 @@ M.initialize_current_model = Promise.async(function(opts)
       if entry and entry.model and entry.model.modelID and entry.model.providerID then
         local model_str = entry.model.providerID .. '/' .. entry.model.modelID
         local should_restore_mode = false
-        if entry.agent and state.current_mode ~= entry.agent then
+        if entry.agent and not (fact and fact.agent) and state.current_mode ~= entry.agent then
           should_restore_mode = is_child
           if not should_restore_mode then
             local available_agents = config_file.get_opencode_agents():await()

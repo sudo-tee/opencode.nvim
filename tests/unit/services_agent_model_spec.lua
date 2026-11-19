@@ -220,6 +220,40 @@ describe('opencode.services.agent_model', function()
     config_file.get_opencode_agents:revert()
   end)
 
+  it('adopts the session fact agent and model without any message history', function()
+    state.model.set_model('openai/gpt-4.1')
+    state.model.set_mode('orchestrator')
+    set_observation({
+      id = 'primary',
+      agent = 'study',
+      model = { providerID = 'anthropic', id = 'claude-3-opus', variant = 'low' },
+    })
+
+    local model = agent_model.initialize_current_model({ restore_from_messages = true }):wait()
+
+    assert.equal('anthropic/claude-3-opus', model)
+    assert.equal('study', state.current_mode)
+    assert.equal('low', state.current_variant)
+  end)
+
+  it('prefers the session fact agent over the latest message agent', function()
+    state.model.set_mode('build')
+    stub(config_file, 'get_opencode_agents').returns(Promise.new():resolve({ 'plan', 'build' }))
+    set_observation({ id = 'primary', agent = 'plan' }, {
+      {
+        id = 'm1',
+        kind = 'assistant',
+        model = { providerID = 'anthropic', modelID = 'claude-3-opus' },
+        agent = 'build',
+      },
+    })
+
+    agent_model.initialize_current_model({ restore_from_messages = true }):wait()
+
+    assert.equal('plan', state.current_mode)
+    config_file.get_opencode_agents:revert()
+  end)
+
   it('resolves a neutral session selection while preserving explicit choices', function()
     state.model.set_mode('plan')
     state.model.set_model('custom/chosen')

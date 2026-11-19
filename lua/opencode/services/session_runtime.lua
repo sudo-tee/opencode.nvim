@@ -92,8 +92,7 @@ local function observe_active_session()
     state.session.update_active_metadata(observed.session)
     local owner = runtime or binding
     if
-      sync.messages
-      and sync.messages.state == 'current'
+      ((sync.messages and sync.messages.state == 'current') or observed.session.agent ~= nil)
       and not binding.restoring_model
       and owner.model_restored_session_id ~= session_id
     then

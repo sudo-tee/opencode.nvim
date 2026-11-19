@@ -754,14 +754,7 @@ local function request_resource(observation, resource)
   fail('unsupported resource read: ' .. tostring(resource))
 end
 
-local context_types = {
-  selection = 'selection',
-  review_comment = 'review-comment',
-  diagnostics = 'diagnostics',
-  cursor = 'cursor-data',
-  buffer = 'file-content',
-  git_diff = 'git-diff',
-}
+local context_types = require('opencode.protocols.observation').EDITOR_CONTEXT_WIRE_TYPES
 
 local function native_mention(text, mention)
   if mention == nil then

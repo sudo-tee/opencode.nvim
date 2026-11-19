@@ -1049,4 +1049,71 @@ describe('V2 protocol editor-context attachments', function()
     assert.same('selected code', context_entry.text)
     assert.equals('msg-user:file:2', entry.content[3].id)
   end)
+
+  it('decodes every attachment name the V2 writer derives from a context source kind', function()
+    local function attachment(name, data)
+      return { data = vim.base64.encode(data), mime = 'text/plain', source = { type = 'inline' }, name = name }
+    end
+    local observed = observation('ses-target')
+    observation_module.ingest_snapshot(observed, {
+      {
+        id = 'msg-user',
+        type = 'user',
+        time = { created = 100 },
+        text = 'review this',
+        files = {
+          attachment('editor-context:buffer:lua/a.lua', 'print(1)'),
+          attachment('editor-context:git_diff', 'diff --git a b'),
+          attachment(
+            'editor-context:cursor',
+            vim.json.encode({ context_type = 'cursor-data', line = 1, column = 2, line_content = 'x' })
+          ),
+          attachment(
+            'editor-context:diagnostics',
+            vim.json.encode({ context_type = 'diagnostics', content = { { msg = 'm', severity = 1, pos = 'l1:c1' } } })
+          ),
+          attachment(
+            'editor-context:review_comment:a.lua',
+            vim.json.encode({
+              context_type = 'review-comment',
+              comment = 'c',
+              code = 'x',
+              lines = '1-2',
+              side = 'after',
+            })
+          ),
+        },
+        agents = {},
+        skills = {},
+      },
+    })
+
+    local state = observed:read()
+    assert.equals('current', state.sync.messages.state)
+    local kinds = {}
+    for _, content in ipairs(state.entries_by_id['msg-user'].content) do
+      if content.kind == 'editor_context' then
+        kinds[#kinds + 1] = content.source.kind
+      end
+    end
+    assert.same({ 'buffer', 'git_diff', 'cursor', 'diagnostics', 'review_comment' }, kinds)
+  end)
+
+  it('still rejects an attachment name that maps to no editor context type', function()
+    local observed = observation('ses-target')
+    local ok, err = pcall(observation_module.ingest_snapshot, observed, {
+      {
+        id = 'msg-user',
+        type = 'user',
+        time = { created = 100 },
+        text = 'x',
+        files = { { data = 'YQ==', mime = 'text/plain', source = { type = 'inline' }, name = 'editor-context:bogus' } },
+        agents = {},
+        skills = {},
+      },
+    })
+
+    assert.is_false(ok)
+    assert.matches('unsupported editor context type: bogus', tostring(err))
+  end)
 end)

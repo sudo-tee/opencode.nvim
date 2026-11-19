@@ -102,6 +102,19 @@ function Observation.prepare_message(_)
   return {}, {}
 end
 
+--- Wire context_type for each editor-context source kind. V1 sends the wire
+--- type as part metadata; V2 names its attachment after the source kind, so
+--- both adapters translate through this one table.
+---@type table<string, string>
+M.EDITOR_CONTEXT_WIRE_TYPES = {
+  selection = 'selection',
+  review_comment = 'review-comment',
+  diagnostics = 'diagnostics',
+  cursor = 'cursor-data',
+  buffer = 'file-content',
+  git_diff = 'git-diff',
+}
+
 --- Decode an editor-context payload (selection / diagnostics / cursor-data /
 --- file-content / git-diff) into the protocol-neutral contract entry.
 --- Both protocol adapters map their wire shapes onto this one: V1 carries it

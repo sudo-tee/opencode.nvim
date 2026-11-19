@@ -198,7 +198,7 @@ M.initialize_current_model = Promise.async(function(opts)
       M.apply_server_agent(fact.agent)
     end
     local fact_model = fact and fact.model
-    if fact_model and fact_model.providerID and fact_model.id then
+    if fact_model and fact_model.providerID and fact_model.modelID then
       M.apply_server_selection(fact_model)
       return state.current_model
     end

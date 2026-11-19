@@ -2,6 +2,7 @@ local util = require('opencode.util')
 local log = require('opencode.log')
 local v = require('opencode.shape')
 local shared_decode_editor_context = require('opencode.protocols.observation').decode_editor_context
+local editor_context_wire_types = require('opencode.protocols.observation').EDITOR_CONTEXT_WIRE_TYPES
 
 --- Returns the first key in `value` (from `keys`) that is non-nil.
 local function first(value, keys)
@@ -713,10 +714,8 @@ end
 
 local function append_user_file(entry, file, index, text)
   shape(file, {}, 'invalid file attachment')
-  local context_name = type(file.name) == 'string' and file.name:match('^editor%-context:([%a_]+)') or nil
-  if context_name == 'review_comment' then
-    context_name = 'review-comment'
-  end
+  local source_kind = type(file.name) == 'string' and file.name:match('^editor%-context:([%a_]+)') or nil
+  local context_name = source_kind and (editor_context_wire_types[source_kind] or source_kind)
 
   local part
   if not context_name then

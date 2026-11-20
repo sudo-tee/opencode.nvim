@@ -21,8 +21,7 @@ function M.format(output, part)
 
   local result = utils.tool_result_text(part)
   if result ~= '' then
-    output:add_empty_line()
-    output:add_lines(vim.split(result, '\n'))
+    utils.format_code(output, vim.split(result, '\n'), '')
     output:add_empty_line()
   end
 

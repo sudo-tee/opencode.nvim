@@ -288,15 +288,28 @@ function M.should_fold_tool(tool)
   return true
 end
 
+---@param lines string[]
+---@return string
+function M.markdown_fence_for(lines)
+  local fence_length = 5
+  for _, line in ipairs(lines) do
+    for run in line:gmatch('`+') do
+      fence_length = math.max(fence_length, #run + 1)
+    end
+  end
+  return string.rep('`', fence_length)
+end
+
 ---@param output Output Output object to write to
 ---@param lines string[]
 ---@param language string
 function M.format_code(output, lines, language)
+  local sanitized = util.sanitize_lines(lines)
+  local fence = M.markdown_fence_for(sanitized)
   output:add_empty_line()
-  --- NOTE: use longer code fence because lines could contain ```
-  output:add_line('`````' .. (language or ''))
-  output:add_lines(util.sanitize_lines(lines))
-  output:add_line('`````')
+  output:add_line(fence .. (language or ''))
+  output:add_lines(sanitized)
+  output:add_line(fence)
 end
 
 ---@param lines string[]
@@ -408,10 +421,6 @@ end
 ---@param file_type string
 ---@param source_path? string
 function M.format_diff(output, code, file_type, source_path)
-  output:add_empty_line()
-
-  --- NOTE: use longer code fence because code could contain ```
-  output:add_line('`````' .. file_type)
   local full_lines = vim.split(code, '\n')
   for index = #full_lines, 1, -1 do
     if full_lines[index] == '\\ No newline at end of file' then
@@ -423,6 +432,9 @@ function M.format_diff(output, code, file_type, source_path)
   local first_visible_line = first_line:match('^@@') and 1 or (#full_lines > 5 and 6 or 1)
   local lines = first_visible_line > 1 and vim.list_slice(full_lines, first_visible_line) or full_lines
 
+  local fence = M.markdown_fence_for(lines)
+  output:add_empty_line()
+  output:add_line(fence .. file_type)
   for idx, line in ipairs(lines) do
     local source_idx = first_visible_line + idx - 1
     if numbered_lines[source_idx] then
@@ -431,7 +443,7 @@ function M.format_diff(output, code, file_type, source_path)
       output:add_line(line)
     end
   end
-  output:add_line('`````')
+  output:add_line(fence)
 end
 ---Calculate statistics for reverted messages and tool calls
 ---@param messages table[] All entries in the session

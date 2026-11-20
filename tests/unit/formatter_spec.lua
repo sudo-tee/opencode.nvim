@@ -329,6 +329,35 @@ describe('formatter', function()
     assert.is_true(rendered:find('OpenCode\nhttps://opencode.ai', 1, true) ~= nil, rendered)
   end)
 
+  it('keeps unmatched Markdown fences inside websearch results', function()
+    local snippet = 'Search snippet\n```\n  `````\nMore text'
+    local output =
+      formatter.format_part(tool('websearch', { result = { { kind = 'text', text = snippet } } }), assistant(), true)
+
+    local rendered = table.concat(output.lines, '\n')
+    assert.is_true(rendered:find('\n\n``````\n' .. snippet .. '\n``````\n', 1, true) ~= nil, rendered)
+  end)
+
+  it('keeps Markdown fences inside review comment code excerpts', function()
+    local output = Output.new()
+    formatter._format_review_comment_context(output, {
+      kind = 'editor_context',
+      source = { kind = 'review_comment', file_name = 'notes.md' },
+      comments = { { comment = 'Check this fence', code = '`````' } },
+    })
+
+    assert.are.same({ 'Check this fence', '``````md', '`````', '``````', '' }, output.lines)
+  end)
+
+  it('keeps Markdown fences inside diff previews', function()
+    local output = Output.new()
+    local formatter_utils = require('opencode.ui.formatter.utils')
+    formatter_utils.format_diff(output, '@@ -1 +1 @@\n-old\n+`````', 'markdown')
+
+    assert.are.equal('``````markdown', output.lines[2])
+    assert.are.equal('``````', output.lines[#output.lines])
+  end)
+
   it('renders V2 execute tools with their code', function()
     local output = formatter.format_part(
       tool('execute', {

@@ -59,7 +59,7 @@
                 "messageID": "msg_symbol_reference_navigation",
                 "sessionID": "ses_symbol_reference_navigation",
                 "type": "text",
-                "text": "collect should be highlighted from the referenced file."
+                "text": "`collect` should be highlighted from the referenced file."
             }
         }
     }

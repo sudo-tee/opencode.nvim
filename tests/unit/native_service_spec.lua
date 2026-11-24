@@ -7,7 +7,7 @@ local server_job = require('opencode.server_job')
 local assert = require('luassert')
 
 describe('native V2 service discovery', function()
-  local saved, commands, replies, status, request_headers, help_on_stderr
+  local saved, commands, timeouts, replies, status, request_headers, help_on_stderr
   before_each(function()
     saved = {
       system = Promise.system,
@@ -20,6 +20,7 @@ describe('native V2 service discovery', function()
     state.jobs.clear_server()
     config.values.server = { timeout = 1, auto_kill = true, password = 'wrong-explicit-password' }
     commands = {}
+    timeouts = {}
     help_on_stderr = false
     replies = {
       ['--help'] = 'SUBCOMMANDS\n  service   Manage the background server',
@@ -28,9 +29,10 @@ describe('native V2 service discovery', function()
       ['service start'] = 'http://127.0.0.1:49374',
     }
     status = 200
-    Promise.system = function(args)
+    Promise.system = function(args, opts)
       local command = table.concat(args, ' ', 2)
       commands[#commands + 1] = command
+      timeouts[command] = opts.timeout
       assert.is_not_nil(replies[command])
       local reply = replies[command]
       if type(reply) == 'function' then
@@ -159,6 +161,34 @@ describe('native V2 service discovery', function()
     replies['service status'] = 'stopped'
     assert.equals('v2', server_job.ensure_server():wait().protocol)
     assert.same({ '--help', 'service status', 'service start', 'service get password' }, commands)
+  end)
+
+  it('gives cold startup time to recover from a stale service registration', function()
+    config.values.server.timeout = config.defaults.server.timeout
+    replies['service status'] = 'stopped'
+
+    assert.equals('v2', server_job.ensure_server():wait().protocol)
+    assert.same({
+      ['--help'] = 5000,
+      ['service status'] = 5000,
+      ['service start'] = 30000,
+      ['service get password'] = 5000,
+    }, timeouts)
+  end)
+
+  it('budgets synchronous waits for the full cold startup sequence', function()
+    config.values.server.timeout = 5
+    assert.equals(30000 + 5 * 5000, server_job.cold_start_budget_ms())
+    config.values.server.timeout = 45
+    assert.equals(45000 + 5 * 45000, server_job.cold_start_budget_ms())
+  end)
+
+  it('honors a configured timeout longer than the cold startup minimum', function()
+    config.values.server.timeout = 45
+    replies['service status'] = 'stopped'
+
+    assert.equals('v2', server_job.ensure_server():wait().protocol)
+    assert.equals(45000, timeouts['service start'])
   end)
 
   it('waits for a native service that reports a transitional start state', function()

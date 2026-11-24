@@ -311,6 +311,11 @@ local function execute_shell_command(command)
 end
 
 M.actions.submit_input_prompt = Promise.async(function()
+  if state.is_opening then
+    vim.notify('OpenCode is still loading. Submit again when the panel is ready.', vim.log.levels.INFO)
+    return
+  end
+
   if state.display_route then
     state.ui.clear_display_route()
     ui.render_output()

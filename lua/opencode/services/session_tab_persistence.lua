@@ -232,7 +232,8 @@ end
 ---@param cwd string
 ---@param background boolean
 ---@param is_current fun(): boolean
-local restore_snapshot = Promise.async(function(snapshot, current, cwd, background, is_current)
+---@param before_switch? fun(replacing_draft?: boolean)
+local restore_snapshot = Promise.async(function(snapshot, current, cwd, background, is_current, before_switch)
   local connection = server_job.ensure_server():await()
   if not connection then
     error('Server failed to start')
@@ -297,8 +298,13 @@ local restore_snapshot = Promise.async(function(snapshot, current, cwd, backgrou
       save_timer:stop()
     end
     local ok, err = pcall(function()
+      if before_switch then
+        before_switch(true)
+      end
+      local selected = active or restored[1]
+      selected.input_content = current.input_content
       tabs.remove(current)
-      tabs.activate(active or restored[1])
+      tabs.activate(selected)
     end)
     vim.schedule(function()
       replaying_restore = false
@@ -318,7 +324,7 @@ end
 ---Concurrent opens for the same cwd/server share a request. Newer requests win.
 ---Never rejects: failures are logged, snapshots stay intact, and the next open retries.
 ---@param background boolean Explicit new-session opens keep the current tab and append saved tabs behind it.
----@param before_switch? fun() Called before parking outgoing runtime state
+---@param before_switch? fun(replacing_draft?: boolean) Called before parking a group or replacing its initial draft
 ---@param directory? string Editor cwd, never a tab's bound directory
 ---@return Promise<nil>|nil
 function M.restore(background, before_switch, directory)
@@ -404,7 +410,7 @@ function M.restore(background, before_switch, directory)
     group.restore_generation = request
     restore_snapshot(snapshot, current[1], cwd, background, function()
       return owner == group and request == generation
-    end):await()
+    end, before_switch):await()
     if group.restore_generation == request then
       group.restoring = false
       if request ~= generation then

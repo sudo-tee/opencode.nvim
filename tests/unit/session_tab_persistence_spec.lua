@@ -412,6 +412,30 @@ describe('session tab persistence', function()
     assert.equals('second', tabs.current().active_session.id)
   end)
 
+  it('carries input typed during startup into the restored active tab', function()
+    save_tabs()
+    restart()
+    local draft = tabs.current()
+    local lookup = Promise.new()
+    connection.operations.get_session = function(_, id, location)
+      if id == 'second' then
+        return lookup
+      end
+      return Promise.new():resolve({ id = id, title = id, location = location })
+    end
+    local restoring = service.restore(false, function(replacing_draft)
+      assert.is_true(replacing_draft)
+      assert.equals(draft, tabs.current())
+      -- Mimic capturing the visible input buffer before replacing its tab.
+      state.ui.set_input_content({ 'Draft during startup' })
+      tabs.sync()
+    end)
+    lookup:resolve({ id = 'second', title = 'Second', location = { directory = vim.fn.getcwd() } })
+    restoring:wait()
+    assert.equals('second', state.active_session.id)
+    assert.same({ 'Draft during startup' }, state.input_content)
+  end)
+
   it('does not resurrect tabs after all tabs were explicitly closed', function()
     save_tabs()
     for _, runtime in ipairs(tabs.list()) do

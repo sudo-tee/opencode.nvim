@@ -40,6 +40,28 @@ function M.unregister_tool_formatter(name)
   return require('opencode.ui.formatter.tool_registry').unregister(name)
 end
 
+---Register a recipe-owned formatter for file attachments in user messages.
+---Formatters run in registration order; the first one that writes lines wins.
+---@param name string
+---@param formatter OpencodeAttachmentFormatter
+function M.register_attachment_formatter(name, formatter)
+  return require('opencode.ui.formatter.attachment_registry').register(name, formatter)
+end
+
+---@param name string
+---@return boolean
+function M.unregister_attachment_formatter(name)
+  return require('opencode.ui.formatter.attachment_registry').unregister(name)
+end
+
+---Buffer lines a rendered part occupies in the output, e.g. an attachment's
+---`part_id`. Returns nil when the part is not rendered.
+---@param part_id string
+---@return OpencodeRenderedPartLines?
+function M.get_rendered_part(part_id)
+  return require('opencode.ui.renderer').get_part_lines(part_id)
+end
+
 ---Register a recipe-owned context provider. Its items are shown in the
 ---context bar and `#` picker and sent as text/plain attachments.
 ---@param provider OpencodeContextProvider

@@ -90,7 +90,8 @@ shows its name. It receives `{ name, text, media_type }` for each inline
 match on `name` rather than on your current items. Return a string or a list of
 Markdown lines, shown below an `icon label name` header, `{}` to hide the
 attachment, or `nil` to leave it to the next provider and then the default. It runs for disabled providers too; a failure is
-logged and falls back to the default.
+logged and falls back to the default. For other attachment types, use an
+[attachment formatter](#attachment-formatters).
 
 OpenCode keeps every provider visible:
 
@@ -331,6 +332,54 @@ The function returns `true` when a custom formatter or built-in override was
 removed and `false` otherwise. Removing an override restores the built-in
 formatter. For complete formatters covering `pty_spawn` and `pty_read`, see the
 [opencode-pty recipe](recipes/tool-formatter.md).
+
+## Attachment formatters
+
+A provider `render` only sees inline `text/plain` attachments. To change how
+any file attachment in a user message looks, including images and files sent
+by path, register an attachment formatter:
+
+```lua
+require('opencode').register_attachment_formatter('png_size', {
+  format = function(output, attachment)
+    if attachment.media_type ~= 'image/png' then
+      return -- write nothing to decline
+    end
+    output:add_line('**image** `' .. attachment.name .. '`')
+  end,
+})
+```
+
+`attachment` has these fields:
+
+| Field | Value |
+| --- | --- |
+| `name` | Attachment name |
+| `uri` | `file://` or `data:<mime>;base64,` URI as sent |
+| `media_type` | MIME type, when known |
+| `path` | Local path for a `file://` URI, after `server.reverse_path_map` |
+| `part_id` | Key for `get_rendered_part`; absent outside the output window, e.g. in the session picker |
+
+Formatters run in registration order before provider `render` hooks and the
+default `` [`name`](name) `` line. The first one that writes lines renders the
+part; OpenCode still adds the user message border. A failing formatter's
+partial output is discarded, the error is logged once, and the next formatter
+is tried. Names must be unique; `unregister_attachment_formatter(name)` returns
+whether one was removed. `format` runs on every redraw of the part, so cache
+expensive work.
+
+### Overlays on rendered output
+
+To draw something over the output, such as an image, a formatter can reserve
+blank lines and remember `attachment.part_id`. After each render,
+`require('opencode').get_rendered_part(part_id)` returns
+`{ buf, win, first, last }`: 1-indexed, inclusive buffer lines, and the output
+window when it shows the buffer (`win` is `nil` otherwise). It returns `nil`
+once the part is no longer rendered.
+
+The `User OpencodeOutputRendered` autocmd fires after OpenCode writes the
+output buffer, with `args.data.buf`. Line positions can change on every render,
+so re-place overlays there, and on `WinScrolled`/`WinResized` for scrolling.
 
 ## Prompt guard
 

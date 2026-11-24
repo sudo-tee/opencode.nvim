@@ -91,6 +91,34 @@ function Output:clear()
   self.targets = {}
 end
 
+---@class OutputSnapshot
+---@field lines string[]
+---@field extmarks table<number, OutputExtmark[]>
+---@field actions OutputAction[]
+---@field targets OutputTarget[]
+---@field fold_ranges {from: integer, to: integer}[]
+
+---Copy the current content so a failed formatter can be rolled back.
+---@return OutputSnapshot
+function Output:snapshot()
+  return {
+    lines = vim.deepcopy(self.lines),
+    extmarks = vim.deepcopy(self.extmarks),
+    actions = vim.deepcopy(self.actions),
+    targets = vim.deepcopy(self.targets),
+    fold_ranges = vim.deepcopy(self.fold_ranges),
+  }
+end
+
+---@param saved OutputSnapshot
+function Output:restore(saved)
+  self.lines = saved.lines
+  self.extmarks = saved.extmarks
+  self.actions = saved.actions
+  self.targets = saved.targets
+  self.fold_ranges = saved.fold_ranges
+end
+
 ---Add a fold range
 ---@param start_line number
 ---@param end_line number

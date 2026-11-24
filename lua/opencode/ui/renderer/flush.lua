@@ -96,6 +96,19 @@ local function with_suppressed_output_autocmds(fn)
   return result
 end
 
+---Tell recipes the output buffer changed so they can re-place overlays.
+---@param buf integer
+local function notify_output_rendered(buf)
+  local ok, err = pcall(vim.api.nvim_exec_autocmds, 'User', {
+    pattern = 'OpencodeOutputRendered',
+    data = { buf = buf },
+    modeline = false,
+  })
+  if not ok then
+    require('opencode.log').error('OpencodeOutputRendered autocmd failed: ' .. tostring(err))
+  end
+end
+
 ---@return boolean
 local function is_markdown_render_deferred()
   if not config.ui.output.rendering.markdown_on_idle then
@@ -326,7 +339,8 @@ local function format_part(ctx, part_id, render_context)
   end
 
   local is_last_part = (buffer.get_last_part_for_message(message, ctx) == part_id)
-  local ok, formatted_or_err = pcall(formatter.format_part, rendered_part.part, message, is_last_part, render_context)
+  local ok, formatted_or_err =
+    pcall(formatter.format_part, rendered_part.part, message, is_last_part, render_context, part_id)
   if not ok then
     warn_part_render_error_once(part_id, rendered_part.message_id, formatted_or_err)
     return nil, rendered_part.message_id
@@ -460,6 +474,9 @@ local function apply_pending(ctx, pending, opts)
 
   if changed then
     scroll.post_flush(scroll_snapshot, buf)
+    if not ctx.bulk_mode then
+      notify_output_rendered(buf)
+    end
   end
   return changed
 end
@@ -596,6 +613,7 @@ function M.end_bulk_mode(ctx)
   if not ok then
     error(err)
   end
+  notify_output_rendered(buf)
 
   local generation = ctx.generation
   vim.schedule(function()

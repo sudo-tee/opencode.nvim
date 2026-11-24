@@ -10,6 +10,7 @@ local symbol_tokens = require('opencode.ui.symbol_tokens')
 local tool_formatters = require('opencode.ui.formatter.tool_registry')
 local format_utils = require('opencode.ui.formatter.utils')
 local context_providers = require('opencode.context.providers')
+local attachment_formatters = require('opencode.ui.formatter.attachment_registry')
 
 local M = {}
 
@@ -896,28 +897,6 @@ function M._format_assistant_message(output, text, part, message, context)
   add_symbol_reference_highlights(output, rendered, rendered_mention_ranges, targeted_tokens, first_line_idx)
 end
 
----@param output Output
----@return table
-local function snapshot_output(output)
-  return {
-    lines = vim.deepcopy(output.lines),
-    extmarks = vim.deepcopy(output.extmarks),
-    actions = vim.deepcopy(output.actions),
-    targets = vim.deepcopy(output.targets),
-    fold_ranges = vim.deepcopy(output.fold_ranges),
-  }
-end
-
----@param output Output
----@param saved table
-local function restore_output(output, saved)
-  output.lines = saved.lines
-  output.extmarks = saved.extmarks
-  output.actions = saved.actions
-  output.targets = saved.targets
-  output.fold_ranges = saved.fold_ranges
-end
-
 ---@param output Output Output object to write to
 ---@param part table
 ---@param context? FormatterContext
@@ -932,11 +911,11 @@ function M.format_tool(output, part, context, message)
   local formatter = tool_formatters.resolve(tool)
   local fold_count = #output.fold_ranges
   if tool_formatters.is_override(tool) then
-    local before = snapshot_output(output)
+    local before = output:snapshot()
     local ok, err = pcall(formatter.format, output, part, context, tool_formatters, message)
     if not ok then
       require('opencode.log').error('Tool formatter "%s" failed: %s', tool, tostring(err))
-      restore_output(output, before)
+      output:restore(before)
       tool_formatters.fallback(tool).format(output, part, context, tool_formatters, message)
     end
   else
@@ -1011,20 +990,39 @@ end
 
 ---@param output Output
 ---@param part table
----@param message table
+---@param part_id? string
 ---@return boolean
-local function format_user_file(output, part, message)
-  local rendered, provider = provider_rendered_file(part)
-  if rendered and #rendered == 0 then
+local function attachment_formatted_file(output, part, part_id)
+  if not (part.name and part.name ~= '' and part.uri) then
     return false
   end
+  ---@type OpencodeAttachment
+  local attachment = { name = part.name, uri = part.uri, media_type = part.media_type, part_id = part_id }
+  if vim.startswith(part.uri, 'file://') then
+    attachment.path = util.apply_reverse_path_map(vim.uri_to_fname(part.uri))
+  end
+  return attachment_formatters.format(output, attachment)
+end
+
+---@param output Output
+---@param part table
+---@param message table
+---@param part_id? string
+---@return boolean
+local function format_user_file(output, part, message, part_id)
   local first_line = output:get_line_count() + 1
-  if rendered and provider then
-    -- Rendered content would otherwise read like prompt or assistant prose.
-    output:add_line(string.format('%s**%s** `%s`', provider.icon or '', provider.label, part.name))
-    output:add_lines(util.sanitize_lines(rendered))
-  elseif not M._format_context_file(output, part.name or (part.source and part.source.path)) then
-    return false
+  if not attachment_formatted_file(output, part, part_id) then
+    local rendered, provider = provider_rendered_file(part)
+    if rendered and provider then
+      if #rendered == 0 then
+        return false
+      end
+      -- Rendered content would otherwise read like prompt or assistant prose.
+      output:add_line(string.format('%s**%s** `%s`', provider.icon or '', provider.label, part.name))
+      output:add_lines(util.sanitize_lines(rendered))
+    elseif not M._format_context_file(output, part.name or (part.source and part.source.path)) then
+      return false
+    end
   end
   local last_line = output:get_line_count()
 
@@ -1047,8 +1045,9 @@ end
 ---@param part table
 ---@param message table
 ---@param context? FormatterContext
+---@param part_id? string
 ---@return Output, boolean
-local function format_user_part(output, part, message, context)
+local function format_user_part(output, part, message, context, part_id)
   if is_compaction_part(part) then
     format_compaction_divider(output)
     return output, true
@@ -1063,7 +1062,7 @@ local function format_user_part(output, part, message, context)
     format_editor_context(output, part, context)
     return output, true
   elseif part.kind == 'file' then
-    return output, format_user_file(output, part, message)
+    return output, format_user_file(output, part, message, part_id)
   end
   return output, false
 end
@@ -1267,7 +1266,7 @@ local function format_synthetic_part(output, part, message, context)
   return format_system_part(output, part, message)
 end
 
----@alias MessagePartFormatter fun(output: Output, part: table, message: table, context?: FormatterContext): Output, boolean
+---@alias MessagePartFormatter fun(output: Output, part: table, message: table, context?: FormatterContext, part_id?: string): Output, boolean
 
 ---@type table<string, MessagePartFormatter?>
 local part_formatters = {
@@ -1286,8 +1285,9 @@ local part_formatters = {
 ---@param message? table
 ---@param is_last_part? boolean
 ---@param context? FormatterContext
+---@param part_id? string Render-state key, passed to attachment formatters
 ---@return Output
-function M.format_part(part, message, is_last_part, context)
+function M.format_part(part, message, is_last_part, context, part_id)
   local output = Output.new()
   if not message or not message.kind then
     return output
@@ -1299,7 +1299,7 @@ function M.format_part(part, message, is_last_part, context)
   local content_added = false
   local formatter = part_formatters[message.kind]
   if formatter then
-    output, content_added = formatter(output, part, message, context)
+    output, content_added = formatter(output, part, message, context, part_id)
   end
 
   if message.kind == 'assistant' then

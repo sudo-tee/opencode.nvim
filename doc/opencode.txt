@@ -77,6 +77,9 @@ the options in effect: >vim
 <
 The output can include server credentials; check it before sharing.
 
+Load recipe modules with `recipes = { 'my_recipes.example' }` in setup options.
+Recipe defaults merge beneath your options. See docs/recipes/README.md.
+
 For a local V2 install, leave `server` unset: the plugin finds OpenCode's
 background service. Quitting Neovim does not stop that service. See
 docs/servers.md for remote servers, containers, and WSL.

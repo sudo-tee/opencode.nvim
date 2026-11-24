@@ -17,7 +17,9 @@ and why this recipe needs more configuration.
 ## Setup
 
 Say exactly where the following configuration belongs. Provide a complete,
-copyable example; do not use `...` inside executable code.
+copyable example; do not use `...` inside executable code. If the recipe
+combines options with code, consider showing it as a module loaded through
+`recipes` (see [Keep a recipe in its own file](README.md#keep-a-recipe-in-its-own-file)).
 
 ## Try it
 

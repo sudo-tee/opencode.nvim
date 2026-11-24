@@ -456,6 +456,7 @@
 ---@field program_status {enabled: boolean, tmux: boolean} -- OSC 7501 reporting; tmux enables DCS passthrough
 ---@field server OpencodeServerConfig -- Custom/external server configuration
 ---@field keymap OpencodeKeymap
+---@field recipes? (string|OpencodeRecipe)[] -- Module names passed to require(), or recipe tables; see docs/recipes
 ---@field ui OpencodeUIConfig
 ---@field context OpencodeContextConfig
 ---@field logging OpencodeLoggingConfig

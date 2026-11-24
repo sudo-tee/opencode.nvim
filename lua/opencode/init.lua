@@ -43,10 +43,14 @@ local function on_opencode_server()
   require('opencode.ui.permission_window').clear_all()
 end
 
+---@param opts? OpencodeConfig
 function M.setup(opts)
   if setup_done then
     return
   end
+  -- Resolved before marking setup done so a bad recipe name can be fixed and setup retried.
+  local recipes = require('opencode.recipes')
+  local merged, loaded = recipes.resolve(opts)
   setup_done = true
 
   -- Have to setup config first, especially before state as
@@ -54,7 +58,7 @@ function M.setup(opts)
   -- If state is require'd first then it will not get what may
   -- be set by the user
   local config = require('opencode.config')
-  config.setup(opts)
+  config.setup(merged)
 
   require('opencode.ui.highlight').setup()
 
@@ -81,6 +85,8 @@ function M.setup(opts)
   require('opencode.ui.program_status').setup()
   require('opencode.context').setup()
   require('opencode.ui.context_bar').setup()
+
+  recipes.run(loaded, M)
 end
 
 return M

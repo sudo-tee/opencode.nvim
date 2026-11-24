@@ -24,6 +24,14 @@ describe('opencode.context.providers', function()
     providers._reset()
   end)
 
+  it('fingerprints the name and text unambiguously even when they contain NUL bytes', function()
+    local key, fingerprint = providers.fingerprint('notes', { id = 'a', name = 'note', text = 'a\0b' })
+    local other_key, other_fingerprint = providers.fingerprint('notes', { id = 'a', name = 'note\0a', text = 'b' })
+
+    assert.equals(key, other_key)
+    assert.not_equals(fingerprint, other_fingerprint)
+  end)
+
   it('rejects invalid, reserved, and duplicate names', function()
     assert.has_error(function()
       providers.register(provider({ name = 'bad name' }))

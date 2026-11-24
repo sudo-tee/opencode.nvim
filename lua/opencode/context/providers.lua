@@ -222,7 +222,9 @@ end
 ---@return string key
 ---@return string fingerprint
 function M.fingerprint(provider_name, item)
-  return 'provider:' .. provider_name .. ':' .. item.id, vim.fn.sha256(item.name .. '\0' .. item.text)
+  -- Frame the fields unambiguously and keep NUL bytes out of Vimscript's sha256() on Neovim 0.10.
+  local payload = #item.name .. ':' .. item.name .. item.text
+  return 'provider:' .. provider_name .. ':' .. item.id, vim.fn.sha256(vim.base64.encode(payload))
 end
 
 ---Whether the item's exact payload was already sent in this session.

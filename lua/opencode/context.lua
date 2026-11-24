@@ -298,7 +298,7 @@ end
 
 ---@param prompt string
 ---@param opts? OpencodeContextConfig|nil
----@param tracking? { previous_context?: OpencodeContext, submission_context?: OpencodeContext }
+---@param tracking? { previous_context?: OpencodeContext, submission_context?: OpencodeContext, provider_sends?: table<string, OpencodeContextProviderItem[]> }
 ---@return table
 M.format_message = Promise.async(function(prompt, opts, tracking)
   tracking = tracking or {}
@@ -306,6 +306,7 @@ M.format_message = Promise.async(function(prompt, opts, tracking)
     context_config = opts,
     previous_context = tracking.previous_context,
     submission_context = tracking.submission_context,
+    provider_sends = tracking.provider_sends,
   }):await()
 end)
 

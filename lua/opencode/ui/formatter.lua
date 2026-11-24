@@ -9,6 +9,7 @@ local system_formatters = require('opencode.ui.formatter.system')
 local symbol_tokens = require('opencode.ui.symbol_tokens')
 local tool_formatters = require('opencode.ui.formatter.tool_registry')
 local format_utils = require('opencode.ui.formatter.utils')
+local context_providers = require('opencode.context.providers')
 
 local M = {}
 
@@ -992,15 +993,40 @@ local function format_editor_context(output, part, context)
   M._format_diagnostics_context(output, part)
 end
 
+---Lines a context provider renders for an inline text attachment.
+---@param part table
+---@return string[]? lines
+---@return OpencodeContextProvider? provider
+local function provider_rendered_file(part)
+  local prefix = 'data:text/plain;base64,'
+  if not (part.name and part.name ~= '' and part.uri and vim.startswith(part.uri, prefix)) then
+    return nil
+  end
+  local ok, text = pcall(vim.base64.decode, part.uri:sub(#prefix + 1))
+  if not ok then
+    return nil
+  end
+  return context_providers.render({ name = part.name, text = text, media_type = part.media_type })
+end
+
 ---@param output Output
 ---@param part table
 ---@param message table
 ---@return boolean
 local function format_user_file(output, part, message)
-  local file_line = M._format_context_file(output, part.name or (part.source and part.source.path))
-  if not file_line then
+  local rendered, provider = provider_rendered_file(part)
+  if rendered and #rendered == 0 then
     return false
   end
+  local first_line = output:get_line_count() + 1
+  if rendered and provider then
+    -- Rendered content would otherwise read like prompt or assistant prose.
+    output:add_line(string.format('%s**%s** `%s`', provider.icon or '', provider.label, part.name))
+    output:add_lines(util.sanitize_lines(rendered))
+  elseif not M._format_context_file(output, part.name or (part.source and part.source.path)) then
+    return false
+  end
+  local last_line = output:get_line_count()
 
   local previous_kind, next_kind = get_user_part_neighbors(message, part)
   local previous_is_context = previous_kind == 'selection'
@@ -1008,11 +1034,11 @@ local function format_user_file(output, part, message)
     or previous_kind == 'diagnostics'
 
   if next_kind == 'text' or (previous_is_context and not next_kind) then
-    M.add_vertical_border(output, file_line - 1, file_line, 'OpencodeMessageRoleUser', -3)
+    M.add_vertical_border(output, first_line - 1, last_line, 'OpencodeMessageRoleUser', -3)
   elseif next_kind == 'file' then
-    M.add_vertical_border(output, file_line, file_line + 1, 'OpencodeMessageRoleUser', -3)
+    M.add_vertical_border(output, first_line, last_line + 1, 'OpencodeMessageRoleUser', -3)
   else
-    M.add_vertical_border(output, file_line, file_line, 'OpencodeMessageRoleUser', -3)
+    M.add_vertical_border(output, first_line, last_line, 'OpencodeMessageRoleUser', -3)
   end
   return true
 end

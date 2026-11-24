@@ -15,6 +15,7 @@ plugin; read [Usage](../usage.md) first if you are new.
 | [Quiet Blink completion](quiet-blink.md) | The completion menu pops up while you type a prompt |
 | [GitHub issue references](completion-source.md) | You want issue references available from a custom completion source |
 | [opencode-pty tools](tool-formatter.md) | You want readable output for tools added by a server plugin |
+| [Paste as an attachment](paste-as-attachment.md) | You want pasted text sent as an attachment, not inlined in the prompt |
 
 ## Keep a recipe in its own file
 

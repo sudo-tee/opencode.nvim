@@ -105,6 +105,41 @@ describe('formatter', function()
     assert.equals(#'@review-comment-1', mention_mark.end_col)
   end)
 
+  it('renders an inline text attachment through its context provider', function()
+    local providers = require('opencode.context.providers')
+    providers._reset()
+    providers.register({
+      name = 'pasted_text',
+      label = 'Pasted Text',
+      icon = '+ ',
+      collect = function()
+        return {}
+      end,
+      render = function(attachment)
+        return attachment.name:match('^pasted_text_') and attachment.text or nil
+      end,
+    })
+    local function file(name)
+      return {
+        kind = 'file',
+        name = name,
+        media_type = 'text/plain',
+        uri = 'data:text/plain;base64,' .. vim.base64.encode('first\nsecond'),
+      }
+    end
+    local message = { id = 'msg_paste', kind = 'user', content = { file('pasted_text_1.txt'), file('notes.txt') } }
+
+    local pasted = formatter.format_part(message.content[1], message, true)
+    local other = formatter.format_part(message.content[2], message, true)
+    providers._reset()
+
+    assert.same({ '+ **Pasted Text** `pasted_text_1.txt`', 'first', 'second', '' }, pasted.lines)
+    for _, row in ipairs({ 0, 1, 2, 3 }) do
+      assert.same({ { icons.get('border'), 'OpencodeMessageRoleUser' } }, pasted.extmarks[row][1].virt_text)
+    end
+    assert.same({ '[`notes.txt`](notes.txt)', '' }, other.lines)
+  end)
+
   it('preserves replacement output and actions for system display parts', function()
     local output = formatter.format_part({ kind = 'hidden_messages_display', hidden_count = 2 }, { kind = 'system' })
     assert.equals('> 2 older messages are not displayed.', output.lines[1])

@@ -57,6 +57,73 @@ and [`dispatch.lua`](../lua/opencode/commands/dispatch.lua) for the lifecycle
 contract. They fire for every command, whether it came from a key, an API
 call, an Ex command, or a slash command.
 
+## Context providers
+
+Register a provider after `setup()` to send your own text with each prompt:
+
+```lua
+require('opencode').register_context_provider({
+  name = 'notes',        -- [%w_-]+, unique, not a built-in context name
+  label = 'Notes',
+  icon = '󰎚 ',           -- optional
+  enabled = true,        -- optional; providers are off by default
+  collect = function(ctx) -- ctx.prompt is the current draft
+    return { { id = 'today', name = 'notes.txt', text = 'Ship the fix' } }
+  end,
+  preview = function(item) return item.text:sub(1, 200) end, -- optional
+  remove = function(item) end,    -- optional; called from the context picker
+  on_sent = function(items) end,  -- optional; called once the server accepts them
+  render = function(attachment) end, -- optional; how sent attachments look in the output
+})
+```
+
+Each item needs a unique `id`, a single-line `name`, and non-empty `text`.
+Items are sent as `text/plain` file attachments on V1 and V2.
+
+`preview` changes what the context picker shows for an item. Return a string,
+or `{ text = ..., filetype = ... }` to highlight it. It defaults to the exact
+text, which is also used if `preview` fails.
+
+`render` changes how a sent attachment appears in the output, which otherwise
+shows its name. It receives `{ name, text, media_type }` for each inline
+`text/plain` attachment in the session, including history from earlier runs, so
+match on `name` rather than on your current items. Return a string or a list of
+Markdown lines, shown below an `icon label name` header, `{}` to hide the
+attachment, or `nil` to leave it to the next provider and then the default. It runs for disabled providers too; a failure is
+logged and falls back to the default.
+
+OpenCode keeps every provider visible:
+
+- The context bar shows `icon label (n)` for each enabled provider with items
+  (for a `reference` provider, only the referenced ones).
+  It is dimmed when every item was already sent and shows `(!)` with a warning
+  highlight when `collect` fails.
+- The context picker (`#` by default) toggles each provider, previews each
+  item, and removes an item through `remove`.
+- An item is sent again only when its name or text changes. A failing provider
+  is skipped and logged; other providers and the prompt are unaffected.
+
+Call `require('opencode').refresh_context()` after your items change, and
+`unregister_context_provider(name)` to remove a provider.
+`require('opencode').is_input_window()` reports whether the OpenCode input is
+focused.
+
+### References
+
+Set `reference = true` to send an item only while the prompt contains
+`@<item.name>`. Names must then be unique and use only `[%w_-./]`. The model
+sees the token in the prompt next to an attachment of the same name. On V2 the
+attachment is linked to the token, which is then highlighted in the output;
+V1 cannot link inline attachments.
+
+`require('opencode').insert_context_reference(item)` inserts the token at the
+cursor when the input is focused, and appends it to the draft otherwise.
+Deleting the token detaches the item, but it stays in your provider's list until
+you drop it. Removing the item from the context picker also deletes its token.
+
+See [Paste as an attachment](recipes/paste-as-attachment.md) for a complete
+provider.
+
 ## Local slash commands
 
 Register a Lua callback before or after `setup()`:

@@ -2,6 +2,7 @@ local base_context = require('opencode.context.base_context')
 local util = require('opencode.util')
 local state = require('opencode.state')
 local Promise = require('opencode.promise')
+local providers = require('opencode.context.providers')
 
 local M = {}
 
@@ -113,27 +114,6 @@ end
 ---@return string
 function M.review_comment_reference(comment_id)
   return ('@review-comment-%d'):format(comment_id)
-end
-
----@param prompt string
----@param reference string
----@return boolean
-local function prompt_has_reference(prompt, reference)
-  local search_from = 1
-  while true do
-    local start_pos, end_pos = prompt:find(reference, search_from, true)
-    if not start_pos then
-      return false
-    end
-    ---@cast end_pos integer
-
-    local preceding = start_pos > 1 and prompt:sub(start_pos - 1, start_pos - 1) or ''
-    local following = prompt:sub(end_pos + 1, end_pos + 1)
-    if not preceding:match('[%w_%-]') and not following:match('[%w_%-]') then
-      return true
-    end
-    search_from = start_pos + 1
-  end
 end
 
 ---@param comment OpencodeContextReviewComment
@@ -700,7 +680,7 @@ end
 
 --- Capture the protocol-independent input for one submission.
 ---@param prompt string The user's instruction/prompt
----@param opts? { range?: { start: integer, stop: integer }, context_config?: OpencodeContextConfig, previous_context?: OpencodeContext, submission_context?: OpencodeContext }
+---@param opts? { range?: { start: integer, stop: integer }, context_config?: OpencodeContextConfig, previous_context?: OpencodeContext, submission_context?: OpencodeContext, provider_sends?: table<string, OpencodeContextProviderItem[]> }
 ---@return table
 M.format_message = Promise.async(function(prompt, opts)
   opts = opts or {}
@@ -723,6 +703,38 @@ M.format_message = Promise.async(function(prompt, opts)
     captured.agents[#captured.agents + 1] = capture_agent(agent, prompt)
   end
 
+  -- Filled for the caller to report through on_sent once the server accepts the prompt.
+  local provider_sends = opts.provider_sends or {}
+  ---@type table<string, string>
+  local provider_fingerprints = {}
+  local previous_fingerprints = previous_context and previous_context.automatic_context or {}
+  for _, result in ipairs(providers.collect(prompt)) do
+    local name = result.provider.name
+    for _, item in ipairs(result.items) do
+      local key, fingerprint = providers.fingerprint(name, item)
+      provider_fingerprints[key] = fingerprint
+      if previous_fingerprints[key] ~= fingerprint then
+        local file = { name = item.name, media_type = 'text/plain', bytes = item.text }
+        local start_pos, end_pos = util.find_reference(prompt, providers.reference(item))
+        if result.provider.reference and start_pos and end_pos then
+          file.mention = { start_byte = start_pos - 1, end_byte = end_pos }
+        end
+        captured.files[#captured.files + 1] = file
+        provider_sends[name] = provider_sends[name] or {}
+        table.insert(provider_sends[name], item)
+      end
+    end
+  end
+
+  -- delta_context below replaces automatic_context, so provider fingerprints are merged last.
+  local function finish()
+    if submission_context then
+      submission_context.automatic_context =
+        vim.tbl_extend('force', submission_context.automatic_context or {}, provider_fingerprints)
+    end
+    return captured
+  end
+
   ---@type table<string, boolean>
   local review_comment_files = {}
   local auto_review_comments = base_context.is_context_enabled('review_comments', context_config)
@@ -736,7 +748,7 @@ M.format_message = Promise.async(function(prompt, opts)
     local is_current_session = submission_context ~= nil
       or not state.active_session
       or comment.session_id == state.active_session.id
-    if is_current_session and (auto_review_comments or prompt_has_reference(prompt, reference)) then
+    if is_current_session and (auto_review_comments or util.has_reference(prompt, reference)) then
       local hint
       local connection = state.opencode_server
       local end_message = comment.to or comment.from
@@ -787,7 +799,7 @@ M.format_message = Promise.async(function(prompt, opts)
   end
 
   if not buf then
-    return captured
+    return finish()
   end
 
   local selections = {}
@@ -891,7 +903,7 @@ M.format_message = Promise.async(function(prompt, opts)
   end
 
   vim.list_extend(captured.context, M.delta_context(automatic_context, previous_context, submission_context))
-  return captured
+  return finish()
 end)
 
 return M

@@ -6,6 +6,10 @@ Hooks cover plugin-level moments like a finished response or an edited file.
 For raw server events, use a User autocmd. Events can belong to any session,
 not only the one shown in the panel.
 
+To keep options and extension registrations together, load a recipe module with
+[`setup({ recipes = { 'my_recipes.example' } })`](recipes/README.md#keep-a-recipe-in-its-own-file).
+Recipe options merge beneath your own; recipe setup hooks run after initialization.
+
 ## User hooks
 
 Configure callbacks under `hooks`:

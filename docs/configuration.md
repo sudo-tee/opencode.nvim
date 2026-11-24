@@ -24,6 +24,7 @@ Optional callbacks and values are shown as `nil`.
 ```lua
 require('opencode').setup({
   preferred_picker = nil,
+  recipes = nil, -- Lua module names or { opts?, setup? } tables; see docs/recipes
   default_global_keymaps = true,
   default_mode = 'build',
   default_system_prompt = nil,

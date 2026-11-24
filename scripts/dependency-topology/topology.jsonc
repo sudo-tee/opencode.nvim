@@ -38,6 +38,7 @@
     "entry_layer": {
       "modules": [
         "opencode",                        // plugin setup entry
+        "opencode.recipes",                // setup-time recipe loader
         "opencode.api",                    // programmatic entry — wraps every action into dispatch_action()
         "opencode.keymap",                 // keybinding → api calls
         "opencode.health",                 // :checkhealth entry

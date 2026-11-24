@@ -20,6 +20,8 @@
 
 ## Architecture
 
+Exercise abstract thinking before any task
+
 Entry (`ui/**`, `commands/handlers/**`, `quick_chat.lua`) → `services/*` → infra (`session`, `api`, `server_job`).
 
 - Services: permanent boundary, own shared business logic. Handlers only adapt intents.

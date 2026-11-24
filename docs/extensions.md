@@ -380,6 +380,7 @@ once the part is no longer rendered.
 The `User OpencodeOutputRendered` autocmd fires after OpenCode writes the
 output buffer, with `args.data.buf`. Line positions can change on every render,
 so re-place overlays there, and on `WinScrolled`/`WinResized` for scrolling.
+See [Inline images](recipes/inline-images.md) for a complete recipe.
 
 ## Prompt guard
 

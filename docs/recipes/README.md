@@ -16,6 +16,7 @@ plugin; read [Usage](../usage.md) first if you are new.
 | [GitHub issue references](completion-source.md) | You want issue references available from a custom completion source |
 | [opencode-pty tools](tool-formatter.md) | You want readable output for tools added by a server plugin |
 | [Paste as an attachment](paste-as-attachment.md) | You want pasted text sent as an attachment, not inlined in the prompt |
+| [Inline images](inline-images.md) | You want image attachments shown in the output, not just their names |
 
 ## Keep a recipe in its own file
 

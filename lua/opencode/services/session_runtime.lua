@@ -16,6 +16,7 @@ local M = {}
 local active_binding
 local directory_change_generation = 0
 local group_panel_visible = false
+local open_generation = 0
 
 ---@class OpencodeSessionLease
 ---@field session {id: string, location?: OpencodeLocation}
@@ -389,7 +390,8 @@ M.check_cwd = function()
   end
 end
 
-local function prepare_group_switch()
+---@param replacing_draft? boolean
+local function prepare_group_switch(replacing_draft)
   group_panel_visible = group_panel_visible or state.ui.is_visible()
   state.ui.set_opening(false)
   session_tabs.set_context(context.snapshot())
@@ -397,12 +399,17 @@ local function prepare_group_switch()
     ui.prepare_session_tab_switch()
     ui.hide_visible_windows(state.windows, true)
   end
+  if replacing_draft and state.ui.inspect_hidden_buffers() then
+    ui.drop_hidden_snapshot()
+  end
   session_tabs.sync()
 end
 
 ---@param opts? OpenOpts
 M.open = Promise.async(function(opts)
   opts = opts or { focus = 'input', new_session = false }
+  open_generation = open_generation + 1
+  local request = open_generation
   local editor_cwd = vim.fs.normalize(vim.fn.getcwd())
   local existing_tab = session_tabs.current()
   local tabs_initialized = not config.ui.restore_tabs_on_startup or tab_persistence.is_initialized()
@@ -414,28 +421,7 @@ M.open = Promise.async(function(opts)
   state.ui.set_opening(true)
 
   local created_windows
-  local server_ok, server = pcall(function()
-    local previous = session_tabs.current()
-    local pinned = state.active_session and M.is_session_locked() and tab_persistence.is_initialized()
-    local restoring
-    if not pinned then
-      restoring = tab_persistence.restore(opts.new_session == true, prepare_group_switch)
-    end
-    if restoring then
-      restoring:await()
-    end
-    if vim.fs.normalize(vim.fn.getcwd()) ~= editor_cwd then
-      error('Working directory changed while opening panel')
-    end
-    local switched = session_tabs.current() ~= previous
-    if switched then
-      context.restore(session_tabs.get_context())
-    end
-    state.ui.set_opening(true)
-    local open_action = opts.open_action or state.ui.resolve_open_windows_action()
-    if switched and open_action == 'reuse_visible' then
-      open_action = state.ui.resolve_open_windows_action()
-    end
+  local function prepare_windows(open_action)
     if opts.new_session then
       context.clear_files()
       context.clear_selections()
@@ -447,9 +433,48 @@ M.open = Promise.async(function(opts)
       M.is_prompting_allowed()
     end
     created_windows = ui.prepare_windows(open_action, opts)
+  end
+
+  local server_ok, server = pcall(function()
+    local previous = session_tabs.current()
+    local pinned = state.active_session and M.is_session_locked() and tab_persistence.is_initialized()
+    local restoring
+    if not pinned then
+      restoring = tab_persistence.restore(opts.new_session == true, prepare_group_switch)
+    end
+    -- A pending restore may be waiting for the service itself. Show the
+    -- panel now, then remount only if restoration replaces its active tab.
+    local mounted_early = restoring and not restoring:is_resolved() and session_tabs.current() == previous
+    if mounted_early then
+      prepare_windows(opts.open_action or state.ui.resolve_open_windows_action())
+    end
+    if restoring then
+      restoring:await()
+    end
+    if request ~= open_generation then
+      return nil
+    end
+    if vim.fs.normalize(vim.fn.getcwd()) ~= editor_cwd then
+      error('Working directory changed while opening panel')
+    end
+    local switched = session_tabs.current() ~= previous
+    if switched then
+      context.restore(session_tabs.get_context())
+    end
+    if not mounted_early or (switched and group_panel_visible) then
+      state.ui.set_opening(true)
+      local open_action = opts.open_action
+      if switched and (mounted_early or open_action == 'reuse_visible') then
+        open_action = nil
+      end
+      prepare_windows(open_action or state.ui.resolve_open_windows_action())
+    end
     group_panel_visible = false
     return server_job.ensure_server():await()
   end)
+  if request ~= open_generation then
+    return nil
+  end
   if not server_ok then
     state.ui.set_opening(false)
     return Promise.new():reject(server)
@@ -485,10 +510,12 @@ M.open = Promise.async(function(opts)
       end
     end
 
-    state.ui.set_panel_focused(true)
+    state.ui.set_panel_focused(ui.is_opencode_focused())
   end)
 
-  state.ui.set_opening(false)
+  if request == open_generation then
+    state.ui.set_opening(false)
+  end
 
   if not ok then
     vim.notify('Error opening panel: ' .. tostring(err), vim.log.levels.ERROR)

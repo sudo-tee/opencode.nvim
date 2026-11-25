@@ -14,6 +14,13 @@ To see the settings in effect:
 
 Server credentials show up in this output, so check it before sharing.
 
+When the plugin auto-starts the OpenCode background service, it gives
+`opencode service start` at least 30 seconds to recover from stale registrations
+and boot. Set `server.timeout` higher to extend that limit. Other server
+commands and health checks do not use this 30-second minimum. The panel opens
+with `Loading...` in its title while the service starts and session tabs are
+restored. You can draft a prompt while it loads, then submit when it is ready.
+
 ## Full default configuration
 
 Optional callbacks and values are shown as `nil`.

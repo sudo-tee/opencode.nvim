@@ -62,7 +62,7 @@ local function check_opencode_server()
   local state = require('opencode.state')
   local previous_connection = state.opencode_server
   local ok, server = pcall(function()
-    return server_job.ensure_server({ force_health_check = true }):wait()
+    return server_job.ensure_server({ force_health_check = true }):wait(server_job.cold_start_budget_ms())
   end)
   if not ok or not server or not server.url or not server.protocol then
     health.error('Failed to establish an authenticated opencode connection: ' .. vim.inspect(server))

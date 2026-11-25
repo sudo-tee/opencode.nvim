@@ -191,16 +191,28 @@ local function probe_until_ready(server, timeout_ms, retry_transport)
   )
 end
 
+-- The CLI waits before replacing a stale service registration, then has to boot the daemon.
+local SERVICE_START_MIN_TIMEOUT_MS = 30000
+
+---Upper bound for a cold native-service startup: start, plus help, status, endpoint polling, password, and health probe.
+---@return integer
+function M.cold_start_budget_ms()
+  local timeout = (config.server.timeout or 5) * 1000
+  return math.max(timeout, SERVICE_START_MIN_TIMEOUT_MS) + 5 * timeout
+end
+
 -- CLI capability selects the launcher only; authenticated health selects the protocol.
 local try_native_service = Promise.async(function()
   local timeout = (config.server.timeout or 5) * 1000
   local function command(...)
     local args = { config.opencode_executable, ... }
+    local is_service_start = args[2] == 'service' and args[3] == 'start'
+    local command_timeout = is_service_start and math.max(timeout, SERVICE_START_MIN_TIMEOUT_MS) or timeout
     local ok, result = pcall(function()
-      return Promise.system(args, { text = true, timeout = timeout }):await()
+      return Promise.system(args, { text = true, timeout = command_timeout }):await()
     end)
     if not ok then
-      if args[2] == 'service' and args[3] == 'start' and type(result) == 'table' and result.code == 124 then
+      if is_service_start and type(result) == 'table' and result.code == 124 then
         -- The service can outlive its launcher; discover its endpoint through status.
         return ''
       end

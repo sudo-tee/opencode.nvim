@@ -302,10 +302,9 @@ function M.filter_pickable_sessions(sessions, parent_id)
   end, sessions)
 end
 
----Activate a session and initialize its mode without changing panel visibility or focus.
 ---@param session_or_id OpencodeSession|string
----@return Promise
-M.switch_session = Promise.async(function(session_or_id)
+---@return OpencodeSession
+local function resolve_session(session_or_id)
   local selected_session = session_or_id
   if type(session_or_id) == 'string' then
     local active = state.session.active_observation()
@@ -321,7 +320,14 @@ M.switch_session = Promise.async(function(session_or_id)
   if type(selected_session) ~= 'table' or type(selected_session.id) ~= 'string' then
     error('Session lookup returned an invalid response')
   end
+  return selected_session
+end
 
+---Activate a session and initialize its mode without changing panel visibility or focus.
+---@param session_or_id OpencodeSession|string
+---@return Promise
+M.switch_session = Promise.async(function(session_or_id)
+  local selected_session = resolve_session(session_or_id)
   state.model.clear()
   state.session.set_active(selected_session)
   agent_model.ensure_current_mode():await()
@@ -332,7 +338,14 @@ end)
 ---@param session_or_id OpencodeSession|string
 ---@return Promise
 M.select_session = Promise.async(function(session_or_id)
-  M.switch_session(session_or_id):await()
+  local selected_session = resolve_session(session_or_id)
+  local owner = session_tabs.owner_of(selected_session.id)
+  if owner and owner.id ~= session_tabs.active_id() then
+    -- Hide the outgoing panes before projecting the owner's window state.
+    M.switch_session_tab(owner.id):await()
+  else
+    M.switch_session(selected_session):await()
+  end
   if not state.ui.is_visible() then
     M.open()
     return

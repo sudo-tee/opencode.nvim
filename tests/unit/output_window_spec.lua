@@ -289,6 +289,24 @@ describe('output_window.setup', function()
     assert.equals(3, fold_end)
   end)
 
+  it('keeps fold option changes local when rebuilding folds', function()
+    output_window.setup({ output_buf = buf, output_win = win })
+    output_window.set_lines({ 'a', 'b', 'c', 'd' })
+
+    vim.api.nvim_win_call(win, function()
+      vim.go.foldmethod = 'expr'
+      vim.go.foldnestmax = 11
+      vim.wo[win][0].foldnestmax = 5
+
+      output_window.set_folds({ { from = 1, to = 3 } })
+
+      assert.equals(11, vim.go.foldnestmax)
+      assert.equals('expr', vim.go.foldmethod)
+      assert.equals(5, vim.wo.foldnestmax)
+      assert.equals('manual', vim.wo.foldmethod)
+    end)
+  end)
+
   it('repairs a deleted fold without rebuilding unrelated history folds', function()
     output_window.setup({ output_buf = buf, output_win = win })
     output_window.set_lines({ 'old', 'old body', '', 'tool', 'body', 'tail' })

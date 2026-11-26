@@ -271,6 +271,22 @@ describe('opencode session panel tabs', function()
     assert.same({ 'second input' }, vim.api.nvim_buf_get_lines(state.windows.input_buf, 0, -1, false))
     assert.equals(state.windows.input_win, vim.api.nvim_get_current_win())
 
+    local ok, err = pcall(function()
+      session_runtime.open_session_tab():await()
+      local draft_tab = session_tabs.active_id()
+      local draft_input_win, draft_output_win = state.windows.input_win, state.windows.output_win
+      require('opencode.ui.input_window').set_content({ 'unsent draft' })
+
+      session_runtime.select_session({ id = 'session-one', title = 'One' }):await()
+      assert.equals(first_tab.id, session_tabs.active_id())
+      assert.equals(first_output, state.windows.output_buf)
+      assert.is_false(vim.api.nvim_win_is_valid(draft_input_win))
+      assert.is_false(vim.api.nvim_win_is_valid(draft_output_win))
+
+      session_runtime.switch_session_tab(draft_tab):await()
+      assert.same({ 'unsent draft' }, vim.api.nvim_buf_get_lines(state.windows.input_buf, 0, -1, false))
+    end)
+
     if state.windows then
       ui.teardown_visible_windows(state.windows)
     end
@@ -291,6 +307,7 @@ describe('opencode session panel tabs', function()
     ensure_mode_stub:revert()
     sync_model_stub:revert()
     render_stub:revert()
+    assert.is_true(ok, tostring(err))
   end)
 
   it('activates the tab that owns a session instead of binding it to the current tab', function()

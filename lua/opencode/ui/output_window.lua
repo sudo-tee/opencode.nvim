@@ -58,14 +58,16 @@ end
 ---@param win integer
 function M.clear_manual_folds(win)
   vim.api.nvim_win_call(win, function()
-    local nestmax = vim.wo.foldnestmax
+    -- Keep OptionSet local so Tree-sitter doesn't refresh folds in other buffers.
+    local opts = vim.wo[win][0]
+    local nestmax = opts.foldnestmax
     -- Indent folds update during Insert; expr/marker folds defer until it ends.
     -- Recompute with depth zero, then retain the empty fold tree in manual mode.
-    vim.wo.foldnestmax = 0
-    vim.wo.foldmethod = 'indent'
+    opts.foldnestmax = 0
+    opts.foldmethod = 'indent'
     vim.fn.foldlevel(1)
-    vim.wo.foldmethod = 'manual'
-    vim.wo.foldnestmax = nestmax
+    opts.foldmethod = 'manual'
+    opts.foldnestmax = nestmax
   end)
 end
 

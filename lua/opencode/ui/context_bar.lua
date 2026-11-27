@@ -6,6 +6,30 @@ local state = require('opencode.state')
 local config = require('opencode.config')
 local prompt_guard_indicator = require('opencode.ui.prompt_guard_indicator')
 local winbar = require('opencode.ui.winbar')
+local providers = require('opencode.context.providers')
+
+local function insert_provider_segments(segments)
+  for _, result in ipairs(providers.collect()) do
+    local provider = result.provider
+    if result.error or #result.items > 0 then
+      local highlight = 'OpencodeContextWarning'
+      if not result.error then
+        highlight = 'OpencodeContextCurrentFileNotUpdated'
+        for _, item in ipairs(result.items) do
+          if not providers.is_sent(provider.name, item, state.last_sent_context) then
+            highlight = 'OpencodeContextFile'
+            break
+          end
+        end
+      end
+      table.insert(segments, {
+        icon = provider.icon or icons.get('attached_file'),
+        text = provider.label .. ' (' .. (result.error and '!' or #result.items) .. ')',
+        highlight = highlight,
+      })
+    end
+  end
+end
 
 local function get_current_file_info(ctx)
   local current_file = ctx.current_file
@@ -141,6 +165,7 @@ local function create_winbar_segments()
       end
     end
   end
+  insert_provider_segments(segments)
   return segments
 end
 

@@ -2,11 +2,14 @@ local config = require('opencode.config')
 local context = require('opencode.context')
 local icons = require('opencode.ui.icons')
 local Promise = require('opencode.promise')
+local providers = require('opencode.context.providers')
+local state = require('opencode.state')
 
 local M = {}
 local kind_priority = {
   selection_item = 3,
   review_comment_item = 3,
+  context_provider_item = 3,
   mentioned_file = 4,
   subagent = 5,
 }
@@ -258,6 +261,57 @@ local function remove_inserted_text(item)
   vim.fn.feedkeys(vim.api.nvim_replace_termcodes('a', true, false, true), 'n')
 end
 
+---Fence text so the preview shows it verbatim, even if it contains backticks.
+---@param text string
+---@param filetype? string
+---@return string
+local function fence(text, filetype)
+  local longest = 2
+  for run in text:gmatch('`+') do
+    longest = math.max(longest, #run)
+  end
+  local marker = string.rep('`', longest + 1)
+  return marker .. (filetype or '') .. '\n' .. text .. '\n' .. marker
+end
+
+---@return CompletionItem[]
+local function add_context_provider_items()
+  local results = {}
+  for _, result in ipairs(providers.collect()) do
+    results[result.provider.name] = result
+  end
+
+  local items = {}
+  for _, provider in ipairs(providers.list()) do
+    local result = results[provider.name]
+    local count = result and #result.items or 0
+    local documentation = result and result.error and ('Provider failed: ' .. result.error)
+      or ('Toggle ' .. provider.label .. ' context')
+    items[#items + 1] = create_context_item(
+      provider.label .. (count > 0 and (' (' .. count .. ')') or ''),
+      'context_provider',
+      providers.is_enabled(provider.name),
+      documentation,
+      nil,
+      provider.name
+    )
+    for index, item in ipairs(result and result.items or {}) do
+      local sent = providers.is_sent(provider.name, item, state.last_sent_context)
+      local preview = providers.preview(provider, item)
+      items[#items + 1] = create_context_item(
+        ('%s %d: %s%s'):format(provider.label, index, item.name, sent and ' (sent)' or ''),
+        'context_provider_item',
+        true,
+        'Select to remove ' .. item.name .. '\n\n' .. fence(preview.text, preview.filetype),
+        provider.icon or icons.get('attached_file'),
+        { provider = provider.name, item = item, reference = provider.reference },
+        kind_priority.context_provider_item
+      )
+    end
+  end
+  return items
+end
+
 local custom_kind = require('opencode.ui.completion.kind')
 
 ---@type CompletionSource
@@ -284,6 +338,7 @@ local context_source = {
     vim.list_extend(items, add_review_comment_items(ctx))
     vim.list_extend(items, add_mentioned_files_items(ctx))
     vim.list_extend(items, add_subagents_items(ctx))
+    vim.list_extend(items, add_context_provider_items())
 
     if #input > 0 then
       items = vim.tbl_filter(function(item)
@@ -300,7 +355,16 @@ local context_source = {
     end
 
     local type = item.data.type
-    if type ~= 'review_comment_item' then
+    if type == 'context_provider' then
+      local name = item.data.additional_data --[[@as string]]
+      providers.set_enabled(name, not providers.is_enabled(name))
+    elseif type == 'context_provider_item' then
+      local data = item.data.additional_data --[[@as { provider: string, item: OpencodeContextProviderItem, reference?: boolean }]]
+      if data.reference then
+        input_win.remove_mention(data.item.name)
+      end
+      providers.remove(data.provider, data.item)
+    elseif type ~= 'review_comment_item' then
       context.toggle_context(type)
     end
 

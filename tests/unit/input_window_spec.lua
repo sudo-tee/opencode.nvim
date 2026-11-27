@@ -806,6 +806,47 @@ describe('input_window', function()
     end)
   end)
 
+  describe('insert_mention', function()
+    local saved_windows
+    local editor_win
+    local input_buf
+    local input_win
+
+    before_each(function()
+      saved_windows = state.windows
+      editor_win = vim.api.nvim_get_current_win()
+      input_buf = vim.api.nvim_create_buf(false, true)
+      vim.api.nvim_buf_set_lines(input_buf, 0, -1, false, { 'see that' })
+      input_win =
+        vim.api.nvim_open_win(input_buf, true, { relative = 'editor', row = 0, col = 0, width = 40, height = 3 })
+      state.ui.set_windows({ input_buf = input_buf, input_win = input_win })
+    end)
+
+    after_each(function()
+      vim.api.nvim_set_current_win(editor_win)
+      pcall(vim.api.nvim_win_close, input_win, true)
+      pcall(vim.api.nvim_buf_delete, input_buf, { force = true })
+      state.ui.set_windows(saved_windows)
+    end)
+
+    it('inserts at the cursor once when the input is focused', function()
+      vim.api.nvim_win_set_cursor(input_win, { 1, 3 })
+
+      input_window.insert_mention('@a.txt')
+      input_window.insert_mention('@a.txt')
+
+      assert.same({ 'see @a.txt that' }, vim.api.nvim_buf_get_lines(input_buf, 0, -1, false))
+    end)
+
+    it('appends when the input is not focused', function()
+      vim.api.nvim_set_current_win(editor_win)
+
+      input_window.insert_mention('@a.txt')
+
+      assert.same({ 'see that @a.txt ' }, vim.api.nvim_buf_get_lines(input_buf, 0, -1, false))
+    end)
+  end)
+
   local function make_entry(content)
     return {
       id = 'msg_1',

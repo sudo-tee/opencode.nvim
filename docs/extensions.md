@@ -57,6 +57,74 @@ and [`dispatch.lua`](../lua/opencode/commands/dispatch.lua) for the lifecycle
 contract. They fire for every command, whether it came from a key, an API
 call, an Ex command, or a slash command.
 
+## Context providers
+
+Register a provider after `setup()` to send your own text with each prompt:
+
+```lua
+require('opencode').register_context_provider({
+  name = 'notes',        -- [%w_-]+, unique, not a built-in context name
+  label = 'Notes',
+  icon = '󰎚 ',           -- optional
+  enabled = true,        -- optional; providers are off by default
+  collect = function(ctx) -- ctx.prompt is the current draft
+    return { { id = 'today', name = 'notes.txt', text = 'Ship the fix' } }
+  end,
+  preview = function(item) return item.text:sub(1, 200) end, -- optional
+  remove = function(item) end,    -- optional; called from the context picker
+  on_sent = function(items) end,  -- optional; called once the server accepts them
+  render = function(attachment) end, -- optional; how sent attachments look in the output
+})
+```
+
+Each item needs a unique `id`, a single-line `name`, and non-empty `text`.
+Items are sent as `text/plain` file attachments on V1 and V2.
+
+`preview` changes what the context picker shows for an item. Return a string,
+or `{ text = ..., filetype = ... }` to highlight it. It defaults to the exact
+text, which is also used if `preview` fails.
+
+`render` changes how a sent attachment appears in the output, which otherwise
+shows its name. It receives `{ name, text, media_type }` for each inline
+`text/plain` attachment in the session, including history from earlier runs, so
+match on `name` rather than on your current items. Return a string or a list of
+Markdown lines, shown below an `icon label name` header, `{}` to hide the
+attachment, or `nil` to leave it to the next provider and then the default. It runs for disabled providers too; a failure is
+logged and falls back to the default. For other attachment types, use an
+[attachment formatter](#attachment-formatters).
+
+OpenCode keeps every provider visible:
+
+- The context bar shows `icon label (n)` for each enabled provider with items
+  (for a `reference` provider, only the referenced ones).
+  It is dimmed when every item was already sent and shows `(!)` with a warning
+  highlight when `collect` fails.
+- The context picker (`#` by default) toggles each provider, previews each
+  item, and removes an item through `remove`.
+- An item is sent again only when its name or text changes. A failing provider
+  is skipped and logged; other providers and the prompt are unaffected.
+
+Call `require('opencode').refresh_context()` after your items change, and
+`unregister_context_provider(name)` to remove a provider.
+`require('opencode').is_input_window()` reports whether the OpenCode input is
+focused.
+
+### References
+
+Set `reference = true` to send an item only while the prompt contains
+`@<item.name>`. Names must then be unique and use only `[%w_-./]`. The model
+sees the token in the prompt next to an attachment of the same name. On V2 the
+attachment is linked to the token, which is then highlighted in the output;
+V1 cannot link inline attachments.
+
+`require('opencode').insert_context_reference(item)` inserts the token at the
+cursor when the input is focused, and appends it to the draft otherwise.
+Deleting the token detaches the item, but it stays in your provider's list until
+you drop it. Removing the item from the context picker also deletes its token.
+
+See [Paste as an attachment](recipes/paste-as-attachment.md) for a complete
+provider.
+
 ## Local slash commands
 
 Register a Lua callback before or after `setup()`:
@@ -264,6 +332,55 @@ The function returns `true` when a custom formatter or built-in override was
 removed and `false` otherwise. Removing an override restores the built-in
 formatter. For complete formatters covering `pty_spawn` and `pty_read`, see the
 [opencode-pty recipe](recipes/tool-formatter.md).
+
+## Attachment formatters
+
+A provider `render` only sees inline `text/plain` attachments. To change how
+any file attachment in a user message looks, including images and files sent
+by path, register an attachment formatter:
+
+```lua
+require('opencode').register_attachment_formatter('png_size', {
+  format = function(output, attachment)
+    if attachment.media_type ~= 'image/png' then
+      return -- write nothing to decline
+    end
+    output:add_line('**image** `' .. attachment.name .. '`')
+  end,
+})
+```
+
+`attachment` has these fields:
+
+| Field | Value |
+| --- | --- |
+| `name` | Attachment name |
+| `uri` | `file://` or `data:<mime>;base64,` URI as sent |
+| `media_type` | MIME type, when known |
+| `path` | Local path for a `file://` URI, after `server.reverse_path_map` |
+| `part_id` | Key for `get_rendered_part`; absent outside the output window, e.g. in the session picker |
+
+Formatters run in registration order before provider `render` hooks and the
+default `` [`name`](name) `` line. The first one that writes lines renders the
+part; OpenCode still adds the user message border. A failing formatter's
+partial output is discarded, the error is logged once, and the next formatter
+is tried. Names must be unique; `unregister_attachment_formatter(name)` returns
+whether one was removed. `format` runs on every redraw of the part, so cache
+expensive work.
+
+### Overlays on rendered output
+
+To draw something over the output, such as an image, a formatter can reserve
+blank lines and remember `attachment.part_id`. After each render,
+`require('opencode').get_rendered_part(part_id)` returns
+`{ buf, win, first, last }`: 1-indexed, inclusive buffer lines, and the output
+window when it shows the buffer (`win` is `nil` otherwise). It returns `nil`
+once the part is no longer rendered.
+
+The `User OpencodeOutputRendered` autocmd fires after OpenCode writes the
+output buffer, with `args.data.buf`. Line positions can change on every render,
+so re-place overlays there, and on `WinScrolled`/`WinResized` for scrolling.
+See [Inline images](recipes/inline-images.md) for a complete recipe.
 
 ## Prompt guard
 

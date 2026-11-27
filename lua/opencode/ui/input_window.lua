@@ -206,6 +206,31 @@ function M.append_mention(mention)
   end
 end
 
+---Insert a mention at the cursor when the input is focused, otherwise append it.
+---@param mention string
+function M.insert_mention(mention)
+  local windows = state.windows
+  if not M.mounted(windows) or windows.input_win ~= vim.api.nvim_get_current_win() then
+    return M.append_mention(mention)
+  end
+  ---@cast windows { input_buf: integer, input_win: integer }
+  local lines = vim.api.nvim_buf_get_lines(windows.input_buf, 0, -1, false)
+  if table.concat(lines, '\n'):find(mention, 1, true) then
+    return
+  end
+  local row, col = unpack(vim.api.nvim_win_get_cursor(windows.input_win))
+  local line = lines[row]
+  ---@cast line string
+  -- Like vim.paste: before the cursor in insert mode, after it in normal mode.
+  local after = not vim.api.nvim_get_mode().mode:find('^i') and line ~= ''
+  local at = after and col + 1 or col
+  local preceding = line:sub(at, at)
+  local leading = (preceding ~= '' and not preceding:match('%s')) and ' ' or ''
+  local trailing = line:sub(at + 1, at + 1):match('%s') and '' or ' '
+  vim.api.nvim_put({ leading .. mention .. trailing }, 'c', after, true)
+  require('opencode.ui.mention').highlight_all_mentions(windows.input_buf)
+end
+
 function M.setup(windows)
   if config.ui.input.text.wrap then
     window_options.set_window_option('wrap', true, windows.input_win)

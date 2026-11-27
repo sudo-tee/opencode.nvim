@@ -836,9 +836,6 @@ local function submit_parts(input)
       if type(file.bytes) ~= 'string' then
         fail('invalid submit file bytes')
       end
-      if file.mention ~= nil then
-        fail('V1 cannot attach a mention to bytes without a server file identity')
-      end
       url = 'data:' .. file.media_type .. ';base64,' .. vim.base64.encode(file.bytes)
     else
       if type(file.server_uri) ~= 'string' or not file.server_uri:match('^file:///') then
@@ -847,7 +844,9 @@ local function submit_parts(input)
       url = file.server_uri
     end
     local source
-    if file.mention then
+    -- A V1 mention lives in a `file` source, which needs a server path; inline
+    -- bytes have none, so their mention is dropped rather than faked.
+    if file.mention and file.server_uri then
       source = {
         type = 'file',
         path = vim.uri_to_fname(file.server_uri),

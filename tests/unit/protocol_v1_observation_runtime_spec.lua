@@ -945,21 +945,24 @@ describe('V1 protocol Observation runtime', function()
     server.submits[1].request:resolve(response('ses-wire', 'msg-user', input.messageID, 'user', 2, 'stop'))
     assert.equals('accepted', result:wait().kind)
 
-    assert.has_error(function()
-      observe(connection, 'ses-wire-invalid'):submit({
-        text = '@file',
-        context = {},
-        files = {
-          {
-            bytes = 'raw',
-            media_type = 'text/plain',
-            mention = { start_byte = 0, end_byte = 5 },
-          },
+    observe(connection, 'ses-wire-inline'):submit({
+      text = '@file',
+      context = {},
+      files = {
+        {
+          name = 'file',
+          bytes = 'raw',
+          media_type = 'text/plain',
+          mention = { start_byte = 0, end_byte = 5 },
         },
-        agents = {},
-      })
-    end, 'V1 observation: V1 cannot attach a mention to bytes without a server file identity')
-    assert.equals(1, #server.submits)
+      },
+      agents = {},
+    })
+    assert.equals(2, #server.submits)
+    local inline = server.submits[2].input.parts[1]
+    assert.equals('file', inline.type)
+    assert.equals('data:text/plain;base64,' .. vim.base64.encode('raw'), inline.url)
+    assert.is_nil(inline.source)
 
     assert.has_error(function()
       observe(connection, 'ses-wire-half-codepoint'):submit({
@@ -969,7 +972,7 @@ describe('V1 protocol Observation runtime', function()
         agents = { { name = 'review', mention = { start_byte = 4, end_byte = 14 } } },
       })
     end, 'V1 observation: input mention must use UTF-8 codepoint boundaries')
-    assert.equals(1, #server.submits)
+    assert.equals(2, #server.submits)
   end)
 
   it('keeps accepted for user, wrong-parent, incomplete, and continuing-tool responses', function()

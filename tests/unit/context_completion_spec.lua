@@ -1,4 +1,5 @@
 local helpers = require('tests.helpers')
+local stub = require('luassert.stub')
 local context_completion = require('opencode.ui.completion.context')
 
 local function find_item_by_label(items, label)
@@ -247,6 +248,62 @@ describe('context completion', function()
       local review_agent = find_item_by_label(items, 'review (agent)')
       assert.is_not_nil(review_agent)
       assert.are.equal('subagent', review_agent.data.type)
+    end)
+
+    it('lists context provider toggles and items with an exact preview', function()
+      local providers = require('opencode.context.providers')
+      providers._reset()
+      local removed
+      providers.register({
+        name = 'notes',
+        label = 'Notes',
+        icon = 'N ',
+        enabled = true,
+        collect = function()
+          return { { id = 'a', name = 'note.txt', text = 'has ``` fence' } }
+        end,
+        remove = function(item)
+          removed = item.id
+        end,
+      })
+
+      local items = source.complete({ trigger_char = '#', input = '' }):wait()
+
+      local toggle = find_item_by_label(items, 'Notes (1)')
+      assert.equals('context_provider', toggle.data.type)
+      local item = find_item_by_label(items, 'Notes 1: note.txt')
+      assert.equals('N ', item.kind_icon)
+      assert.is_truthy(item.documentation:find('````\nhas ``` fence\n````', 1, true))
+
+      stub(vim, 'schedule')
+      source.on_complete(item)
+      source.on_complete(toggle)
+      vim.schedule:revert()
+      assert.equals('a', removed)
+      assert.is_false(providers.is_enabled('notes'))
+      providers._reset()
+    end)
+
+    it('shows a provider preview with its filetype', function()
+      local providers = require('opencode.context.providers')
+      providers._reset()
+      providers.register({
+        name = 'notes',
+        label = 'Notes',
+        enabled = true,
+        collect = function()
+          return { { id = 'a', name = 'note.txt', text = 'long body' } }
+        end,
+        preview = function(item)
+          return { text = item.text:sub(1, 4), filetype = 'markdown' }
+        end,
+      })
+
+      local items = source.complete({ trigger_char = '#', input = '' }):wait()
+
+      local item = find_item_by_label(items, 'Notes 1: note.txt')
+      assert.is_truthy(item.documentation:find('```markdown\nlong\n```', 1, true))
+      providers._reset()
     end)
 
     it('should filter items based on input', function()

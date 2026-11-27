@@ -1347,6 +1347,30 @@ function M.get_target_at_position(line, col, filter, ctx)
   return ctx.render_state:get_target_at_position(line, col, filter)
 end
 
+---@class OpencodeRenderedPartLines
+---@field buf integer Output buffer
+---@field win? integer Output window, when it shows the buffer
+---@field first integer First buffer line, 1-indexed
+---@field last integer Last buffer line, inclusive
+
+---Where a part currently sits in the output buffer.
+---@param part_id string
+---@param ctx? RendererCtx
+---@return OpencodeRenderedPartLines?
+function M.get_part_lines(part_id, ctx)
+  ctx = ctx or contexts.current()
+  local part = ctx.render_state:get_part(part_id)
+  local windows = state.windows
+  if not (part and part.line_start and part.line_end and windows and windows.output_buf) then
+    return nil
+  end
+  local win = windows.output_win
+  if not (win and vim.api.nvim_win_is_valid(win) and vim.api.nvim_win_get_buf(win) == windows.output_buf) then
+    win = nil
+  end
+  return { buf = windows.output_buf, win = win, first = part.line_start + 1, last = part.line_end + 1 }
+end
+
 ---@param part_id string
 ---@param message_id string
 ---@param ctx? RendererCtx

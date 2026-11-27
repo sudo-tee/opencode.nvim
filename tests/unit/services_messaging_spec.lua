@@ -961,6 +961,72 @@ describe('opencode.services.messaging', function()
     context.restore(original_context)
   end)
 
+  describe('context providers', function()
+    local providers = require('opencode.context.providers')
+    local items, sent_batches
+
+    before_each(function()
+      providers._reset()
+      items = { { id = 'a', name = 'note.txt', text = 'note body' } }
+      sent_batches = {}
+      providers.register({
+        name = 'notes',
+        label = 'Notes',
+        enabled = true,
+        collect = function()
+          return items
+        end,
+        on_sent = function(sent)
+          sent_batches[#sent_batches + 1] = sent
+        end,
+      })
+      state.session.set_active({ id = 'sess-provider' })
+    end)
+
+    after_each(function()
+      providers._reset()
+    end)
+
+    it('sends provider items as text files once and reports them after admission', function()
+      local observation = state.session.active_observation()
+      local original_submit = observation.submit
+      local submitted = {}
+      observation.submit = function(_, params)
+        submitted[#submitted + 1] = vim.deepcopy(params)
+        return successful_submission()
+      end
+
+      messaging.send_message('first'):wait()
+      messaging.send_message('second'):wait()
+
+      local function provider_files(params)
+        return vim.tbl_filter(function(file)
+          return file.bytes ~= nil
+        end, params.files or {})
+      end
+      assert.same(
+        { { name = 'note.txt', media_type = 'text/plain', bytes = 'note body' } },
+        provider_files(submitted[1])
+      )
+      assert.same({}, provider_files(submitted[2]))
+      assert.same({ { items[1] } }, sent_batches)
+      observation.submit = original_submit
+    end)
+
+    it('does not report items as sent when submission fails', function()
+      local observation = state.session.active_observation()
+      local original_submit = observation.submit
+      observation.submit = function()
+        return Promise.new():reject('Test error')
+      end
+
+      messaging.send_message('hello'):wait()
+
+      assert.same({}, sent_batches)
+      observation.submit = original_submit
+    end)
+  end)
+
   it('decrements user_message_count on error', function()
     state.ui.set_windows({ mock = 'windows' })
     state.session.set_active({ id = 'sess1' })

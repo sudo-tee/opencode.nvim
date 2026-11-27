@@ -288,6 +288,37 @@ function M.format_duration_seconds(start_time, end_time)
   return string.format('%ds', elapsed_seconds)
 end
 
+---First whole-token occurrence of `reference` in `prompt`.
+---@param prompt string
+---@param reference string
+---@return integer? start_pos 1-based
+---@return integer? end_pos 1-based, inclusive
+function M.find_reference(prompt, reference)
+  local search_from = 1
+  while true do
+    local start_pos, end_pos = prompt:find(reference, search_from, true)
+    if not start_pos then
+      return nil
+    end
+    ---@cast end_pos integer
+
+    local preceding = start_pos > 1 and prompt:sub(start_pos - 1, start_pos - 1) or ''
+    local following = prompt:sub(end_pos + 1, end_pos + 1)
+    if not preceding:match('[%w_%-]') and not following:match('[%w_%-]') then
+      return start_pos, end_pos
+    end
+    search_from = start_pos + 1
+  end
+end
+
+---Whether `reference` occurs in `prompt` as a whole token.
+---@param prompt string
+---@param reference string
+---@return boolean
+function M.has_reference(prompt, reference)
+  return M.find_reference(prompt, reference) ~= nil
+end
+
 function M.index_of(tbl, value)
   for i, v in ipairs(tbl) do
     if v == value then

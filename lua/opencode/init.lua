@@ -1,6 +1,7 @@
 local M = {}
 
 local setup_done = false
+---@type OpencodeState?
 local state
 
 local session_runtime = require('opencode.services.session_runtime')
@@ -37,6 +38,63 @@ end
 ---@return boolean
 function M.unregister_tool_formatter(name)
   return require('opencode.ui.formatter.tool_registry').unregister(name)
+end
+
+---Register a recipe-owned formatter for file attachments in user messages.
+---Formatters run in registration order; the first one that writes lines wins.
+---@param name string
+---@param formatter OpencodeAttachmentFormatter
+function M.register_attachment_formatter(name, formatter)
+  return require('opencode.ui.formatter.attachment_registry').register(name, formatter)
+end
+
+---@param name string
+---@return boolean
+function M.unregister_attachment_formatter(name)
+  return require('opencode.ui.formatter.attachment_registry').unregister(name)
+end
+
+---Buffer lines a rendered part occupies in the output, e.g. an attachment's
+---`part_id`. Returns nil when the part is not rendered.
+---@param part_id string
+---@return OpencodeRenderedPartLines?
+function M.get_rendered_part(part_id)
+  return require('opencode.ui.renderer').get_part_lines(part_id)
+end
+
+---Register a recipe-owned context provider. Its items are shown in the
+---context bar and `#` picker and sent as text/plain attachments.
+---@param provider OpencodeContextProvider
+function M.register_context_provider(provider)
+  return require('opencode.context.providers').register(provider)
+end
+
+---@param name string
+---@return boolean
+function M.unregister_context_provider(name)
+  return require('opencode.context.providers').unregister(name)
+end
+
+---Redraw context surfaces after a provider's items changed.
+function M.refresh_context()
+  return require('opencode.context.providers').refresh()
+end
+
+---Insert `@<item.name>` into the prompt so a `reference` provider sends the item.
+---@param item OpencodeContextProviderItem
+function M.insert_context_reference(item)
+  local providers = require('opencode.context.providers')
+  require('opencode.ui.input_window').insert_mention(providers.reference(item))
+  providers.refresh()
+end
+
+---Whether the current window is the main OpenCode prompt input.
+---@return boolean
+function M.is_input_window()
+  local windows = state and state.windows
+  return windows ~= nil
+    and windows.input_win == vim.api.nvim_get_current_win()
+    and windows.input_buf == vim.api.nvim_get_current_buf()
 end
 
 local function on_opencode_server()

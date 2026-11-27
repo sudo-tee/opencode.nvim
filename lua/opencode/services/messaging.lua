@@ -9,6 +9,7 @@ local session_runtime = require('opencode.services.session_runtime')
 local agent_model = require('opencode.services.agent_model')
 local session_tabs = require('opencode.state.session_tabs')
 local optimistic = require('opencode.state.optimistic')
+local context_providers = require('opencode.context.providers')
 
 local M = {}
 
@@ -37,6 +38,7 @@ end
 ---@class PreparedMessage
 ---@field params table
 ---@field submission_context OpencodeContext
+---@field provider_sends table<string, OpencodeContextProviderItem[]>
 ---@field selected_model {mode?: string, model?: string, variant?: string}
 ---@field model_update OpencodeSessionTabModelUpdate
 
@@ -76,6 +78,8 @@ local function prepare_message(observation, prompt, opts, snapshot)
     context.load()
   end
 
+  ---@type table<string, OpencodeContextProviderItem[]>
+  local provider_sends = {}
   local submission_context = vim.deepcopy(snapshot and snapshot.context or context.get_context())
   local session_id = snapshot and snapshot.session_id
     or (not snapshot and state.active_session and state.active_session.id or nil)
@@ -106,6 +110,7 @@ local function prepare_message(observation, prompt, opts, snapshot)
     .format_message(prompt, opts.context, {
       previous_context = previous_context,
       submission_context = submission_context,
+      provider_sends = provider_sends,
     })
     :await()
   params = vim.tbl_extend('force', params, overrides)
@@ -114,6 +119,7 @@ local function prepare_message(observation, prompt, opts, snapshot)
   return {
     params = params,
     submission_context = submission_context,
+    provider_sends = provider_sends,
     selected_model = selected_model,
     model_update = model_update,
   }
@@ -155,6 +161,7 @@ local function submit_message(observation, prompt, tab_id, session_id, prepared,
   local ok, result = admitted, response
   if admitted then
     ---@cast response OpencodeSubmission
+    context_providers.notify_sent(prepared.provider_sends)
     ok, result = pcall(complete_submission, response, prompt, tab_id, prepared)
   end
 

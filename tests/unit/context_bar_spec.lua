@@ -197,6 +197,38 @@ describe('opencode.ui.context_bar', function()
       assert.is_not_nil(winbar_capture.value:find('%%#OpencodeContextCurrentFileNotUpdated#'))
     end)
 
+    it('renders one segment per enabled context provider', function()
+      local providers = require('opencode.context.providers')
+      providers._reset()
+      providers.register({
+        name = 'notes',
+        label = 'Notes',
+        icon = 'N ',
+        enabled = true,
+        collect = function()
+          return { { id = 'a', name = 'a.txt', text = 'a' }, { id = 'b', name = 'b.txt', text = 'b' } }
+        end,
+      })
+      providers.register({
+        name = 'broken',
+        label = 'Broken',
+        enabled = true,
+        collect = function()
+          error('boom')
+        end,
+      })
+
+      local capture = create_mock_window(2050)
+      state.ui.set_windows({ input_win = 2050 })
+      context_bar.render()
+      providers._reset()
+
+      assert.is_not_nil(capture.value:find('%#OpencodeContextFile#N Notes (2)', 1, true))
+      assert.is_not_nil(
+        capture.value:find('%#OpencodeContextWarning#' .. icons.get('attached_file') .. 'Broken (!)', 1, true)
+      )
+    end)
+
     it('renders winbar with multiple context elements', function()
       mock_context.current_file = { name = 'main.lua', path = '/src/main.lua' }
       mock_context.mentioned_files = { '/file1.lua', '/file2.lua' }
